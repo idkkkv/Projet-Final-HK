@@ -22,6 +22,10 @@ class Player :
         self.puissance_saut = 600 
         self.speed = 300
         self.on_ground = True  
+        self.direction = 1
+        self.attacking = False #indique si le joueur est en train d'attaquer
+        self.attack_rect = pygame.Rect(0,0,40,40) #zone d'attaque
+        self.attack_timer = 0 #temps pour la durée de l'attaque
 
         self.idle_anim = Animation([pygame.image.load("img/player_idle.png"), pygame.image.load("img/player_idle2.png")], img_dur=20)
 
@@ -34,8 +38,10 @@ class Player :
     def mouvement(self, dt, keys):
         if keys[K_d]:  #D
             self.vx = self.speed
+            self.direction = 1
         elif keys[K_q]:  #Q
             self.vx = -self.speed
+            self.direction = -1
         else:
             self.vx = 0
 
@@ -53,9 +59,32 @@ class Player :
             self.vy = 0
             self.on_ground = True
 
+        if keys[K_f] and not self.attacking:
+            self.attacking = True
+            self.attack_timer = 0.2
+
+        if self.attacking:
+            self.attack_timer -= dt
+
+        if self.direction == 1:
+            self.attack_rect.topleft = (self.rect.right, self.rect.y+20)
+        else:
+            self.attack_rect.topright = (self.rect.left, self.rect.y+20)
+
+        if self.attack_timer <= 0:
+            self.attacking = False
+
     def draw(self, surf):
-        surf.blit(self.idle_anim.img(), self.rect)  # Faire apparaitre le personnage 
+        img = self.idle_anim.img() #L'animation de base du joueur
         self.idle_anim.update()
+
+        if self.direction == -1:
+            img = pygame.transform.flip(img, True, False) #Retourne l'image si le joueur regarde à gauche
+
+        surf.blit(img, self.rect) #Dessine le joueur
+
+        if self.attacking:
+            pygame.draw.rect(surf, BLANC, self.attack_rect) 
         
 
 #-----------OBSTACLES-----------
@@ -72,6 +101,23 @@ class Platform :
                 player.vy = 0
     def draw(self, surf):
         pygame.draw.rect(surf, self.color, self.rect)
+
+class Enemy :
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 60, 60)
+        self.vx = 120
+        self.alive = True
+
+    def update(self, dt):
+        self.rect.x += self.vx * dt
+
+        # change de direction s'il touche un bord
+        if self.rect.left < 0 or self.rect.right > WIDTH:
+            self.vx *= -1
+
+    def draw(self, surf):
+        if self.alive:
+            pygame.draw.rect(surf, ROUGE, self.rect)
 
 #-----------ANIMATIONS-----------
 
@@ -105,6 +151,7 @@ class Game:
         self.clock = pygame.time.Clock()
 
         self.player = Player((100, 320)) #Position de départ 
+        self.enemies = [Enemy(500, 530 - 60)] 
 
         self.platforms = [
             Platform(200, 500, 100, 20, BLANC),
@@ -123,13 +170,25 @@ class Game:
             keys = pygame.key.get_pressed()
             self.player.mouvement(dt, keys)
 
+            for enemy in self.enemies: enemy.update(dt) #mettre à jour les ennemis
+
+            for enemy in self.enemies: #collisions entre le joueur et les ennemis
+                if enemy.alive and self.player.attacking:
+                    if enemy.rect.colliderect(self.player.attack_rect):
+                        enemy.alive = False
+
             for platform in self.platforms:
                 platform.verifier_collision(self.player)
             self.screen.fill(VIOLET)
+
             for platform in self.platforms:
                 platform.draw(self.screen)
 
+            for enemy in self.enemies:
+                enemy.draw(self.screen)
+
             self.player.draw(self.screen)
+
             pygame.display.flip()
 
 if __name__ == "__main__":
