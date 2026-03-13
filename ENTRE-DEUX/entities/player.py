@@ -76,14 +76,11 @@ class Player:
         if self.attack_timer <= 0:
             self.attacking = False
 
-    def draw(self, surf):
+    def draw(self, surf, camera):
         img = self.idle_anim.img()
         self.idle_anim.update()
-
         if self.direction == -1:
             img = pygame.transform.flip(img, True, False)
-
-        surf.blit(img, self.rect)
-
+        surf.blit(img, camera.apply(self.rect))  # ← camera.apply() ici
         if self.attacking:
-            pygame.draw.rect(surf, BLANC, self.attack_rect)
+            pygame.draw.rect(surf, BLANC, camera.apply(self.attack_rect))

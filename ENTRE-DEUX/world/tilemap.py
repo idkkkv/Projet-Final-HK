@@ -17,5 +17,5 @@ class Platform:
                 player.on_ground = True
                 player.vy = 0
 
-    def draw(self, surf):
-        pygame.draw.rect(surf, self.color, self.rect)
+    def draw(self, surf, camera):
+        pygame.draw.rect(surf, self.color, camera.apply(self.rect))

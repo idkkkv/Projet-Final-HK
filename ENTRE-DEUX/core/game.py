@@ -4,6 +4,7 @@
 
 import pygame
 from settings import *
+from core.camera import Camera
 from entities.player import Player
 from entities.enemy import Enemy
 from world.tilemap import Platform
@@ -12,12 +13,13 @@ from world.collision import check_attack_collisions, check_platform_collisions
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption(TITLE)
         self.running = True
         self.clock = pygame.time.Clock()
 
         self.player = Player((100, 320))
+        self.camera = Camera(SCENE_WIDTH, SCENE_HEIGHT)
         self.enemies = [Enemy(500, 530 - 60)]
         self.platforms = [
             Platform(200, 500, 100, 20, BLANC),
@@ -37,6 +39,8 @@ class Game:
             # Mise à jour
             keys = pygame.key.get_pressed()
             self.player.mouvement(dt, keys)
+            self.camera.update(self.player.rect)
+
 
             for enemy in self.enemies:
                 enemy.update(dt)
@@ -48,10 +52,13 @@ class Game:
             self.screen.fill(VIOLET)
 
             for platform in self.platforms:
-                platform.draw(self.screen)
-            for enemy in self.enemies:
-                enemy.draw(self.screen)
+                if self.camera.is_visible(platform.rect):
+                    platform.draw(self.screen, self.camera)
 
-            self.player.draw(self.screen)
+            for enemy in self.enemies:
+                if self.camera.is_visible(enemy.rect):
+                    enemy.draw(self.screen, self.camera)
+
+            self.player.draw(self.screen, self.camera)
 
             pygame.display.flip()

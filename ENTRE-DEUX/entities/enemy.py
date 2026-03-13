@@ -18,6 +18,6 @@ class Enemy:
         if self.rect.left < 0 or self.rect.right > WIDTH:
             self.vx *= -1
 
-    def draw(self, surf):
+    def draw(self, surf, camera):
         if self.alive:
-            pygame.draw.rect(surf, ROUGE, self.rect)
+            pygame.draw.rect(surf, ROUGE, camera.apply(self.rect))
