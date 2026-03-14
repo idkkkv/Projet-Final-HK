@@ -3,7 +3,7 @@ import random
 
 # ─── Réglages ───────────────────────────
 FOND_ALPHA   = 40  # luminosité ambiante (0=noir total, 100=sombre, 255=jour)
-RAYON_JOUEUR = 100  # taille du halo du joueur
+RAYON_JOUEUR = 140  # taille du halo du joueur
 # ────────────────────────────────────────
 
 class LightingSystem:
@@ -11,12 +11,12 @@ class LightingSystem:
         self.lights = []
         self._cache = {}
         self._textures = {
-            "player": pygame.image.load("assets/images/light_player.png").convert(),
-            "torch":  pygame.image.load("assets/images/light_medium.png").convert(),
-            "large":  pygame.image.load("assets/images/light_large.png").convert(),
-            "cool":   pygame.image.load("assets/images/light_cool.png").convert(),
-            "dim":    pygame.image.load("assets/images/light_dim.png").convert(),
-        }
+                "player":     pygame.image.load("assets/images/light_player.png").convert(),
+                "torch":      pygame.image.load("assets/images/light_medium.png").convert(),
+                "large":      pygame.image.load("assets/images/light_large.png").convert(),
+                "cool":       pygame.image.load("assets/images/light_cool.png").convert(),
+                "dim":        pygame.image.load("assets/images/light_dim.png").convert(),
+                "background": pygame.image.load("assets/images/light_background.png").convert(),  }
 
     def add_light(self, x, y, radius, type="player", flicker=False):
         self.lights.append({"x": x, "y": y, "radius": radius,

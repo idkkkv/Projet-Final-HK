@@ -85,9 +85,9 @@ class Editor:
         else:
             cx, cy = self.light_first_point
             radius = int(((wx - cx)**2 + (wy - cy)**2) ** 0.5)
-            print("Type ? (p=player / t=torch / l=large / c=cool / d=dim) : ", end="")
+            print("Type ? (p=player / t=torch / l=large / c=cool / d=dim/ b=back) : ", end="")
             choice = input().strip().lower()
-            types = {"p": "player", "t": "torch", "l": "large", "c": "cool", "d": "dim"}
+            types = {"p": "player", "t": "torch", "l": "large", "c": "cool", "d": "dim", "b": "background"}
             light_type = types.get(choice, "torch")
             self.lighting.add_light(cx, cy, radius=radius, type=light_type)
             print(f"✓ Lumière '{light_type}' — ({cx},{cy}) r={radius}")
