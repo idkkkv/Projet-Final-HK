@@ -41,10 +41,10 @@ class Player:
         # Clavier — écrase la manette si une touche est pressée
         if keys[K_d]:
             self.vx = self.speed
-            self.direction = 1   # ← corrigé
+            self.direction = -1   # ← corrigé
         elif keys[K_q]:
             self.vx = -self.speed
-            self.direction = -1  # ← corrigé
+            self.direction = 1  # ← corrigé
 
         # Gravité
         self.vy += self.gravity * dt
