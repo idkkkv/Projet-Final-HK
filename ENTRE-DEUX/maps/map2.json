@@ -1,0 +1,190 @@
+{
+  "ground_y": 610,
+  "scene_width": 2700,
+  "camera_y_offset": 150,
+  "spawn": {
+    "x": 89,
+    "y": 578
+  },
+  "bg_color": [
+    38,
+    19,
+    46
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 400,
+      "y": 300,
+      "w": 100,
+      "h": 20
+    },
+    {
+      "x": 1779,
+      "y": 717,
+      "w": 116,
+      "h": 37
+    },
+    {
+      "x": 1969,
+      "y": 841,
+      "w": 89,
+      "h": 5
+    },
+    {
+      "x": 2297,
+      "y": 717,
+      "w": 79,
+      "h": 220
+    },
+    {
+      "x": 670,
+      "y": 466,
+      "w": 24,
+      "h": 18
+    },
+    {
+      "x": 703,
+      "y": 461,
+      "w": 41,
+      "h": 5
+    },
+    {
+      "x": 754,
+      "y": 455,
+      "w": 25,
+      "h": 27
+    },
+    {
+      "x": 754,
+      "y": 488,
+      "w": 22,
+      "h": 29
+    },
+    {
+      "x": 719,
+      "y": 524,
+      "w": 24,
+      "h": 23
+    },
+    {
+      "x": 694,
+      "y": 545,
+      "w": 4,
+      "h": 22
+    },
+    {
+      "x": 710,
+      "y": 534,
+      "w": 4,
+      "h": 21
+    },
+    {
+      "x": 676,
+      "y": 572,
+      "w": 13,
+      "h": 9
+    },
+    {
+      "x": 683,
+      "y": 596,
+      "w": 21,
+      "h": 12
+    },
+    {
+      "x": 724,
+      "y": 591,
+      "w": 10,
+      "h": 26
+    },
+    {
+      "x": 753,
+      "y": 598,
+      "w": 34,
+      "h": 13
+    },
+    {
+      "x": 801,
+      "y": 592,
+      "w": 7,
+      "h": 20
+    }
+  ],
+  "enemies": [
+    {
+      "x": 1000,
+      "y": 570,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png"
+    },
+    {
+      "x": 1166,
+      "y": 570,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png"
+    },
+    {
+      "x": 1783,
+      "y": 570,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png"
+    },
+    {
+      "x": 1865,
+      "y": 570,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png"
+    },
+    {
+      "x": 986,
+      "y": 570,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png"
+    },
+    {
+      "x": 1631,
+      "y": 570,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png"
+    }
+  ],
+  "lights": [
+    {
+      "x": 300,
+      "y": 480,
+      "radius": 150,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    },
+    {
+      "x": 600,
+      "y": 380,
+      "radius": 200,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 22,
+      "y": 504,
+      "w": 6,
+      "h": 102,
+      "target_map": "map1",
+      "target_x": -1,
+      "target_y": -1
+    }
+  ]
+}

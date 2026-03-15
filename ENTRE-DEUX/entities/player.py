@@ -19,10 +19,29 @@ class Player:
         self.puissance_saut = JUMP_POWER
         self.speed = PLAYER_SPEED
         self.on_ground = True
-        self.direction = 1   # 1 = droite, -1 = gauche
+        self.direction = 1
         self.attacking = False
         self.attack_rect = pygame.Rect(0, 0, 40, 40)
         self.attack_timer = 0
+
+        # Spawn
+        self.spawn_x = pos[0]
+        self.spawn_y = pos[1]
+
+        # Invincibilité
+        self.invincible = False
+        self.invincible_timer = 0.0
+        self.INVINCIBLE_DURATION = 1.0
+        self.knockback_vx = 0.0
+
+        # Vie
+        self.max_hp = 5
+        self.hp = self.max_hp
+        self.show_hp_timer = 0.0   # temps restant pour afficher la vie
+        self.HP_DISPLAY_DURATION = 2.0  # secondes
+
+        # Regard (pour afficher la vie)
+        self.looking_up = False
 
         self.idle_anim = Animation(
             [
@@ -32,8 +51,35 @@ class Player:
             img_dur=20
         )
 
-    def mouvement(self, dt, keys):
+        self._heart_font = None
+
+    def respawn(self):
+        self.rect.x = self.spawn_x
+        self.rect.y = self.spawn_y
         self.vx = 0
+        self.vy = 0
+        self.knockback_vx = 0
+        self.on_ground = False
+        self.hp = self.max_hp
+
+    def hit_by_enemy(self, enemy_rect):
+        if self.invincible:
+            return
+        if self.rect.centerx < enemy_rect.centerx:
+            self.knockback_vx = -300
+        else:
+            self.knockback_vx = 300
+        self.vy = -150
+        self.invincible = True
+        self.invincible_timer = self.INVINCIBLE_DURATION
+        self.hp -= 1
+        self.show_hp_timer = self.HP_DISPLAY_DURATION
+        if self.hp <= 0:
+            self.respawn()
+
+    def mouvement(self, dt, keys, holes=None):
+        self.vx = 0
+        self.looking_up = False
 
         # Manette
         if abs(settings.axis_x) > DEAD_ZONE:
@@ -48,35 +94,58 @@ class Player:
             self.vx = -self.speed
             self.direction = 1
 
+        # Regarder en haut → affiche la vie
+        if keys[K_z] or keys[K_UP]:
+            self.looking_up = True
+            self.show_hp_timer = self.HP_DISPLAY_DURATION
+
+        self.vx += self.knockback_vx
+        if abs(self.knockback_vx) > 1:
+            self.knockback_vx *= 0.85
+        else:
+            self.knockback_vx = 0
+
         # Gravité
         self.vy += self.gravity * dt
 
-        # Saut clavier
+        # Saut
         if keys[K_SPACE] and self.on_ground:
             self.vy = -self.puissance_saut
             self.on_ground = False
 
-        # Saut manette
         if settings.manette and settings.manette.get_button(0) and self.on_ground:
             self.vy = -self.puissance_saut
             self.on_ground = False
 
         # Mouvement
-        self.rect.x += self.vx * dt
-        self.rect.y += self.vy * dt
+        self.rect.x += int(self.vx * dt)
+        self.rect.y += int(self.vy * dt)
 
-        # Sol dynamique (settings.GROUND_Y est modifiable par l'éditeur)
-        if self.rect.bottom > settings.GROUND_Y:
+        # Vérifier si le joueur est dans un trou (ignore sol/plafond)
+        in_hole = False
+        if holes:
+            for hole in holes:
+                if self.rect.colliderect(hole):
+                    in_hole = True
+                    break
+
+        # Sol (seulement si pas dans un trou)
+        if not in_hole and self.rect.bottom > settings.GROUND_Y:
             self.rect.bottom = settings.GROUND_Y
             self.vy = 0
             self.on_ground = True
 
-        # Attaque clavier
+        # Plafond (seulement si pas dans un trou)
+        if not in_hole and hasattr(settings, 'CEILING_Y'):
+            if self.rect.top < settings.CEILING_Y:
+                self.rect.top = settings.CEILING_Y
+                self.vy = 0
+
+        # Attaque
         if keys[K_f] and not self.attacking:
             self.attacking = True
             self.attack_timer = ATTACK_DURATION
 
-        # Attaque manette
         if settings.manette and settings.manette.get_button(2) and not self.attacking:
             self.attacking = True
             self.attack_timer = ATTACK_DURATION
@@ -92,11 +161,52 @@ class Player:
         if self.attack_timer <= 0:
             self.attacking = False
 
-    def draw(self, surf, camera):
+        # Timers
+        if self.invincible:
+            self.invincible_timer -= dt
+            if self.invincible_timer <= 0:
+                self.invincible = False
+
+        if self.show_hp_timer > 0:
+            self.show_hp_timer -= dt
+
+    def draw(self, surf, camera, show_hitbox=False):
         img = self.idle_anim.img()
         self.idle_anim.update()
         if self.direction == -1:
             img = pygame.transform.flip(img, True, False)
-        surf.blit(img, camera.apply(self.rect))
+
+        if self.invincible:
+            if int(self.invincible_timer * 12) % 2 == 0:
+                surf.blit(img, camera.apply(self.rect))
+        else:
+            surf.blit(img, camera.apply(self.rect))
+
         if self.attacking:
             pygame.draw.rect(surf, BLANC, camera.apply(self.attack_rect))
+
+        # Cœurs au-dessus du joueur
+        if self.show_hp_timer > 0:
+            self._draw_hearts(surf, camera)
+
+        if show_hitbox:
+            pygame.draw.rect(surf, (0, 255, 0), camera.apply(self.rect), 1)
+
+    def _draw_hearts(self, surf, camera):
+        if self._heart_font is None:
+            self._heart_font = pygame.font.SysFont("Consolas", 18)
+        sr = camera.apply(self.rect)
+        # Dessine des carrés colorés comme cœurs
+        heart_size = 12
+        gap = 4
+        total_w = self.max_hp * (heart_size + gap) - gap
+        start_x = sr.centerx - total_w // 2
+        y = sr.top - 20
+        for i in range(self.max_hp):
+            x = start_x + i * (heart_size + gap)
+            if i < self.hp:
+                color = (255, 50, 80)  # rouge = plein
+            else:
+                color = (80, 80, 80)   # gris = vide
+            pygame.draw.rect(surf, color, (x, y, heart_size, heart_size))
+            pygame.draw.rect(surf, (200, 200, 200), (x, y, heart_size, heart_size), 1)

@@ -24,6 +24,7 @@ GRAVITY        = 1500
 JUMP_POWER     = 600
 PLAYER_SPEED   = 300
 ATTACK_DURATION = 0.2
+CEILING_Y = 0
 
 # Sol (temporaire, sera remplacé par les collisions de tilemap)
 GROUND_Y = 590

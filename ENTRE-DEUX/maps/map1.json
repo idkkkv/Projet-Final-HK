@@ -1,0 +1,87 @@
+{
+  "ground_y": 590,
+  "scene_width": 1600,
+  "camera_y_offset": 150,
+  "spawn": {
+    "x": 1442,
+    "y": 562
+  },
+  "bg_color": [
+    38,
+    19,
+    46
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 400,
+      "y": 300,
+      "w": 100,
+      "h": 20
+    },
+    {
+      "x": 692,
+      "y": 412,
+      "w": 17,
+      "h": 25
+    },
+    {
+      "x": 674,
+      "y": 436,
+      "w": 18,
+      "h": 20
+    },
+    {
+      "x": 655,
+      "y": 459,
+      "w": 19,
+      "h": 17
+    }
+  ],
+  "enemies": [
+    {
+      "x": 7607,
+      "y": 550,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png",
+      "can_jump": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80
+    }
+  ],
+  "lights": [
+    {
+      "x": 300,
+      "y": 480,
+      "radius": 150,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    },
+    {
+      "x": 600,
+      "y": 380,
+      "radius": 200,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 1567,
+      "y": 479,
+      "w": 10,
+      "h": 110,
+      "target_map": "map2",
+      "target_x": -1,
+      "target_y": -1
+    }
+  ]
+}
