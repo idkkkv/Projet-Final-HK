@@ -88,8 +88,8 @@ class Game:
         self.platform_grid.rebuild(self.platforms)
 
     def _all_walls(self):
-        """Tous les murs (bords + custom)."""
-        return self.walls + self.editor.custom_walls
+        """Tous les murs (bords + custom + bordures de trous)."""
+        return self.walls + self.editor.custom_walls + self.editor.hole_borders
 
     def _update_enemy_lights(self):
         """Met à jour les lumières attachées aux ennemis."""
@@ -246,6 +246,7 @@ class Game:
                 self._last_ceiling_y = settings.CEILING_Y
                 self._last_scene_w = settings.SCENE_WIDTH
                 self._build_walls()
+                self.editor.rebuild_hole_borders()
 
             # ── Mise à jour ──────────────────────
             keys = pygame.key.get_pressed()
@@ -280,8 +281,10 @@ class Game:
                 for wall in self.walls:
                     wall.verifier_collision(self.player)
 
-            # Custom walls → TOUJOURS actifs (y compris les bordures des trous)
+            # Custom walls + bordures trous → TOUJOURS actifs
             for wall in self.editor.custom_walls:
+                wall.verifier_collision(self.player)
+            for wall in self.editor.hole_borders:
                 wall.verifier_collision(self.player)
 
             self.lighting.update(dt)
@@ -297,6 +300,9 @@ class Game:
                 if self.camera.is_visible(wall.rect):
                     wall.draw(self.screen, self.camera)
             for wall in self.editor.custom_walls:
+                if self.camera.is_visible(wall.rect):
+                    wall.draw(self.screen, self.camera)
+            for wall in self.editor.hole_borders:
                 if self.camera.is_visible(wall.rect):
                     wall.draw(self.screen, self.camera)
 

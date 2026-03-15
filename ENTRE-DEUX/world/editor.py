@@ -10,6 +10,7 @@ from entities.enemy import Enemy, list_enemy_sprites
 from systems.hitbox_config import get_hitbox, set_hitbox
 from settings import *
 from world.tilemap import Platform, Wall
+from utils import find_file
 
 LIGHT_TYPES = ["player", "torch", "large", "cool", "dim", "background"]
 
@@ -51,6 +52,7 @@ class Editor:
         self.first_point = None
         self.portals = []
         self.custom_walls = []
+        self.hole_borders = []
 
         # 0=Plateforme 1=Mob 2=Lumiere 3=Spawn 4=Portail 5=Mur 6=Hitbox 7=Trou
         self.mode = 0
@@ -247,6 +249,7 @@ class Editor:
         self.lighting.lights.clear()
         self.portals.clear()
         self.custom_walls.clear()
+        self.hole_borders.clear()
         self.holes.clear()
         settings.GROUND_Y = 590
         settings.CEILING_Y = 0
@@ -256,6 +259,53 @@ class Editor:
         self.player.respawn()
         self.camera.y_offset = 150
         self.bg_color = list(VIOLET)
+
+    def rebuild_hole_borders(self):
+        """Recalcule les murs de bordure pour tous les trous.
+        Appelé quand le sol/plafond/scène change ou quand un trou est ajouté."""
+        self.hole_borders.clear()
+        t = 10
+        gy = settings.GROUND_Y
+        cy = settings.CEILING_Y
+        sw = settings.SCENE_WIDTH
+
+        for hole in self.holes:
+            x, y, w, h = hole.x, hole.y, hole.width, hole.height
+
+            # Trou dans le sol
+            if y + h > gy - 20:
+                wall_top = gy + 2  # commence SOUS le sol, pas au niveau
+                wall_h = y + h - wall_top
+                if wall_h > 0:
+                    self.hole_borders.append(Wall(x - t, wall_top, t, wall_h + t, visible=True))
+                    self.hole_borders.append(Wall(x + w, wall_top, t, wall_h + t, visible=True))
+                self.hole_borders.append(Wall(x - t, y + h, w + t*2, t, visible=True))
+            # Trou dans le plafond
+            elif y < cy + 20:
+                wall_bot = min(y + h, cy)
+                wall_h = wall_bot - y
+                self.hole_borders.append(Wall(x - t, y - t, t, wall_h + t, visible=True))
+                self.hole_borders.append(Wall(x + w, y - t, t, wall_h + t, visible=True))
+                self.hole_borders.append(Wall(x - t, y - t, w + t*2, t, visible=True))
+            # Trou mur gauche
+            elif x < 20:
+                wall_right = min(x + w, 20)
+                wall_w = wall_right - x
+                self.hole_borders.append(Wall(x - t, y - t, wall_w + t, t, visible=True))
+                self.hole_borders.append(Wall(x - t, y + h, wall_w + t, t, visible=True))
+                self.hole_borders.append(Wall(x - t, y - t, t, h + t*2, visible=True))
+            # Trou mur droit
+            elif x + w > sw - 20:
+                wall_left = max(x, sw - 20)
+                wall_w = x + w - wall_left
+                self.hole_borders.append(Wall(wall_left, y - t, wall_w + t, t, visible=True))
+                self.hole_borders.append(Wall(wall_left, y + h, wall_w + t, t, visible=True))
+                self.hole_borders.append(Wall(x + w, y - t, t, h + t*2, visible=True))
+            # Trou ailleurs
+            else:
+                self.hole_borders.append(Wall(x - t, y, t, h + t, visible=True))
+                self.hole_borders.append(Wall(x + w, y, t, h + t, visible=True))
+                self.hole_borders.append(Wall(x - t, y + h, w + t*2, t, visible=True))
 
     def _ask_text(self, mode, prompt):
         self._text_mode = mode
@@ -351,37 +401,7 @@ class Editor:
                 self._ask_text("portal_name", p)
             elif kind == "hole":
                 self.holes.append(pygame.Rect(x, y, w, h))
-                # Détecte quel côté ouvrir en fonction de la position
-                t = 10
-                gy = settings.GROUND_Y
-                cy = settings.CEILING_Y
-                sw = settings.SCENE_WIDTH
-
-                # Trou dans le sol → ouvert en haut
-                if y + h > gy - 20:
-                    self.custom_walls.append(Wall(x - t, y, t, h + t, visible=True))
-                    self.custom_walls.append(Wall(x + w, y, t, h + t, visible=True))
-                    self.custom_walls.append(Wall(x - t, y + h, w + t*2, t, visible=True))
-                # Trou dans le plafond → ouvert en bas
-                elif y < cy + 20:
-                    self.custom_walls.append(Wall(x - t, y - t, t, h + t, visible=True))
-                    self.custom_walls.append(Wall(x + w, y - t, t, h + t, visible=True))
-                    self.custom_walls.append(Wall(x - t, y - t, w + t*2, t, visible=True))
-                # Trou dans le mur gauche → ouvert à droite
-                elif x < 20:
-                    self.custom_walls.append(Wall(x - t, y - t, w + t, t, visible=True))
-                    self.custom_walls.append(Wall(x - t, y + h, w + t, t, visible=True))
-                    self.custom_walls.append(Wall(x - t, y - t, t, h + t*2, visible=True))
-                # Trou dans le mur droit → ouvert à gauche
-                elif x + w > sw - 20:
-                    self.custom_walls.append(Wall(x, y - t, w + t, t, visible=True))
-                    self.custom_walls.append(Wall(x, y + h, w + t, t, visible=True))
-                    self.custom_walls.append(Wall(x + w, y - t, t, h + t*2, visible=True))
-                # Trou dans un mur custom → ouvert en haut par défaut
-                else:
-                    self.custom_walls.append(Wall(x - t, y, t, h + t, visible=True))
-                    self.custom_walls.append(Wall(x + w, y, t, h + t, visible=True))
-                    self.custom_walls.append(Wall(x - t, y + h, w + t*2, t, visible=True))
+                self.rebuild_hole_borders()
 
     def _click_mob(self, wx, wy):
         # ── Mode patrouille ──
@@ -488,16 +508,51 @@ class Editor:
             self.light_first_point = None
 
     def _click_hitbox(self, wx, wy):
+        """Mode hitbox : on clique en coordonnées ÉCRAN sur le sprite affiché."""
+        # Le sprite est affiché en haut à gauche à (hb_sprite_x, hb_sprite_y) agrandi x3
+        if not self._enemy_sprites:
+            return
+        name = self._enemy_sprites[self._hb_sprite_index % len(self._enemy_sprites)]
+
+        # Charger l'image pour connaître sa taille
+        try:
+            from entities.enemy import ENEMIES_DIR
+            path = os.path.join(ENEMIES_DIR, name)
+            if not os.path.exists(path):
+                path = find_file(name)
+            img = pygame.image.load(path)
+        except Exception:
+            return
+
+        scale = 4
+        sw, sh = img.get_width() * scale, img.get_height() * scale
+        # Position du sprite sur l'écran
+        screen = pygame.display.get_surface()
+        sx = (screen.get_width() - sw) // 2
+        sy = 120  # sous le panneau éditeur
+
+        # Convertir le clic monde en clic écran
+        mx = int(wx - self.camera.offset_x)
+        my = int(wy - self.camera.offset_y)
+
+        # Vérifier que le clic est sur le sprite
+        if not (sx <= mx <= sx + sw and sy <= my <= sy + sh):
+            return
+
+        # Position relative au sprite (en pixels originaux)
+        rel_x = (mx - sx) // scale
+        rel_y = (my - sy) // scale
+
         if self._hb_first_point is None:
-            self._hb_first_point = (wx, wy)
+            self._hb_first_point = (rel_x, rel_y)
         else:
             x1, y1 = self._hb_first_point
-            x, y = min(x1, wx), min(y1, wy)
-            w, h = abs(wx - x1), abs(wy - y1)
+            x, y = min(x1, rel_x), min(y1, rel_y)
+            w, h = abs(rel_x - x1), abs(rel_y - y1)
             self._hb_first_point = None
-            if w > 2 and h > 2:
-                name = self._enemy_sprites[self._hb_sprite_index % len(self._enemy_sprites)]
-                set_hitbox(name, w, h, 0, 0)
+            if w > 1 and h > 1:
+                set_hitbox(name, w, h, x, y)
+                print(f"Hitbox '{name}': {w}x{h} offset({x},{y})")
 
     def handle_right_click(self, mouse_pos):
         if self._text_mode:
@@ -518,6 +573,7 @@ class Editor:
             self.custom_walls[:] = [w for w in self.custom_walls if not w.rect.colliderect(pt)]
         elif self.mode == 7:
             self.holes[:] = [h for h in self.holes if not h.colliderect(pt)]
+            self.rebuild_hole_borders()
 
     # ── Preview ──────────────────────────────
 
@@ -571,19 +627,74 @@ class Editor:
                     f"Portee: {self._detect_target.detect_range}  Dir: {'D' if self._detect_target.direction > 0 else 'G'}",
                     True, (255, 255, 0)), (dr.x, dr.y - 18))
         elif self.mode == 6:
-            if self._hb_first_point:
-                wx = int(mouse_pos[0] + self.camera.offset_x)
-                wy = int(mouse_pos[1] + self.camera.offset_y)
-                x = min(self._hb_first_point[0], wx) - int(self.camera.offset_x)
-                y = min(self._hb_first_point[1], wy) - int(self.camera.offset_y)
-                w = abs(wx - self._hb_first_point[0])
-                h = abs(wy - self._hb_first_point[1])
-                pygame.draw.rect(surf, (255, 0, 0), (x, y, w, h), 2)
-                # Taille en bas à droite du rectangle
-                font = self._get_font()
-                size_text = f"{w}x{h}"
-                surf.blit(font.render(size_text, True, (255, 0, 0)),
-                          (x + w + 5, y + h + 2))
+            self._draw_hitbox_editor(surf, mouse_pos)
+
+    def _draw_hitbox_editor(self, surf, mouse_pos):
+        """Affiche le sprite agrandi au centre + la hitbox actuelle + preview."""
+        font = self._get_font()
+        if not self._enemy_sprites:
+            return
+        name = self._enemy_sprites[self._hb_sprite_index % len(self._enemy_sprites)]
+
+        # Charger l'image
+        try:
+            from entities.enemy import ENEMIES_DIR
+            path = os.path.join(ENEMIES_DIR, name)
+            if not os.path.exists(path):
+                path = find_file(name)
+            img = pygame.image.load(path)
+        except Exception:
+            surf.blit(font.render(f"Sprite introuvable: {name}", True, (255,0,0)), (10, 130))
+            return
+
+        scale = 4
+        sw_img, sh_img = img.get_width() * scale, img.get_height() * scale
+        screen_w = surf.get_width()
+
+        # Position du sprite (centré horizontalement, sous le panneau)
+        sx = (screen_w - sw_img) // 2
+        sy = 120
+
+        # Fond sombre derrière le sprite
+        bg_rect = pygame.Rect(sx - 10, sy - 10, sw_img + 20, sh_img + 20)
+        pygame.draw.rect(surf, (20, 10, 30), bg_rect)
+        pygame.draw.rect(surf, (100, 100, 100), bg_rect, 1)
+
+        # Sprite agrandi
+        scaled = pygame.transform.scale(img, (sw_img, sh_img))
+        surf.blit(scaled, (sx, sy))
+
+        # Hitbox actuelle (vert)
+        hb = get_hitbox(name)
+        hb_screen = pygame.Rect(
+            sx + hb["ox"] * scale, sy + hb["oy"] * scale,
+            hb["w"] * scale, hb["h"] * scale)
+        pygame.draw.rect(surf, (0, 255, 0), hb_screen, 2)
+        surf.blit(font.render(f"Actuel: {hb['w']}x{hb['h']} off({hb['ox']},{hb['oy']})",
+            True, (0, 255, 0)), (sx, sy + sh_img + 8))
+
+        # Preview de la sélection en cours (rouge)
+        if self._hb_first_point:
+            # Position du premier clic sur le sprite (en pixels écran)
+            p1_sx = sx + self._hb_first_point[0] * scale
+            p1_sy = sy + self._hb_first_point[1] * scale
+            # Position actuelle de la souris relative au sprite
+            mx, my = mouse_pos
+            if sx <= mx <= sx + sw_img and sy <= my <= sy + sh_img:
+                rx = min(p1_sx, mx)
+                ry = min(p1_sy, my)
+                rw = abs(mx - p1_sx)
+                rh = abs(my - p1_sy)
+                pygame.draw.rect(surf, (255, 0, 0), (rx, ry, rw, rh), 2)
+                # Taille en pixels originaux
+                ow = rw // scale
+                oh = rh // scale
+                surf.blit(font.render(f"{ow}x{oh}", True, (255, 0, 0)),
+                          (rx + rw + 5, ry + rh + 2))
+
+        # Instructions
+        surf.blit(font.render(f"[T] sprite: {name}  |  Clic sur le sprite pour dessiner la hitbox",
+            True, (200, 200, 200)), (sx, sy + sh_img + 28))
 
     def draw_overlays(self, surf):
         font = self._get_font()
@@ -611,7 +722,7 @@ class Editor:
         surf.blit(panel, (0, 0))
 
         hb = " [Hitbox]" if self.show_hitboxes else ""
-        surf.blit(font.render(f"EDITEUR - {self._mode_names[self.mode]}{hb}",
+        surf.blit(font.render(f"EDITEUR - [{self.mode+1}/8] {self._mode_names[self.mode]}{hb}",
             True, (0,255,120)), (10, 6))
 
         info = (f"Sol:{settings.GROUND_Y} Plaf:{settings.CEILING_Y} "
@@ -782,6 +893,7 @@ class Editor:
         self.holes.clear()
         for h in data.get("holes", []):
             self.holes.append(pygame.Rect(h["x"], h["y"], h["w"], h["h"]))
+        self.rebuild_hole_borders()
 
     def load_map_for_portal(self, name):
         fp = os.path.join(MAPS_DIR, f"{name}.json")

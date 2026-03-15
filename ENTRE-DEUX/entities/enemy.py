@@ -298,9 +298,16 @@ class Enemy:
             img = pygame.transform.flip(img, True, False)
         self.idle_anim.update()
 
-        # Sprite centré horizontalement, pieds au bas de la hitbox
-        sprite_x = self.rect.centerx - self.sprite_w // 2
-        sprite_y = self.rect.bottom - self.sprite_h
+        # Sprite positionné avec l'offset de hitbox
+        # La hitbox est à (ox, oy) dans le sprite
+        if self.direction >= 0:
+            sprite_x = self.rect.x - self.hitbox_ox
+            sprite_y = self.rect.y - self.hitbox_oy
+        else:
+            # Quand retourné, l'offset X est miroir
+            flipped_ox = self.sprite_w - self.hitbox_ox - self.hitbox_w
+            sprite_x = self.rect.x - flipped_ox
+            sprite_y = self.rect.y - self.hitbox_oy
         sprite_rect = pygame.Rect(sprite_x, sprite_y, self.sprite_w, self.sprite_h)
         surf.blit(img, camera.apply(sprite_rect))
 
