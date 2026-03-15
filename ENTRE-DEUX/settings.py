@@ -7,7 +7,7 @@ import pygame
 SCENE_WIDTH  = 2400   # largeur d'une scène (3x l'écran)
 SCENE_HEIGHT = 4000   # hauteur d'une scène (2x l'écran)
 
-WIDTH, HEIGHT = 800, 640
+WIDTH, HEIGHT = 1520, 745
 FPS = 80
 TITLE = "ENTRE-DEUX"
 

@@ -4,22 +4,24 @@
 
 import pygame
 from pygame.locals import *
+import settings
 from utils import *
 from settings import *
 from entities.animation import Animation
 
+
 class Player:
     def __init__(self, pos=(0, 0)):
-        self.rect = pygame.Rect(pos[0], pos[1], 90, 104)  # x, y, width, height
+        self.rect = pygame.Rect(pos[0], pos[1], 90, 104)
         self.vx = 0
         self.vy = 0
         self.gravity = GRAVITY
         self.puissance_saut = JUMP_POWER
         self.speed = PLAYER_SPEED
         self.on_ground = True
-        self.direction = 1  # 1 = droite, -1 = gauche
+        self.direction = 1   # 1 = droite, -1 = gauche
         self.attacking = False
-        self.attack_rect = pygame.Rect(0, 0, 40, 40)  # zone d'attaque
+        self.attack_rect = pygame.Rect(0, 0, 40, 40)
         self.attack_timer = 0
 
         self.idle_anim = Animation(
@@ -31,20 +33,20 @@ class Player:
         )
 
     def mouvement(self, dt, keys):
-        self.vx = 0  # reset unique au début
+        self.vx = 0
 
-        # Manette — joystick gauche (axe 0)
+        # Manette
         if abs(settings.axis_x) > DEAD_ZONE:
             self.vx = settings.axis_x * self.speed
             self.direction = -1 if settings.axis_x > 0 else 1
 
-        # Clavier — écrase la manette si une touche est pressée
+        # Clavier
         if keys[K_d]:
             self.vx = self.speed
-            self.direction = -1   # ← corrigé
+            self.direction = -1
         elif keys[K_q]:
             self.vx = -self.speed
-            self.direction = 1  # ← corrigé
+            self.direction = 1
 
         # Gravité
         self.vy += self.gravity * dt
@@ -54,7 +56,7 @@ class Player:
             self.vy = -self.puissance_saut
             self.on_ground = False
 
-        # Saut manette — bouton Croix = bouton 0
+        # Saut manette
         if settings.manette and settings.manette.get_button(0) and self.on_ground:
             self.vy = -self.puissance_saut
             self.on_ground = False
@@ -63,9 +65,9 @@ class Player:
         self.rect.x += self.vx * dt
         self.rect.y += self.vy * dt
 
-        # Sol temporaire
-        if self.rect.bottom > GROUND_Y:
-            self.rect.bottom = GROUND_Y
+        # Sol dynamique (settings.GROUND_Y est modifiable par l'éditeur)
+        if self.rect.bottom > settings.GROUND_Y:
+            self.rect.bottom = settings.GROUND_Y
             self.vy = 0
             self.on_ground = True
 
@@ -74,7 +76,7 @@ class Player:
             self.attacking = True
             self.attack_timer = ATTACK_DURATION
 
-        # Attaque manette — Carré = bouton 2
+        # Attaque manette
         if settings.manette and settings.manette.get_button(2) and not self.attacking:
             self.attacking = True
             self.attack_timer = ATTACK_DURATION
@@ -95,6 +97,6 @@ class Player:
         self.idle_anim.update()
         if self.direction == -1:
             img = pygame.transform.flip(img, True, False)
-        surf.blit(img, camera.apply(self.rect))  # ← camera.apply() ici
+        surf.blit(img, camera.apply(self.rect))
         if self.attacking:
             pygame.draw.rect(surf, BLANC, camera.apply(self.attack_rect))
