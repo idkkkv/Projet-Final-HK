@@ -13,6 +13,7 @@ TITLE = "ENTRE-DEUX"
 
 # Couleurs
 BLEU   = (98,  143, 217)
+BLEU_NUIT = (30, 30, 40)
 ROUGE  = (217, 108, 98)
 GRIS   = (178, 171, 184)
 VIOLET = (38,  19,  46)
