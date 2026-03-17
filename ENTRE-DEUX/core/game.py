@@ -17,6 +17,7 @@ from utils import draw_mouse_coords
 from world.collision import (check_attack_collisions,
                              check_platform_collisions,
                              check_player_enemy_collisions)
+from ui.inventory import Inventory
 
 # Ajoute CEILING_Y si absent de settings
 if not hasattr(settings, 'CEILING_Y'):
@@ -34,6 +35,10 @@ class Game:
         self.fps_font = pygame.font.SysFont("Consolas", 16)
         self._pause_font = pygame.font.SysFont("Consolas", 28)
         self._pause_small = pygame.font.SysFont("Consolas", 18)
+
+        #Inventaire
+        self.inventory = Inventory()
+        self.inventory.add_pomme()
 
         self._build_walls()
 
@@ -207,6 +212,9 @@ class Game:
                     if self.paused:
                         self._handle_pause_key(event.key)
                         continue
+                    if event.key == pygame.K_a:
+                        self.inventory.changer_etat_fenetre()
+
                     if event.key == pygame.K_e and not (
                             self.editor.active and self.editor._text_mode):
                         self.editor.toggle()
@@ -352,5 +360,6 @@ class Game:
                 ms = self.fps_font.render(self.current_map_name, True, (180,180,180))
                 self.screen.blit(ms, (10, self.screen.get_height()-25))
 
+            self.inventory.draw(self.screen)
             self._draw_fade()
             pygame.display.flip()
