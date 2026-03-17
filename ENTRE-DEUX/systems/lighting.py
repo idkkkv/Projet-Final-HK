@@ -7,7 +7,7 @@ FOND_ALPHA   = 40
 RAYON_JOUEUR = 140
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_IMG_DIR  = os.path.join(_BASE_DIR, "assets", "images")
+_IMG_DIR  = os.path.join(_BASE_DIR, "assets", "images","lumieres")
 
 class LightingSystem:
     def __init__(self):

@@ -54,12 +54,19 @@ class Editor:
         self.custom_walls = []
         self.hole_borders = []
 
-        # 0=Plateforme 1=Mob 2=Lumiere 3=Spawn 4=Portail 5=Mur 6=Hitbox 7=Trou
+        # 0=Plateforme 1=Mob 2=Lumiere 3=Spawn 4=Portail 5=Mur 6=Hitbox 7=Trou 8=Copier/Coller
         self.mode = 0
         self._mode_names = ["Plateforme", "Mob", "Lumiere",
-                            "Spawn", "Portail", "Mur", "Hitbox", "Trou"]
+                            "Spawn", "Portail", "Mur", "Hitbox", "Trou", "Copier/Coller"]
 
-        self.holes = []  # zones qui "percent" les murs
+        self.holes = []
+
+        # Copy/Paste (mode 8)
+        self._copy_rect = None
+        self._clipboard_platforms = []
+        self._clipboard_walls = []
+        self._copy_origin = None
+        self._has_clipboard = False
 
         # Lumiere
         self.light_type_index = 1
@@ -71,20 +78,23 @@ class Editor:
         self.mob_gravity = True
         self.mob_collision = True
         self.mob_can_jump = False
+        self.mob_can_jump_patrol = False
         self.mob_detect_range = 200
         self.mob_has_light = False
         self.mob_sprite_index = 0
+        self.mob_can_fall_in_holes = False   # ← NOUVEAU
+        self.mob_respawn_timeout = 10.0      # ← NOUVEAU (-1 = désactivé)
         self._enemy_sprites = []
         self._refresh_sprites()
 
-        # Mob patrol editing (sous-mode avec P)
+        # Mob patrol editing
         self.mob_patrol_mode = False
-        self._patrol_target = None      # l'ennemi sélectionné
-        self._patrol_first_x = None     # premier clic = limite gauche
+        self._patrol_target = None
+        self._patrol_first_x = None
 
-        # Mob detection editing (sous-mode avec D)
+        # Mob detection editing
         self.mob_detect_mode = False
-        self._detect_target = None      # ennemi sélectionné
+        self._detect_target = None
 
         # Hitbox editor
         self._hb_sprite_index = 0
@@ -104,7 +114,7 @@ class Editor:
         self.spawn_y = self.player.spawn_y
 
         # Per-map
-        self.bg_color = list(VIOLET)
+        self.bg_color = list(BLEU)
         self.wall_color = [0, 0, 0]
 
         self._font = None
@@ -135,7 +145,7 @@ class Editor:
         self._hb_first_point = None
 
     def change_mode(self):
-        self.mode = (self.mode + 1) % 8
+        self.mode = (self.mode + 1) % 9
         self.first_point = None
         self.light_first_point = None
         self._hb_first_point = None
@@ -144,6 +154,7 @@ class Editor:
         self._patrol_first_x = None
         self.mob_detect_mode = False
         self._detect_target = None
+        self._copy_rect = None
         if self.mode in (1, 6):
             self._refresh_sprites()
 
@@ -210,10 +221,30 @@ class Editor:
             self.mob_collision = not self.mob_collision
         elif key == pygame.K_j and self.mode == 1:
             self.mob_can_jump = not self.mob_can_jump
+        elif key == pygame.K_v and self.mode == 1:
+            self.mob_can_jump_patrol = not self.mob_can_jump_patrol
         elif key == pygame.K_i and self.mode == 1:
             self.mob_has_light = not self.mob_has_light
+        elif key == pygame.K_o and self.mode == 1:                      # ← NOUVEAU
+            self.mob_can_fall_in_holes = not self.mob_can_fall_in_holes
+            print(f"Tombe dans trous : {'ON' if self.mob_can_fall_in_holes else 'OFF'}")
         elif key == pygame.K_t and self.mode == 1:
             self.mob_sprite_index = (self.mob_sprite_index + 1) % max(1, len(self._enemy_sprites))
+
+        # Timeout respawn (pavé numérique * et /)                        # ← NOUVEAU
+        elif key == pygame.K_KP_MULTIPLY and self.mode == 1:
+            if self.mob_respawn_timeout < 0:
+                self.mob_respawn_timeout = 5.0
+            else:
+                self.mob_respawn_timeout = min(120.0, self.mob_respawn_timeout + 5.0)
+            print(f"Respawn timeout = {self.mob_respawn_timeout:.0f}s")
+        elif key == pygame.K_KP_DIVIDE and self.mode == 1:
+            self.mob_respawn_timeout = max(-1.0, self.mob_respawn_timeout - 5.0)
+            if self.mob_respawn_timeout == 0.0:
+                self.mob_respawn_timeout = -1.0
+            val = f"{self.mob_respawn_timeout:.0f}s" if self.mob_respawn_timeout > 0 else "OFF"
+            print(f"Respawn timeout = {val}")
+
         elif key == pygame.K_KP_PLUS and self.mode == 1 and self.mob_detect_mode and self._detect_target:
             self._detect_target.detect_range = min(600, self._detect_target.detect_range + 25)
             print(f"Portee mob = {self._detect_target.detect_range}")
@@ -224,6 +255,7 @@ class Editor:
             self.mob_detect_range = min(500, self.mob_detect_range + 25)
         elif key == pygame.K_KP_MINUS and self.mode == 1:
             self.mob_detect_range = max(50, self.mob_detect_range - 25)
+
         elif key == pygame.K_p and self.mode == 1:
             self.mob_patrol_mode = not self.mob_patrol_mode
             self.mob_detect_mode = False
@@ -241,6 +273,16 @@ class Editor:
             self._hb_sprite_index = (self._hb_sprite_index + 1) % max(1, len(self._enemy_sprites))
             self._hb_first_point = None
 
+        # Copy/Paste
+        elif key == pygame.K_c and self.mode == 8:
+            self._do_copy()
+        elif key == pygame.K_v and self.mode == 8:
+            if self._has_clipboard:
+                mx, my = pygame.mouse.get_pos()
+                wx = int(mx + self.camera.offset_x)
+                wy = int(my + self.camera.offset_y)
+                self._do_paste(wx, wy)
+
         return None
 
     def _new_map(self):
@@ -251,6 +293,8 @@ class Editor:
         self.custom_walls.clear()
         self.hole_borders.clear()
         self.holes.clear()
+        self._copy_rect = None
+        self._has_clipboard = False
         settings.GROUND_Y = 590
         settings.CEILING_Y = 0
         settings.SCENE_WIDTH = 2400
@@ -260,52 +304,133 @@ class Editor:
         self.camera.y_offset = 150
         self.bg_color = list(VIOLET)
 
+    def _merge_holes(self):
+        if not self.holes:
+            return []
+        merged = [h.copy() for h in self.holes]
+        changed = True
+        while changed:
+            changed = False
+            result = []
+            used = [False] * len(merged)
+            for i in range(len(merged)):
+                if used[i]:
+                    continue
+                current = merged[i].copy()
+                for j in range(i + 1, len(merged)):
+                    if used[j]:
+                        continue
+                    exp = pygame.Rect(current.x - 1, current.y - 1,
+                                      current.w + 2, current.h + 2)
+                    if exp.colliderect(merged[j]):
+                        current = current.union(merged[j])
+                        used[j] = True
+                        changed = True
+                result.append(current)
+            merged = result
+        return merged
+
     def rebuild_hole_borders(self):
-        """Recalcule les murs de bordure pour tous les trous.
-        Appelé quand le sol/plafond/scène change ou quand un trou est ajouté."""
         self.hole_borders.clear()
-        t = 10
+        t = 20
         gy = settings.GROUND_Y
         cy = settings.CEILING_Y
         sw = settings.SCENE_WIDTH
 
-        for hole in self.holes:
-            x, y, w, h = hole.x, hole.y, hole.width, hole.height
+        for hole in self._merge_holes():
+            hx, hy, hw, hh = hole.x, hole.y, hole.width, hole.height
+            hx2 = hx + hw
+            hy2 = hy + hh
 
-            # Trou dans le sol
-            if y + h > gy - 20:
-                wall_top = gy + 2  # commence SOUS le sol, pas au niveau
-                wall_h = y + h - wall_top
-                if wall_h > 0:
-                    self.hole_borders.append(Wall(x - t, wall_top, t, wall_h + t, visible=True))
-                    self.hole_borders.append(Wall(x + w, wall_top, t, wall_h + t, visible=True))
-                self.hole_borders.append(Wall(x - t, y + h, w + t*2, t, visible=True))
-            # Trou dans le plafond
-            elif y < cy + 20:
-                wall_bot = min(y + h, cy)
-                wall_h = wall_bot - y
-                self.hole_borders.append(Wall(x - t, y - t, t, wall_h + t, visible=True))
-                self.hole_borders.append(Wall(x + w, y - t, t, wall_h + t, visible=True))
-                self.hole_borders.append(Wall(x - t, y - t, w + t*2, t, visible=True))
-            # Trou mur gauche
-            elif x < 20:
-                wall_right = min(x + w, 20)
-                wall_w = wall_right - x
-                self.hole_borders.append(Wall(x - t, y - t, wall_w + t, t, visible=True))
-                self.hole_borders.append(Wall(x - t, y + h, wall_w + t, t, visible=True))
-                self.hole_borders.append(Wall(x - t, y - t, t, h + t*2, visible=True))
-            # Trou mur droit
-            elif x + w > sw - 20:
-                wall_left = max(x, sw - 20)
-                wall_w = x + w - wall_left
-                self.hole_borders.append(Wall(wall_left, y - t, wall_w + t, t, visible=True))
-                self.hole_borders.append(Wall(wall_left, y + h, wall_w + t, t, visible=True))
-                self.hole_borders.append(Wall(x + w, y - t, t, h + t*2, visible=True))
-            # Trou ailleurs
+            if hy2 > gy - t:
+                side_top = max(hy, gy)
+                side_bot = hy2 + t
+                side_h   = side_bot - side_top
+                if side_h > 0:
+                    self.hole_borders.append(
+                        Wall(hx - t, side_top, t, side_h, visible=True, player_only=True))
+                    self.hole_borders.append(
+                        Wall(hx2, side_top, t, side_h, visible=True, player_only=True))
+                self.hole_borders.append(
+                    Wall(hx - t, hy2, hw + t * 2, t, visible=True, player_only=True))
+
+            elif hy < cy + t:
+                side_top = hy - t
+                side_bot = min(hy2, cy)
+                side_h   = side_bot - side_top
+                if side_h > 0:
+                    self.hole_borders.append(
+                        Wall(hx - t, side_top, t, side_h, visible=True, player_only=True))
+                    self.hole_borders.append(
+                        Wall(hx2, side_top, t, side_h, visible=True, player_only=True))
+                self.hole_borders.append(
+                    Wall(hx - t, hy - t, hw + t * 2, t, visible=True, player_only=True))
+
+            elif hx < t:
+                side_left  = hx - t
+                side_right = min(hx2, 0)
+                side_w = side_right - side_left
+                if side_w > 0:
+                    self.hole_borders.append(
+                        Wall(side_left, hy - t, side_w, t, visible=True, player_only=True))
+                    self.hole_borders.append(
+                        Wall(side_left, hy2, side_w, t, visible=True, player_only=True))
+                self.hole_borders.append(
+                    Wall(hx - t, hy - t, t, hh + t * 2, visible=True, player_only=True))
+
+            elif hx2 > sw - t:
+                side_left = max(hx, sw)
+                side_w = hx2 + t - side_left
+                if side_w > 0:
+                    self.hole_borders.append(
+                        Wall(side_left, hy - t, side_w, t, visible=True, player_only=True))
+                    self.hole_borders.append(
+                        Wall(side_left, hy2, side_w, t, visible=True, player_only=True))
+                self.hole_borders.append(
+                    Wall(hx2, hy - t, t, hh + t * 2, visible=True, player_only=True))
+
             else:
-                self.hole_borders.append(Wall(x - t, y, t, h + t, visible=True))
-                self.hole_borders.append(Wall(x + w, y, t, h + t, visible=True))
-                self.hole_borders.append(Wall(x - t, y + h, w + t*2, t, visible=True))
+                self._punch_hole_in_custom_walls(hole)
+                self.hole_borders.append(
+                    Wall(hx - t, hy, t, hh + t, visible=True, player_only=True))
+                self.hole_borders.append(
+                    Wall(hx2, hy, t, hh + t, visible=True, player_only=True))
+                self.hole_borders.append(
+                    Wall(hx - t, hy2, hw + t * 2, t, visible=True, player_only=True))
+
+    def _punch_hole_in_custom_walls(self, hole):
+        from world.tilemap import Wall as WallCls
+        hx, hy, hw, hh = hole.x, hole.y, hole.width, hole.height
+        hx2 = hx + hw
+        hy2 = hy + hh
+
+        new_walls = []
+        walls_to_remove = []
+
+        for wall in self.custom_walls:
+            wr = wall.rect
+            if not wr.colliderect(hole):
+                continue
+            walls_to_remove.append(wall)
+            wx, wy, ww, wh = wr.x, wr.y, wr.width, wr.height
+            wx2 = wx + ww
+            wy2 = wy + wh
+
+            if hy > wy:
+                new_walls.append(WallCls(wx, wy, ww, hy - wy, visible=True))
+            if hy2 < wy2:
+                new_walls.append(WallCls(wx, hy2, ww, wy2 - hy2, visible=True))
+            top = max(wy, hy)
+            bot = min(wy2, hy2)
+            if bot > top:
+                if hx > wx:
+                    new_walls.append(WallCls(wx, top, hx - wx, bot - top, visible=True))
+                if hx2 < wx2:
+                    new_walls.append(WallCls(hx2, top, wx2 - hx2, bot - top, visible=True))
+
+        for w in walls_to_remove:
+            self.custom_walls.remove(w)
+        self.custom_walls.extend(new_walls)
 
     def _ask_text(self, mode, prompt):
         self._text_mode = mode
@@ -379,6 +504,11 @@ class Editor:
             self._click_hitbox(wx, wy)
         elif self.mode == 7:
             self._click_rect(wx, wy, "hole")
+        elif self.mode == 8:
+            if self._has_clipboard:
+                self._do_paste(wx, wy)
+            else:
+                self._click_rect(wx, wy, "copy_select")
 
     def _click_rect(self, wx, wy, kind):
         if self.first_point is None:
@@ -402,19 +532,18 @@ class Editor:
             elif kind == "hole":
                 self.holes.append(pygame.Rect(x, y, w, h))
                 self.rebuild_hole_borders()
+            elif kind == "copy_select":
+                self._copy_rect = pygame.Rect(x, y, w, h)
+                print(f"Zone sélectionnée ({w}x{h}) - [C] pour copier, [V] pour coller")
 
     def _click_mob(self, wx, wy):
-        # ── Mode patrouille ──
         if self.mob_patrol_mode:
             self._click_mob_patrol(wx, wy)
             return
-
-        # ── Mode détection ──
         if self.mob_detect_mode:
             self._click_mob_detect(wx, wy)
             return
 
-        # ── Mode normal : placer un mob ──
         hb = get_hitbox(self._current_sprite())
         test = pygame.Rect(wx, wy, hb["w"], hb["h"])
         for p in self.platforms:
@@ -427,15 +556,17 @@ class Editor:
             has_collision=self.mob_collision,
             sprite_name=self._current_sprite(),
             can_jump=self.mob_can_jump,
+            can_jump_patrol=self.mob_can_jump_patrol,
             detect_range=self.mob_detect_range,
             has_light=self.mob_has_light,
             patrol_left=wx - 300,
-            patrol_right=wx + 300))
+            patrol_right=wx + 300,
+            can_fall_in_holes=self.mob_can_fall_in_holes,   # ← NOUVEAU
+            respawn_timeout=self.mob_respawn_timeout,        # ← NOUVEAU
+        ))
 
     def _click_mob_patrol(self, wx, wy):
-        """3 clics : sélectionner mob → limite gauche → limite droite."""
         if self._patrol_target is None:
-            # Étape 1 : sélectionner le mob le plus proche
             best = None
             best_dist = 9999999
             for enemy in self.enemies:
@@ -445,32 +576,26 @@ class Editor:
                 if d < best_dist:
                     best_dist = d
                     best = enemy
-            if best and best_dist < 100 * 100:  # max 100px de distance
+            if best and best_dist < 100 * 100:
                 self._patrol_target = best
-                print(f"Mob selectionne - clic gauche pour la limite gauche")
+                print("Mob selectionne - clic gauche pour la limite gauche")
             else:
                 print("Aucun mob proche - clique sur un mob")
-
         elif self._patrol_first_x is None:
-            # Étape 2 : limite gauche
             self._patrol_first_x = wx
             print(f"Limite gauche = {wx} - clic pour la limite droite")
-
         else:
-            # Étape 3 : limite droite → appliquer
-            left = min(self._patrol_first_x, wx)
+            left  = min(self._patrol_first_x, wx)
             right = max(self._patrol_first_x, wx)
             if right - left > 20:
-                self._patrol_target.patrol_left = left
+                self._patrol_target.patrol_left  = left
                 self._patrol_target.patrol_right = right
                 print(f"Zone patrouille : {left} - {right}")
-            self._patrol_target = None
+            self._patrol_target  = None
             self._patrol_first_x = None
 
     def _click_mob_detect(self, wx, wy):
-        """Mode détection : clic sur mob = sélection, puis clic = direction."""
         if self._detect_target is None:
-            # Sélectionner le mob le plus proche
             best = None
             best_dist = 9999999
             for enemy in self.enemies:
@@ -482,11 +607,10 @@ class Editor:
                     best = enemy
             if best and best_dist < 100 * 100:
                 self._detect_target = best
-                print(f"Mob selectionne - clic a gauche ou droite pour la direction, +/- pour la portee")
+                print("Mob selectionne - clic a gauche ou droite pour la direction, +/- pour la portee")
             else:
                 print("Aucun mob proche")
         else:
-            # Clic = changer la direction du mob
             if wx < self._detect_target.rect.centerx:
                 self._detect_target.direction = -1
                 print("Direction = gauche")
@@ -507,14 +631,40 @@ class Editor:
                     flicker=self.light_flicker, flicker_speed=self.light_flicker_speed)
             self.light_first_point = None
 
+    def _do_copy(self):
+        if self._copy_rect is None:
+            print("Sélectionne d'abord une zone (clic x2)")
+            return
+        r = self._copy_rect
+        self._copy_origin = (r.x, r.y)
+        self._clipboard_platforms = []
+        self._clipboard_walls = []
+        for p in self.platforms:
+            if r.colliderect(p.rect):
+                self._clipboard_platforms.append(pygame.Rect(
+                    p.rect.x - r.x, p.rect.y - r.y, p.rect.w, p.rect.h))
+        for w in self.custom_walls:
+            if r.colliderect(w.rect):
+                self._clipboard_walls.append(pygame.Rect(
+                    w.rect.x - r.x, w.rect.y - r.y, w.rect.w, w.rect.h))
+        self._has_clipboard = True
+        print(f"Copié : {len(self._clipboard_platforms)} plateformes, "
+              f"{len(self._clipboard_walls)} murs. Clic pour coller.")
+
+    def _do_paste(self, wx, wy):
+        if not self._has_clipboard:
+            return
+        for rel in self._clipboard_platforms:
+            self.platforms.append(Platform(wx + rel.x, wy + rel.y, rel.w, rel.h, BLANC))
+        for rel in self._clipboard_walls:
+            self.custom_walls.append(Wall(wx + rel.x, wy + rel.y, rel.w, rel.h, visible=True))
+        total = len(self._clipboard_platforms) + len(self._clipboard_walls)
+        print(f"Collé {total} élément(s) à ({wx}, {wy})")
+
     def _click_hitbox(self, wx, wy):
-        """Mode hitbox : on clique en coordonnées ÉCRAN sur le sprite affiché."""
-        # Le sprite est affiché en haut à gauche à (hb_sprite_x, hb_sprite_y) agrandi x3
         if not self._enemy_sprites:
             return
         name = self._enemy_sprites[self._hb_sprite_index % len(self._enemy_sprites)]
-
-        # Charger l'image pour connaître sa taille
         try:
             from entities.enemy import ENEMIES_DIR
             path = os.path.join(ENEMIES_DIR, name)
@@ -526,20 +676,16 @@ class Editor:
 
         scale = 4
         sw, sh = img.get_width() * scale, img.get_height() * scale
-        # Position du sprite sur l'écran
         screen = pygame.display.get_surface()
         sx = (screen.get_width() - sw) // 2
-        sy = 120  # sous le panneau éditeur
+        sy = 120
 
-        # Convertir le clic monde en clic écran
         mx = int(wx - self.camera.offset_x)
         my = int(wy - self.camera.offset_y)
 
-        # Vérifier que le clic est sur le sprite
         if not (sx <= mx <= sx + sw and sy <= my <= sy + sh):
             return
 
-        # Position relative au sprite (en pixels originaux)
         rel_x = (mx - sx) // scale
         rel_y = (my - sy) // scale
 
@@ -574,12 +720,17 @@ class Editor:
         elif self.mode == 7:
             self.holes[:] = [h for h in self.holes if not h.colliderect(pt)]
             self.rebuild_hole_borders()
+        elif self.mode == 8:
+            self._copy_rect = None
+            self._has_clipboard = False
+            self.first_point = None
+            print("Sélection effacée")
 
     # ── Preview ──────────────────────────────
 
     def draw_preview(self, surf, mouse_pos):
-        if self.mode in (0, 4, 5, 7):
-            colors = {0: (100,200,255), 4: (0,120,255), 5: (180,180,180), 7: (255,80,80)}
+        if self.mode in (0, 4, 5, 7, 8):
+            colors = {0: (100,200,255), 4: (0,120,255), 5: (180,180,180), 7: (255,80,80), 8: (255,200,0)}
             if self.first_point:
                 wx = int(mouse_pos[0] + self.camera.offset_x)
                 wy = int(mouse_pos[1] + self.camera.offset_y)
@@ -600,11 +751,9 @@ class Editor:
         elif self.mode == 3:
             pygame.draw.circle(surf, (0,150,255), mouse_pos, 8, 2)
         elif self.mode == 1 and self.mob_patrol_mode:
-            # Montre le mob sélectionné
             if self._patrol_target:
                 tr = self.camera.apply(self._patrol_target.rect)
                 pygame.draw.rect(surf, (255, 200, 0), tr, 3)
-            # Montre la première limite + ligne vers la souris
             if self._patrol_first_x is not None:
                 lx = int(self._patrol_first_x - self.camera.offset_x)
                 h = surf.get_height()
@@ -614,29 +763,25 @@ class Editor:
                 pygame.draw.line(surf, (0, 200, 0),
                                  (mouse_pos[0], 0), (mouse_pos[0], h), 1)
         elif self.mode == 1 and self.mob_detect_mode:
-            # Montre le mob sélectionné + sa zone de détection
             if self._detect_target:
                 tr = self.camera.apply(self._detect_target.rect)
                 pygame.draw.rect(surf, (255, 100, 0), tr, 3)
-                # Affiche la zone de détection actuelle
                 dr = self.camera.apply(self._detect_target._detect_rect())
                 pygame.draw.rect(surf, (255, 255, 0), dr, 2)
-                # Portée
                 font = self._get_font()
                 surf.blit(font.render(
                     f"Portee: {self._detect_target.detect_range}  Dir: {'D' if self._detect_target.direction > 0 else 'G'}",
                     True, (255, 255, 0)), (dr.x, dr.y - 18))
         elif self.mode == 6:
             self._draw_hitbox_editor(surf, mouse_pos)
+        if self.mode == 8:
+            self._draw_copy_paste_preview(surf, mouse_pos)
 
     def _draw_hitbox_editor(self, surf, mouse_pos):
-        """Affiche le sprite agrandi au centre + la hitbox actuelle + preview."""
         font = self._get_font()
         if not self._enemy_sprites:
             return
         name = self._enemy_sprites[self._hb_sprite_index % len(self._enemy_sprites)]
-
-        # Charger l'image
         try:
             from entities.enemy import ENEMIES_DIR
             path = os.path.join(ENEMIES_DIR, name)
@@ -650,21 +795,16 @@ class Editor:
         scale = 4
         sw_img, sh_img = img.get_width() * scale, img.get_height() * scale
         screen_w = surf.get_width()
-
-        # Position du sprite (centré horizontalement, sous le panneau)
         sx = (screen_w - sw_img) // 2
         sy = 120
 
-        # Fond sombre derrière le sprite
         bg_rect = pygame.Rect(sx - 10, sy - 10, sw_img + 20, sh_img + 20)
         pygame.draw.rect(surf, (20, 10, 30), bg_rect)
         pygame.draw.rect(surf, (100, 100, 100), bg_rect, 1)
 
-        # Sprite agrandi
         scaled = pygame.transform.scale(img, (sw_img, sh_img))
         surf.blit(scaled, (sx, sy))
 
-        # Hitbox actuelle (vert)
         hb = get_hitbox(name)
         hb_screen = pygame.Rect(
             sx + hb["ox"] * scale, sy + hb["oy"] * scale,
@@ -673,12 +813,9 @@ class Editor:
         surf.blit(font.render(f"Actuel: {hb['w']}x{hb['h']} off({hb['ox']},{hb['oy']})",
             True, (0, 255, 0)), (sx, sy + sh_img + 8))
 
-        # Preview de la sélection en cours (rouge)
         if self._hb_first_point:
-            # Position du premier clic sur le sprite (en pixels écran)
             p1_sx = sx + self._hb_first_point[0] * scale
             p1_sy = sy + self._hb_first_point[1] * scale
-            # Position actuelle de la souris relative au sprite
             mx, my = mouse_pos
             if sx <= mx <= sx + sw_img and sy <= my <= sy + sh_img:
                 rx = min(p1_sx, mx)
@@ -686,15 +823,40 @@ class Editor:
                 rw = abs(mx - p1_sx)
                 rh = abs(my - p1_sy)
                 pygame.draw.rect(surf, (255, 0, 0), (rx, ry, rw, rh), 2)
-                # Taille en pixels originaux
                 ow = rw // scale
                 oh = rh // scale
                 surf.blit(font.render(f"{ow}x{oh}", True, (255, 0, 0)),
                           (rx + rw + 5, ry + rh + 2))
 
-        # Instructions
         surf.blit(font.render(f"[T] sprite: {name}  |  Clic sur le sprite pour dessiner la hitbox",
             True, (200, 200, 200)), (sx, sy + sh_img + 28))
+
+    def _draw_copy_paste_preview(self, surf, mouse_pos):
+        font = self._get_font()
+        if self._copy_rect:
+            sr = pygame.Rect(
+                self._copy_rect.x - int(self.camera.offset_x),
+                self._copy_rect.y - int(self.camera.offset_y),
+                self._copy_rect.w, self._copy_rect.h)
+            pygame.draw.rect(surf, (255, 200, 0), sr, 2)
+            surf.blit(font.render("COPIE", True, (255, 200, 0)), (sr.x, sr.y - 18))
+        if self._has_clipboard:
+            wx = int(mouse_pos[0] + self.camera.offset_x)
+            wy = int(mouse_pos[1] + self.camera.offset_y)
+            for rel in self._clipboard_platforms:
+                pr = pygame.Rect(
+                    wx + rel.x - int(self.camera.offset_x),
+                    wy + rel.y - int(self.camera.offset_y),
+                    rel.w, rel.h)
+                pygame.draw.rect(surf, (100, 200, 255, 100), pr, 1)
+            for rel in self._clipboard_walls:
+                wr = pygame.Rect(
+                    wx + rel.x - int(self.camera.offset_x),
+                    wy + rel.y - int(self.camera.offset_y),
+                    rel.w, rel.h)
+                pygame.draw.rect(surf, (180, 180, 180), wr, 1)
+            surf.blit(font.render("CLIC = coller | Clic D = effacer",
+                True, (255, 200, 0)), (10, surf.get_height() - 45))
 
     def draw_overlays(self, surf):
         font = self._get_font()
@@ -722,7 +884,7 @@ class Editor:
         surf.blit(panel, (0, 0))
 
         hb = " [Hitbox]" if self.show_hitboxes else ""
-        surf.blit(font.render(f"EDITEUR - [{self.mode+1}/8] {self._mode_names[self.mode]}{hb}",
+        surf.blit(font.render(f"EDITEUR - [{self.mode+1}/9] {self._mode_names[self.mode]}{hb}",
             True, (0,255,120)), (10, 6))
 
         info = (f"Sol:{settings.GROUND_Y} Plaf:{settings.CEILING_Y} "
@@ -734,18 +896,28 @@ class Editor:
         if self.mode == 0:
             surf.blit(font.render("Clic G x2 = rect | Clic D = suppr",
                 True, (200,200,255)), (10, y2))
+
         elif self.mode == 1:
-            gc=(0,255,0) if self.mob_gravity else (255,80,80)
-            cc=(0,255,0) if self.mob_collision else (255,80,80)
-            jc=(0,255,0) if self.mob_can_jump else (255,80,80)
-            lc=(0,255,0) if self.mob_has_light else (255,80,80)
-            sn = self._current_sprite()
-            surf.blit(font.render(f"[G]:{self.mob_gravity}", True, gc), (10,y2))
-            surf.blit(font.render(f"[C]:{self.mob_collision}", True, cc), (120,y2))
-            surf.blit(font.render(f"[J]:{self.mob_can_jump}", True, jc), (240,y2))
-            surf.blit(font.render(f"[I]Light:{self.mob_has_light}", True, lc), (370,y2))
-            surf.blit(small.render(f"[T]:{sn} Det:{self.mob_detect_range}",
+            gc  = (0,255,0) if self.mob_gravity          else (255,80,80)
+            cc  = (0,255,0) if self.mob_collision         else (255,80,80)
+            jc  = (0,255,0) if self.mob_can_jump          else (255,80,80)
+            vpc = (0,255,0) if self.mob_can_jump_patrol   else (255,80,80)
+            lc  = (0,255,0) if self.mob_has_light         else (255,80,80)
+            oc  = (0,255,0) if self.mob_can_fall_in_holes else (255,80,80)   # ← NOUVEAU
+            sn  = self._current_sprite()
+            rt  = f"{self.mob_respawn_timeout:.0f}s" if self.mob_respawn_timeout > 0 else "OFF"
+
+            surf.blit(font.render(f"[G]:{self.mob_gravity}",         True, gc),  (10,  y2))
+            surf.blit(font.render(f"[C]:{self.mob_collision}",       True, cc),  (120, y2))
+            surf.blit(font.render(f"[J]saut:{self.mob_can_jump}",    True, jc),  (240, y2))
+            surf.blit(font.render(f"[V]patr:{self.mob_can_jump_patrol}", True, vpc), (390, y2))
+            surf.blit(font.render(f"[I]Light:{self.mob_has_light}",  True, lc),  (560, y2))
+            surf.blit(font.render(f"[O]Trou:{self.mob_can_fall_in_holes}", True, oc), (700, y2))  # ← NOUVEAU
+
+            # Ligne 2 : sprite, detect, respawn timeout
+            surf.blit(small.render(f"[T]:{sn}  Det:{self.mob_detect_range}  [*/÷]Resp:{rt}",
                 True, (200,200,255)), (10, 50))
+
             if self.mob_patrol_mode:
                 pc = (255, 200, 0)
                 if self._patrol_target is None:
@@ -754,21 +926,22 @@ class Editor:
                     ptxt = "[P]atrouille : clic = limite gauche"
                 else:
                     ptxt = f"[P]atrouille : clic = limite droite (G={self._patrol_first_x})"
-                surf.blit(small.render(ptxt, True, pc), (300, 50))
+                surf.blit(small.render(ptxt, True, pc), (500, 50))
             elif self.mob_detect_mode:
                 dc = (255, 150, 0)
                 if self._detect_target is None:
                     dtxt = "[D]etection ON : clic sur un mob"
                 else:
                     dtxt = f"[D]etect: portee={self._detect_target.detect_range} [+/-] | clic=direction"
-                surf.blit(small.render(dtxt, True, dc), (300, 50))
+                surf.blit(small.render(dtxt, True, dc), (500, 50))
             else:
-                surf.blit(small.render("[P]atrouille [D]etection", True, (140,140,140)), (300, 50))
+                surf.blit(small.render("[P]atrouille [D]etection", True, (140,140,140)), (500, 50))
+
         elif self.mode == 2:
             lt = LIGHT_TYPES[self.light_type_index]
-            fc=(0,255,0) if self.light_flicker else (255,80,80)
+            fc = (0,255,0) if self.light_flicker else (255,80,80)
             surf.blit(font.render(
-                f"[T]{lt} [F]{'ON' if self.light_flicker else'OFF'} Spd:{self.light_flicker_speed}",
+                f"[T]{lt} [F]{'ON' if self.light_flicker else 'OFF'} Spd:{self.light_flicker_speed}",
                 True, (255,200,100)), (10, y2))
         elif self.mode == 3:
             surf.blit(font.render(
@@ -792,6 +965,21 @@ class Editor:
             surf.blit(font.render(
                 f"Clic G x2=trou dans mur | Clic D=suppr | {len(self.holes)} trou(s)",
                 True, (255,80,80)), (10, y2))
+        elif self.mode == 8:
+            if not self._has_clipboard:
+                if self._copy_rect:
+                    surf.blit(font.render(
+                        "[C]=copier la sélection | Clic D=effacer",
+                        True, (255,200,0)), (10, y2))
+                else:
+                    surf.blit(font.render(
+                        "Clic G x2=sélectionner zone | [C]=copier | [V]=coller",
+                        True, (255,200,0)), (10, y2))
+            else:
+                nb = len(self._clipboard_platforms) + len(self._clipboard_walls)
+                surf.blit(font.render(
+                    f"Presse-papier: {nb} élément(s) | Clic G=coller | [V]=coller | Clic D=effacer",
+                    True, (255,200,0)), (10, y2))
 
         keys = "[M]ode [H]itbox [N]ew [S]ave [L]oad [R]espawn [B]ase [Home/End]plafond"
         surf.blit(small.render(keys, True, (140,140,140)), (10, 70))
@@ -821,7 +1009,8 @@ class Editor:
             "scene_width": settings.SCENE_WIDTH,
             "camera_y_offset": self.camera.y_offset,
             "spawn": {"x": self.spawn_x, "y": self.spawn_y},
-            "bg_color": self.bg_color, "wall_color": self.wall_color,
+            "bg_color": self.bg_color,
+            "wall_color": self.wall_color,
             "platforms": [{"x":p.rect.x,"y":p.rect.y,"w":p.rect.width,"h":p.rect.height}
                           for p in self.platforms],
             "custom_walls": [{"x":w.rect.x,"y":w.rect.y,"w":w.rect.width,"h":w.rect.height}
@@ -847,8 +1036,8 @@ class Editor:
             print(f"maps/{name}.json introuvable")
 
     def _apply(self, data):
-        if "ground_y" in data: settings.GROUND_Y = data["ground_y"]
-        if "ceiling_y" in data: settings.CEILING_Y = data["ceiling_y"]
+        if "ground_y" in data:    settings.GROUND_Y = data["ground_y"]
+        if "ceiling_y" in data:   settings.CEILING_Y = data["ceiling_y"]
         if "scene_width" in data:
             settings.SCENE_WIDTH = data["scene_width"]
             self.camera.scene_width = data["scene_width"]
@@ -858,15 +1047,17 @@ class Editor:
             self.spawn_y = data["spawn"]["y"]
             self.player.spawn_x = self.spawn_x
             self.player.spawn_y = self.spawn_y
-        if "bg_color" in data: self.bg_color = data["bg_color"]
+        if "bg_color" in data:   self.bg_color   = data["bg_color"]
         if "wall_color" in data: self.wall_color = data["wall_color"]
 
         self.platforms.clear()
         for p in data.get("platforms", []):
             self.platforms.append(Platform(p["x"], p["y"], p["w"], p["h"], BLANC))
+
         self.custom_walls.clear()
         for w in data.get("custom_walls", []):
             self.custom_walls.append(Wall(w["x"], w["y"], w["w"], w["h"], visible=True))
+
         self.enemies.clear()
         for e in data.get("enemies", []):
             self.enemies.append(Enemy(
@@ -875,21 +1066,28 @@ class Editor:
                 has_collision=e.get("has_collision", True),
                 sprite_name=e.get("sprite_name", "monstre_perdu.png"),
                 can_jump=e.get("can_jump", False),
+                can_jump_patrol=e.get("can_jump_patrol", False),
                 detect_range=e.get("detect_range", 200),
                 detect_height=e.get("detect_height", 80),
                 has_light=e.get("has_light", False),
                 light_type=e.get("light_type", "dim"),
                 light_radius=e.get("light_radius", 100),
                 patrol_left=e.get("patrol_left", -1),
-                patrol_right=e.get("patrol_right", -1)))
+                patrol_right=e.get("patrol_right", -1),
+                can_fall_in_holes=e.get("can_fall_in_holes", False),   # ← NOUVEAU
+                respawn_timeout=e.get("respawn_timeout", 10.0),         # ← NOUVEAU
+            ))
+
         self.lighting.lights.clear()
         for l in data.get("lights", []):
             self.lighting.add_light(l["x"], l["y"], radius=l["radius"], type=l["type"],
                 flicker=l.get("flicker", False), flicker_speed=l.get("flicker_speed", 5))
+
         self.portals.clear()
         for p in data.get("portals", []):
             self.portals.append(Portal(p["x"], p["y"], p["w"], p["h"],
-                p["target_map"], p.get("target_x",-1), p.get("target_y",-1)))
+                p["target_map"], p.get("target_x", -1), p.get("target_y", -1)))
+
         self.holes.clear()
         for h in data.get("holes", []):
             self.holes.append(pygame.Rect(h["x"], h["y"], h["w"], h["h"]))
@@ -904,3 +1102,4 @@ class Editor:
             return True
         except FileNotFoundError:
             return False
+        
