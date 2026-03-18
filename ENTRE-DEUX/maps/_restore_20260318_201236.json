@@ -1,0 +1,133 @@
+{
+  "ground_y": 590,
+  "ceiling_y": 0,
+  "scene_width": 2400,
+  "camera_y_offset": 150,
+  "spawn": {
+    "x": 100,
+    "y": 400
+  },
+  "bg_color": [
+    38,
+    19,
+    46
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 200,
+      "y": 500,
+      "w": 100,
+      "h": 20
+    },
+    {
+      "x": 300,
+      "y": 400,
+      "w": 100,
+      "h": 20
+    },
+    {
+      "x": 400,
+      "y": 300,
+      "w": 100,
+      "h": 20
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 704,
+      "w": 2400,
+      "h": 686
+    },
+    {
+      "x": 0,
+      "y": 590,
+      "w": 764,
+      "h": 114
+    },
+    {
+      "x": 1174,
+      "y": 590,
+      "w": 1226,
+      "h": 114
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 2400,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2190
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2400,
+      "y": -800,
+      "w": 800,
+      "h": 2190
+    }
+  ],
+  "holes": [
+    {
+      "x": 764,
+      "y": 483,
+      "w": 410,
+      "h": 221
+    }
+  ],
+  "enemies": [
+    {
+      "x": 727,
+      "y": 511,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 200,
+      "patrol_right": 800,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0
+    }
+  ],
+  "lights": [
+    {
+      "x": 300,
+      "y": 480,
+      "radius": 150,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    },
+    {
+      "x": 600,
+      "y": 380,
+      "radius": 200,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": []
+}

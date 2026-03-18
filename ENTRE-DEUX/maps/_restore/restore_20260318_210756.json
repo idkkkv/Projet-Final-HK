@@ -1,0 +1,182 @@
+{
+  "ground_y": 590,
+  "ceiling_y": 0,
+  "scene_width": 2400,
+  "camera_y_offset": 150,
+  "spawn": {
+    "x": 100,
+    "y": 400
+  },
+  "bg_color": [
+    38,
+    19,
+    46
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 200,
+      "y": 500,
+      "w": 100,
+      "h": 20
+    },
+    {
+      "x": 300,
+      "y": 400,
+      "w": 100,
+      "h": 20
+    },
+    {
+      "x": 400,
+      "y": 300,
+      "w": 100,
+      "h": 20
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 718,
+      "w": 2400,
+      "h": 672
+    },
+    {
+      "x": 0,
+      "y": 686,
+      "w": 465,
+      "h": 32
+    },
+    {
+      "x": 726,
+      "y": 703,
+      "w": 1674,
+      "h": 15
+    },
+    {
+      "x": 865,
+      "y": 686,
+      "w": 1535,
+      "h": 17
+    },
+    {
+      "x": 0,
+      "y": 590,
+      "w": 465,
+      "h": 96
+    },
+    {
+      "x": 1031,
+      "y": 590,
+      "w": 1369,
+      "h": 96
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 2400,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2190
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2400,
+      "y": -800,
+      "w": 800,
+      "h": 2190
+    }
+  ],
+  "holes": [
+    {
+      "x": 785,
+      "y": 545,
+      "w": 246,
+      "h": 141
+    },
+    {
+      "x": 465,
+      "y": 566,
+      "w": 261,
+      "h": 152
+    },
+    {
+      "x": 678,
+      "y": 554,
+      "w": 187,
+      "h": 149
+    }
+  ],
+  "enemies": [
+    {
+      "x": 360,
+      "y": 511,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 200,
+      "patrol_right": 800,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0
+    },
+    {
+      "x": 468,
+      "y": 639,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "monstre_perdu.png",
+      "can_jump": true,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 277,
+      "patrol_right": 877,
+      "can_fall_in_holes": true,
+      "respawn_timeout": 10.0
+    }
+  ],
+  "lights": [
+    {
+      "x": 300,
+      "y": 480,
+      "radius": 150,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    },
+    {
+      "x": 600,
+      "y": 380,
+      "radius": 200,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": []
+}
