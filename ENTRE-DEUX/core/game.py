@@ -162,8 +162,9 @@ class Game:
     def run(self):
         while self.running:
             dt = self.clock.tick(FPS) / 1000
-
-            for event in pygame.event.get():
+            events = pygame.event.get()
+            
+            for event in events :
                 if event.type == pygame.QUIT:
                     self.running = False
 
@@ -177,7 +178,7 @@ class Game:
                         continue
                     if self.paused:
                         self._handle_pause_key(event.key); continue
-                    if event.key == pygame.K_a:
+                    if event.key == pygame.K_TAB:
                         self.inventory.changer_etat_fenetre()
                     if event.key == pygame.K_e and not (
                             self.editor.active and self.editor._text_mode):
@@ -296,6 +297,8 @@ class Game:
                 ms = self.fps_font.render(self.current_map_name, True, (180,180,180))
                 self.screen.blit(ms, (10, self.screen.get_height()-25))
 
-            self.inventory.draw(self.screen)
+            self.inventory.draw(self.screen, 5, 6)
+            self.inventory.drag_drop(events)
+
             self._draw_fade()
             pygame.display.flip()
