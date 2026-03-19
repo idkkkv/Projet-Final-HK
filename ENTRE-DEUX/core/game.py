@@ -67,13 +67,22 @@ class Game:
         self._fade_surface   = None
         self._pending_portal = None
 
+<<<<<<< HEAD
         self._walls_cache       = None
+=======
+        # Cache walls pour éviter de reconstruire la liste chaque frame
+        self._walls_cache      = None
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
         self._walls_cache_dirty = True
 
     def _rebuild_grid(self):
         self.platform_grid.rebuild(self.platforms)
 
     def _dirty_walls(self):
+<<<<<<< HEAD
+=======
+        """Marque le cache walls comme périmé — à appeler quand les walls changent."""
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
         self._walls_cache_dirty = True
 
     def _all_walls(self):
@@ -199,8 +208,14 @@ class Game:
     def run(self):
         while self.running:
             dt = self.clock.tick(FPS) / 1000
+<<<<<<< HEAD
 
             for event in pygame.event.get():
+=======
+            events = pygame.event.get()
+            
+            for event in events :
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
                 if event.type == pygame.QUIT:
                     self.running = False
 
@@ -214,7 +229,11 @@ class Game:
                         continue
                     if self.paused:
                         self._handle_pause_key(event.key); continue
+<<<<<<< HEAD
                     if event.key == pygame.K_a:
+=======
+                    if event.key == pygame.K_TAB:
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
                         self.inventory.changer_etat_fenetre()
                     if event.key == pygame.K_e and not (
                             self.editor.active and self.editor._text_mode):
@@ -232,6 +251,10 @@ class Game:
                         if event.button == 1:
                             prev_plat_count = len(self.platforms)
                             self.editor.handle_click(event.pos)
+<<<<<<< HEAD
+=======
+                            # Rebuild grid seulement si les plateformes ont changé
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
                             if len(self.platforms) != prev_plat_count:
                                 self._rebuild_grid()
                             self._dirty_walls()
@@ -250,6 +273,10 @@ class Game:
             if self.paused:
                 self._draw_pause(); pygame.display.flip(); continue
 
+<<<<<<< HEAD
+=======
+            # ── Mise à jour ───────────────────────────────────────────────
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
             keys = pygame.key.get_pressed()
             man_on(); x_y_man()
 
@@ -281,6 +308,10 @@ class Game:
             self._check_portals()
             self._update_fade(dt)
 
+<<<<<<< HEAD
+=======
+            # ── Affichage ─────────────────────────────────────────────────
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
             bg = tuple(self.editor.bg_color)
             self.screen.fill(bg)
 
@@ -292,6 +323,10 @@ class Game:
                 if self.camera.is_visible(wall.rect):
                     wall.draw(self.screen, self.camera)
 
+<<<<<<< HEAD
+=======
+            # Trous : redessine bg par-dessus les segments
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
             for hole in self.editor.holes:
                 if self.camera.is_visible(hole):
                     hr = self.camera.apply(hole)
@@ -332,6 +367,12 @@ class Game:
             if self.current_map_name:
                 ms = self.fps_font.render(self.current_map_name, True, (180,180,180))
                 self.screen.blit(ms, (10, self.screen.get_height()-25))
+<<<<<<< HEAD
+=======
+
+            self.inventory.draw(self.screen, 5, 6)
+            self.inventory.drag_drop(events)
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
             self.inventory.draw(self.screen, 6, 5)
             self._draw_fade()

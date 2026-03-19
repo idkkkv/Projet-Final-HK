@@ -18,6 +18,10 @@ os.makedirs(ENEMIES_DIR, exist_ok=True)
 _CULL_DIST = 400
 _LOS_SKIP  = 4
 
+<<<<<<< HEAD
+=======
+# Fonts partagés entre toutes les instances — créés une seule fois
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 _font_dbg_small = None
 _font_dbg_tiny  = None
 
@@ -73,8 +77,13 @@ class Enemy:
         self.sprite_h  = img.get_height()
         self.idle_anim = Animation([img], img_dur=20)
 
+<<<<<<< HEAD
         self.patrol_speed = patrol_speed   # vitesse patrouille (configurable)
         self.chase_speed  = chase_speed    # vitesse poursuite (configurable)
+=======
+        self.patrol_speed = 120
+        self.chase_speed  = 200
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
         self.vx = self.patrol_speed
         self.vy = 0
         self.direction    = 1
@@ -108,6 +117,12 @@ class Enemy:
         self._los_frame = 0
         self._los_cache = True
 
+        self._jump_lock     = 0.0
+        self._JUMP_LOCK_DUR = 0.4
+
+        self._los_frame = 0
+        self._los_cache = True
+
         self.has_light    = has_light
         self.light_type   = light_type
         self.light_radius = light_radius
@@ -121,16 +136,19 @@ class Enemy:
         self.last_known_dir  = 1
         self.attack_cooldown = 0.0
 
-    # ──────────────────────────────────────────────────────────────────────
-
     def _teleport_to_spawn(self):
         self.rect.x = self.spawn_x
         self.rect.bottom = settings.GROUND_Y
         self.vy = 0; self.vx = self.patrol_speed; self.knockback_vx = 0.0
         self.chasing = False; self.returning = False
         self._returning_timer = 0.0; self._hole_cooldown = 0.0
+<<<<<<< HEAD
         self._turn_cooldown = 0.0; self._jump_lock = 0.0
         self.on_ground = True
+=======
+        self._stuck_timer = 0.0; self._last_x = self.spawn_x
+        self._jump_lock = 0.0; self.on_ground = True
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
     def _detect_rect(self):
         if self.direction > 0:
@@ -146,7 +164,11 @@ class Enemy:
         r = self.detect_range * 2
         return pygame.Rect(self.rect.centerx - r, self.rect.centery - r, r*2, r*2)
 
+<<<<<<< HEAD
     def _has_line_of_sight(self, player_rect, walls_near, platforms):
+=======
+    def _has_line_of_sight(self, player_rect, walls, platforms):
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
         self._los_frame += 1
         if self._los_frame % _LOS_SKIP != 0:
             return self._los_cache
@@ -154,11 +176,21 @@ class Enemy:
         px, py = player_rect.centerx, player_rect.centery
         result = True
         for i in range(1, 8):
+<<<<<<< HEAD
             t = i / 8
             point = pygame.Rect(int(ex+(px-ex)*t), int(ey+(py-ey)*t), 2, 2)
             for w in walls_near:
                 if getattr(w, 'is_border', False): continue
                 wr = w.rect if hasattr(w, 'rect') else w
+=======
+            t  = i / 8
+            cx = int(ex + (px - ex) * t)
+            cy = int(ey + (py - ey) * t)
+            point = pygame.Rect(cx, cy, 2, 2)
+            for wall in walls:
+                if getattr(wall, 'is_border', False): continue
+                wr = wall.rect if hasattr(wall, 'rect') else wall
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
                 if point.colliderect(wr): result = False; break
             if not result: break
             if platforms:
@@ -179,6 +211,7 @@ class Enemy:
     def _is_in_patrol_zone(self):
         return self.patrol_left <= self.rect.centerx <= self.patrol_right
 
+<<<<<<< HEAD
     def _can_reach_player_vertically(self, player_rect):
         if not self.can_jump:
             return abs(player_rect.centery - self.rect.centery) < self.hitbox_h * 3
@@ -227,6 +260,25 @@ class Enemy:
             self._do_turn()
 
     # ──────────────────────────────────────────────────────────────────────
+=======
+    def _probe_wall_ahead(self, total_vx, dt, walls_near):
+        if not self.on_ground: return None
+        lookahead = max(int(abs(total_vx * dt) * 1.5) + 10, 14)
+        probe = pygame.Rect(self.rect.x + lookahead * self.direction,
+                            self.rect.y, 4, self.hitbox_h)
+        for w in walls_near:
+            if getattr(w, 'player_only', False): continue
+            wr = w.rect if hasattr(w, 'rect') else w
+            if probe.colliderect(wr): return w
+        return None
+
+    def _probe_hole_ahead(self, total_vx, dt, holes):
+        if not self.on_ground or not holes: return False
+        step  = max(int(abs(total_vx * dt)) + 12, 20)
+        probe = pygame.Rect(self.rect.x + step * self.direction,
+                            settings.GROUND_Y - 2, self.rect.width, 4)
+        return any(probe.colliderect(h) for h in holes)
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
     def update(self, dt, platforms=None, walls=None, player_rect=None, holes=None):
         if not self.alive: return
@@ -234,7 +286,10 @@ class Enemy:
         if self.attack_cooldown > 0: self.attack_cooldown -= dt
         if self._hole_cooldown  > 0: self._hole_cooldown  = max(0.0, self._hole_cooldown - dt)
         if self._jump_lock      > 0: self._jump_lock       = max(0.0, self._jump_lock - dt)
+<<<<<<< HEAD
         if self._turn_cooldown  > 0: self._turn_cooldown   = max(0.0, self._turn_cooldown - dt)
+=======
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
         walls_near = _nearby(walls, self.rect) if walls else []
 
@@ -242,6 +297,7 @@ class Enemy:
         if player_rect:
             zone = self._chase_rect() if self.chasing else self._detect_rect()
             in_zone = zone.colliderect(player_rect)
+<<<<<<< HEAD
 
             if in_zone and not self.can_fall_in_holes:
                 if holes and any(player_rect.colliderect(h) for h in holes):
@@ -257,14 +313,19 @@ class Enemy:
 
             can_see = in_zone and self._has_line_of_sight(player_rect, walls_near, platforms)
 
+=======
+            player_in_hole = holes and any(player_rect.colliderect(h) for h in holes)
+            if player_in_hole and not self.can_fall_in_holes:
+                in_zone = False
+            can_see = in_zone and self._has_line_of_sight(player_rect, walls_near, platforms)
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
             if can_see:
                 self.chasing = True; self.returning = False
                 self._returning_timer = 0.0; self._hole_cooldown = 0.0
                 self.memory_timer = self.MEMORY_DURATION
                 self.last_known_dir = -1 if player_rect.centerx < self.rect.centerx else 1
             else:
-                if self.memory_timer > 0:
-                    self.memory_timer -= dt
+                if self.memory_timer > 0: self.memory_timer -= dt
                 elif self.chasing:
                     self.chasing = False; self.returning = True
                     self._returning_timer = 0.0
@@ -305,6 +366,7 @@ class Enemy:
         if abs(self.knockback_vx) > 1: self.knockback_vx *= 0.85
         else: self.knockback_vx = 0
 
+<<<<<<< HEAD
         # ── Demi-tour aléatoire ──────────────────────────────────────────
         if (self.can_turn_randomly and self.on_ground
                 and not self.chasing and not self.returning
@@ -324,11 +386,89 @@ class Enemy:
                 self.rect.x -= int(total_vx * dt) * 4
                 self._hole_cooldown = 0.6
                 total_vx = 0
+=======
+        # ── Anti-blocage coin ────────────────────────────────────────────
+        if self.on_ground and not self.chasing and self._jump_lock <= 0:
+            if abs(self.rect.x - self._last_x) < 2:
+                self._stuck_timer += dt
+                if self._stuck_timer >= self._stuck_timeout:
+                    self.direction *= -1; self._stuck_timer = 0.0
+                    self.rect.x += self.direction * 4
+            else:
+                self._stuck_timer = 0.0
+            self._last_x = self.rect.x
+
+        # ── Sonde anticipée ──────────────────────────────────────────────
+        can_jump_now = self.can_jump and self.on_ground
+        will_jump = False
+
+        if can_jump_now and self._jump_lock <= 0:
+            if not self.can_fall_in_holes and self._probe_hole_ahead(total_vx, dt, holes):
+                if self.chasing or self.can_jump_patrol:
+                    self.vy = -self.jump_power; self.on_ground = False
+                    self._jump_lock = self._JUMP_LOCK_DUR
+                    self._hole_cooldown = 0.5; will_jump = True
+                else:
+                    self.direction *= -1
+                    self.rect.x -= int(total_vx * dt) * 4
+                    self._hole_cooldown = 0.5
+
+            if not will_jump and (self.chasing or self.returning or self.can_jump_patrol):
+                w_ahead = self._probe_wall_ahead(total_vx, dt, walls_near)
+                if w_ahead is not None:
+                    wr = w_ahead.rect if hasattr(w_ahead, 'rect') else w_ahead
+                    if wr.height <= self.jump_power / 8:
+                        self.vy = -self.jump_power; self.on_ground = False
+                        self._jump_lock = self._JUMP_LOCK_DUR; will_jump = True
+
+        # ── Déplacement horizontal ───────────────────────────────────────
+        self.rect.x += int(total_vx * dt)
+
+        for wall in walls_near:
+            if getattr(wall, 'player_only', False): continue
+            wr = wall.rect if hasattr(wall, 'rect') else wall
+            if not self.rect.colliderect(wr): continue
+            if total_vx > 0 and self.rect.right > wr.left and self.rect.left < wr.left:
+                self.rect.right = wr.left
+                if not will_jump and self._jump_lock <= 0:
+                    if self.can_jump and self.on_ground and wr.height <= self.jump_power / 8 and \
+                       (self.chasing or self.returning or self.can_jump_patrol):
+                        self.vy = -self.jump_power; self.on_ground = False
+                        self._jump_lock = self._JUMP_LOCK_DUR; will_jump = True
+                    else: self.direction *= -1
+            elif total_vx < 0 and self.rect.left < wr.right and self.rect.right > wr.right:
+                self.rect.left = wr.right
+                if not will_jump and self._jump_lock <= 0:
+                    if self.can_jump and self.on_ground and wr.height <= self.jump_power / 8 and \
+                       (self.chasing or self.returning or self.can_jump_patrol):
+                        self.vy = -self.jump_power; self.on_ground = False
+                        self._jump_lock = self._JUMP_LOCK_DUR; will_jump = True
+                    else: self.direction *= -1
+
+        if self.has_collision and platforms:
+            for p in platforms:
+                plat = p.rect if hasattr(p, 'rect') else p
+                if not self.rect.colliderect(plat): continue
+                can_jp = (self.chasing and self.can_jump) or self.can_jump_patrol
+                if total_vx > 0 and self.rect.right > plat.left and self.rect.left < plat.left:
+                    self.rect.right = plat.left
+                    if can_jp and self.on_ground and plat.height <= self.jump_power / 8 and not will_jump:
+                        self.vy = -self.jump_power; self.on_ground = False
+                        self._jump_lock = self._JUMP_LOCK_DUR; will_jump = True
+                    elif not will_jump: self.direction *= -1
+                elif total_vx < 0 and self.rect.left < plat.right and self.rect.right > plat.right:
+                    self.rect.left = plat.right
+                    if can_jp and self.on_ground and plat.height <= self.jump_power / 8 and not will_jump:
+                        self.vy = -self.jump_power; self.on_ground = False
+                        self._jump_lock = self._JUMP_LOCK_DUR; will_jump = True
+                    elif not will_jump: self.direction *= -1
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
         # ── Gravité ──────────────────────────────────────────────────────
         if self.has_gravity:
             self.vy += GRAVITY * dt
 
+<<<<<<< HEAD
         # ── Déplacement ──────────────────────────────────────────────────
         self.rect.x += int(total_vx * dt)
         self.rect.y += int(self.vy * dt)
@@ -362,8 +502,42 @@ class Enemy:
             if self._hole_cooldown <= 0:
                 self._do_turn()
                 self._hole_cooldown = 0.8
+=======
+            if not self.can_fall_in_holes:
+                if self.rect.bottom > settings.GROUND_Y:
+                    self.rect.bottom = settings.GROUND_Y
+                    self.vy = 0; self.on_ground = True
+                else: self.on_ground = False
+            else:
+                in_hole = holes and any(self.rect.colliderect(h) for h in holes)
+                if not in_hole and self.rect.bottom > settings.GROUND_Y:
+                    self.rect.bottom = settings.GROUND_Y
+                    self.vy = 0; self.on_ground = True
+                else:
+                    if not in_hole: self.on_ground = False
 
-    # ──────────────────────────────────────────────────────────────────────
+        if self.has_collision and platforms:
+            for p in platforms:
+                plat = p.rect if hasattr(p, 'rect') else p
+                if self.rect.colliderect(plat):
+                    if self.vy >= 0 and self.rect.bottom <= plat.top + 20:
+                        self.rect.bottom = plat.top
+                        self.vy = 0; self.on_ground = True
+
+        for wall in walls_near:
+            if getattr(wall, 'player_only', False): continue
+            wr = wall.rect if hasattr(wall, 'rect') else wall
+            if not self.rect.colliderect(wr): continue
+            ot = self.rect.bottom - wr.top
+            ob = wr.bottom - self.rect.top
+            ol = self.rect.right  - wr.left
+            or_ = wr.right - self.rect.left
+            mn = min(ot, ob, ol, or_)
+            if mn == ot and self.vy >= 0:
+                self.rect.bottom = wr.top; self.vy = 0; self.on_ground = True
+            elif mn == ob and self.vy < 0:
+                self.rect.top = wr.bottom; self.vy = 0
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
     def draw(self, surf, camera, show_hitbox=False):
         if not self.alive: return
@@ -380,8 +554,15 @@ class Enemy:
             sy = self.rect.y - self.hitbox_oy
         surf.blit(img, camera.apply(pygame.Rect(sx, sy, self.sprite_w, self.sprite_h)))
 
+<<<<<<< HEAD
         if not show_hitbox: return
 
+=======
+        if not show_hitbox:
+            return
+
+        # Fonts cachés — plus de SysFont par frame
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
         font_s, font_t = _get_debug_fonts()
 
         pygame.draw.rect(surf, (255,0,0), camera.apply(self.rect), 1)
@@ -406,7 +587,12 @@ class Enemy:
             fy2  = int(self.rect.bottom - camera.offset_y)
             pygame.draw.line(surf, (0,220,220), (lx,jtop), (rx,jtop), 1)
             pygame.draw.line(surf, (0,220,220), (mx2,fy2), (mx2,jtop), 1)
+<<<<<<< HEAD
             surf.blit(font_t.render(f"{mjh}px", True, (0,220,220)), (rx+3, jtop-5))
+=======
+            surf.blit(font_t.render(f"{mjh}px", True, (0,220,220)),
+                      (rx+3, jtop-5))
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
         cx = self.rect.centerx - int(camera.offset_x)
         cy = self.rect.centery - int(camera.offset_y)
@@ -435,6 +621,7 @@ class Enemy:
             fy = self.rect.bottom  - int(camera.offset_y) + 8
             pygame.draw.polygon(surf, (0,220,220), [(fx,fy+8),(fx-6,fy),(fx+6,fy)])
 
+<<<<<<< HEAD
         if self.can_turn_randomly:
             fx = self.rect.centerx - int(camera.offset_x)
             fy = self.rect.bottom  - int(camera.offset_y) + 14
@@ -450,6 +637,19 @@ class Enemy:
         spd_txt = f"p:{self.patrol_speed} c:{self.chase_speed}"
         surf.blit(font_t.render(spd_txt, True, (180,180,255)),
                   (cx - 20, cy - 44))
+=======
+        if self._hole_cooldown > 0:
+            ratio = self._hole_cooldown / 0.5
+            bx = self.rect.x - int(camera.offset_x)
+            by = int(self.rect.bottom - camera.offset_y) + 3
+            pygame.draw.rect(surf, (255,120,0), (bx, by, int(self.hitbox_w*ratio), 2))
+
+        if self._stuck_timer > 0.2:
+            bx = self.rect.x - int(camera.offset_x)
+            by = self.rect.y - int(camera.offset_y) - 12
+            pygame.draw.rect(surf, (255,0,0),
+                (bx, by, int(self.hitbox_w * self._stuck_timer / self._stuck_timeout), 2))
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
 
     def get_light_pos(self):
         return (self.rect.centerx, self.rect.centery)
@@ -472,7 +672,11 @@ class Enemy:
             "patrol_right":      self.patrol_right,
             "can_fall_in_holes": self.can_fall_in_holes,
             "respawn_timeout":   self.respawn_timeout,
+<<<<<<< HEAD
             "can_turn_randomly": self.can_turn_randomly,
             "patrol_speed":      self.patrol_speed,
             "chase_speed":       self.chase_speed,
         }
+=======
+        }
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce

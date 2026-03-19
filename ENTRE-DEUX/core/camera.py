@@ -49,4 +49,8 @@ class Camera:
         return (rect.right  > self.offset_x and
                 rect.left   < self.offset_x + self._sw and
                 rect.bottom > self.offset_y and
+<<<<<<< HEAD
                 rect.top    < self.offset_y + self._sh)
+=======
+                rect.top    < self.offset_y + self._sh)
+>>>>>>> 351da4f4be0af0233a53dd061de2feec0afef2ce
