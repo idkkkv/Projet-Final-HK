@@ -34,6 +34,7 @@ class Game:
 
     def __init__(self):
         pygame.init()
+        pygame.mixer.init() # on force l'allumage du moteur de son
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption(TITLE)
         self.running  = True
@@ -54,10 +55,12 @@ class Game:
         self._font_indicateur   = pygame.font.SysFont("Consolas", 48, bold=True)
 
         # __ Sons ________________________________
-        music_manager.jouer("assets/music/fond.mp3", volume=0.4) # Musique de fond
-        sound_manager.charger("attaque", "assets/sound/attaque.mp3")
-        sound_manager.charger("pas", "assets/sound/pas.mp3")
-        sound_manager.charger("mort", "assets/sound/mort.mp3")
+        music_manager.jouer("ENTRE-DEUX/assets/music/fond.mp3", volume=0.4) # Musique de fond dès le lancement du jeu
+
+        sound_manager.charger("attaque", "ENTRE-DEUX/assets/sounds/attaque.mp3")
+        sound_manager.charger("pas", "ENTRE-DEUX/assets/sounds/pas.mp3")
+        sound_manager.charger("mort", "ENTRE-DEUX/assets/sounds/mort.mp3")
+        sound_manager.charger("degat", "ENTRE-DEUX/assets/sounds/degat.mp3")
 
         # ── Objets du jeu ──────────────────────────────────────────────────
         self.inventory = Inventory()

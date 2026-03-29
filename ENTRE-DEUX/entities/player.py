@@ -8,6 +8,7 @@ import settings
 from utils import *
 from settings import *
 from entities.animation import Animation
+from audio import sound_manager
 
 
 class Player:
@@ -53,6 +54,7 @@ class Player:
         )
 
         self._heart_font = None
+        self.step_timer = 0.1  #chrono pour ne pas jouer le son de pas trop vite
 
     def respawn(self):
         self.rect.x = self.spawn_x
@@ -75,9 +77,11 @@ class Player:
         self.invincible = True
         self.invincible_timer = self.INVINCIBLE_DURATION
         self.hp -= 1
+        sound_manager.jouer("degat")
         self.show_hp_timer = self.HP_DISPLAY_DURATION
         if self.hp <= 0:
             self.dead = True
+            sound_manager.jouer("mort")
 
     def mouvement(self, dt, keys, holes=None):
         self.vx = 0
@@ -146,10 +150,12 @@ class Player:
         # Attaque
         if keys[K_f] and not self.attacking:
             self.attacking = True
+            sound_manager.jouer("attaque")
             self.attack_timer = ATTACK_DURATION
 
         if settings.manette and settings.manette.get_button(2) and not self.attacking:
             self.attacking = True
+            sound_manager.jouer("attaque")
             self.attack_timer = ATTACK_DURATION
 
         if self.attacking:
@@ -171,6 +177,14 @@ class Player:
 
         if self.show_hp_timer > 0:
             self.show_hp_timer -= dt
+
+        if self.on_ground and abs(self.vx) > 10:
+            self.step_timer -= dt
+            if self.step_timer <= 0:
+                sound_manager.jouer("pas", volume=0.3)
+                self.step_timer = 0.35
+        else:
+            self.step_timer = 0.2 # reset du timer pour éviter de jouer le son de pas dès que le joueur recommence à marcher
 
     def draw(self, surf, camera, show_hitbox=False):
         img = self.idle_anim.img()
