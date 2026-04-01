@@ -196,7 +196,8 @@ class Player:
                 sound_manager.jouer("pas", volume=0.3)
                 self.step_timer = 0.35
         else:
-            self.step_timer = 0.2 # reset du timer pour éviter de jouer le son de pas dès que le joueur recommence à marcher
+            self.step_timer = 0.2
+            sound_manager.arreter("pas")
 
     def draw(self, surf, camera, show_hitbox=False):
         if self.walking:

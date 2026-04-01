@@ -23,7 +23,8 @@ from world.collision import (verifier_attaques,
                              verifier_contact_ennemi)
 from ui.inventory import Inventory
 from ui.gestionnaire_histoire import GestionnaireHistoire
-from audio import music_manager, sound_manager
+from audio import music_manager as music
+from audio import sound_manager as sfx
 
 if not hasattr(settings, 'CEILING_Y'):
     settings.CEILING_Y = 0
@@ -33,7 +34,7 @@ class Game:
 
     def __init__(self):
         pygame.init()
-        pygame.mixer.init() # on force l'allumage du moteur de son
+        pygame.mixer.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption(TITLE)
         self.running  = True
@@ -49,17 +50,19 @@ class Game:
         self.dialogue = BoiteDialogue()
         self.gestionnaire_histoire = GestionnaireHistoire()
 
+        # Init sons d'interface
+        sfx.init_sons_ui()
+
+        # __ Sons ________________________________
+        from audio import sound_manager
+        sound_manager.charger("attaque", "ENTRE-DEUX/assets/sounds/attaque.mp3")
+        sound_manager.charger("pas", "ENTRE-DEUX/assets/sounds/pas.mp3", trim=True)
+        sound_manager.charger("mort", "ENTRE-DEUX/assets/sounds/mort.mp3")
+        sound_manager.charger("degat", "ENTRE-DEUX/assets/sounds/degat.mp3")
+
         # Overlays de sélection actifs (None = inactif)
         self._menu_choix_carte  = None   # menu de sélection de carte avant d'entrer en éditeur
         self._font_indicateur   = pygame.font.SysFont("Consolas", 48, bold=True)
-
-        # __ Sons ________________________________
-        music_manager.jouer("ENTRE-DEUX/assets/music/i think about you not thinking about me Piano Solo.mp3", volume=0.4) # Musique de fond dès le lancement du jeu
-
-        sound_manager.charger("attaque", "ENTRE-DEUX/assets/sounds/attaque.mp3")
-        sound_manager.charger("pas", "ENTRE-DEUX/assets/sounds/pas.mp3")
-        sound_manager.charger("mort", "ENTRE-DEUX/assets/sounds/mort.mp3")
-        sound_manager.charger("degat", "ENTRE-DEUX/assets/sounds/degat.mp3")
 
         # ── Objets du jeu ──────────────────────────────────────────────────
         self.inventory = Inventory()
@@ -98,6 +101,11 @@ class Game:
         self._fondu_surface      = None
         self._portail_en_attente = None
 
+        # Fondu menu → jeu (transition douce)
+        self._menu_fondu_alpha   = 0
+        self._menu_fondu_etat    = "none"   # "none", "out", "pending"
+        self._menu_fondu_action  = None     # callback quand le fondu atteint 255
+
         # Cache des murs (recalculé uniquement quand l'éditeur les modifie)
         self._murs_cache        = None
         self._murs_cache_perime = True
@@ -110,6 +118,14 @@ class Game:
             "Mode éditeur",
             "Quitter",
         ]
+
+        # Chemin de la musique du menu
+        import os
+        _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self._musique_menu = os.path.join(_base, "assets", "music",
+                                          "i think about you not thinking about me Piano Solo.mp3")
+        # Lancer la musique du menu au démarrage
+        music.jouer(self._musique_menu, volume=0.7, fadein_ms=2000)
 
         # style="titre"   → fond sombre + particules flottantes
         # style="panneau" → cadre transparent sur le jeu en arrière-plan
@@ -354,18 +370,28 @@ class Game:
 
     # ── Logique par état ──────────────────────────────────────────────────
 
+    def _lancer_fondu_menu(self, action):
+        """Lance un fondu noir depuis le menu, puis exécute l'action."""
+        self._menu_fondu_etat = "out"
+        self._menu_fondu_alpha = 0
+        self._menu_fondu_action = action
+        music.arreter(fadeout_ms=2000)
+
     def _gerer_menu(self, events):
+        if self._menu_fondu_etat != "none":
+            return  # on attend la fin du fondu
         for event in events:
             if event.type == pygame.KEYDOWN:
                 choix = self.menu_titre.handle_key(event.key)
                 if choix == "Continuer":
-                    self._charger_partie()
+                    self._lancer_fondu_menu(lambda: self._charger_partie())
                 elif choix == "Nouvelle partie":
-                    self.mode = "histoire"
-                    self._nouvelle_partie()
+                    def _action():
+                        self.mode = "histoire"
+                        self._nouvelle_partie()
+                    self._lancer_fondu_menu(_action)
                 elif choix == "Mode éditeur":
                     self.mode = "editeur"
-                    # Ouvrir le sélecteur de carte avant d'entrer dans l'éditeur
                     maps = self.editeur._list_maps()
                     opts = ["Nouvelle carte"] + maps
                     self._menu_choix_carte = Menu(opts, title="Ouvrir une carte", style="titre")
@@ -384,6 +410,10 @@ class Game:
                 elif choix == "Sauvegarder":
                     self._sauvegarder()
                 elif choix == "Menu principal":
+                    self._menu_fondu_etat = "none"
+                    self._menu_fondu_alpha = 0
+                    music.transition(self._musique_menu, volume=0.7,
+                                     fadeout_ms=600, fadein_ms=1500)
                     self.etats.switch(MENU)
                 elif choix == "Quitter":
                     self.running = False
@@ -393,8 +423,13 @@ class Game:
             if event.type == pygame.KEYDOWN:
                 choix = self.menu_fin.handle_key(event.key)
                 if choix == "Recommencer":
+                    music.arreter(fadeout_ms=400)
                     self._nouvelle_partie()
                 elif choix == "Menu principal":
+                    self._menu_fondu_etat = "none"
+                    self._menu_fondu_alpha = 0
+                    music.transition(self._musique_menu, volume=0.7,
+                                     fadeout_ms=600, fadein_ms=1500)
                     self.etats.switch(MENU)
 
     def _update_jeu(self, events, dt):
@@ -665,6 +700,10 @@ class Game:
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_ESCAPE:
                             self._menu_choix_carte = None
+                            self._menu_fondu_etat = "none"
+                            self._menu_fondu_alpha = 0
+                            music.transition(self._musique_menu, volume=0.7,
+                                             fadeout_ms=300, fadein_ms=1500)
                             self.etats.switch(MENU)
                             break
                         choix = self._menu_choix_carte.handle_key(event.key)
@@ -691,6 +730,9 @@ class Game:
                 pygame.display.flip()
                 continue
 
+            # ── Mise à jour fondus musicaux ──
+            music.update(self._dt)
+
             if self.etats.is_menu:
                 # Le menu titre anime ses particules avant d'être dessiné
                 self.menu_titre.update(self._dt)
@@ -698,9 +740,38 @@ class Game:
                 self.screen.fill((0, 0, 0))
                 self.menu_titre.draw(self.screen)
 
+                # Fondu menu → jeu
+                if self._menu_fondu_etat == "out":
+                    self._menu_fondu_alpha += 170 * self._dt
+                    if self._menu_fondu_alpha >= 255:
+                        self._menu_fondu_alpha = 255
+                        if self._menu_fondu_action:
+                            self._menu_fondu_action()
+                            self._menu_fondu_action = None
+                        # Passer en fondu entrant (le jeu apparaît progressivement)
+                        self._menu_fondu_etat = "in"
+
+                # Dessiner le fondu noir par-dessus le menu
+                if self._menu_fondu_alpha > 0:
+                    w, h = self.screen.get_size()
+                    fs = pygame.Surface((w, h), pygame.SRCALPHA)
+                    fs.fill((0, 0, 0, int(min(255, self._menu_fondu_alpha))))
+                    self.screen.blit(fs, (0, 0))
+
             elif self.etats.is_game:
                 self._update_jeu(events, self._dt)
                 self._dessiner_monde()
+
+                # Fondu entrant après transition depuis le menu
+                if self._menu_fondu_etat == "in" and self._menu_fondu_alpha > 0:
+                    self._menu_fondu_alpha -= 170 * self._dt
+                    if self._menu_fondu_alpha <= 0:
+                        self._menu_fondu_alpha = 0
+                        self._menu_fondu_etat = "none"
+                    w, h = self.screen.get_size()
+                    fs = pygame.Surface((w, h), pygame.SRCALPHA)
+                    fs.fill((0, 0, 0, int(self._menu_fondu_alpha)))
+                    self.screen.blit(fs, (0, 0))
 
             elif self.etats.is_paused:
                 # Le jeu reste visible en arrière-plan — le panneau se superpose

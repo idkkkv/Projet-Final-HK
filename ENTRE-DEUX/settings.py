@@ -9,7 +9,7 @@ SCENE_HEIGHT = 4000   # hauteur d'une scène (2x l'écran)
 
 WIDTH, HEIGHT = 1520, 745
 FPS = 80
-TITLE = "ENTRE-DEUX"
+TITLE = "LIMINAL"
 
 # Couleurs
 BLEU   = (98,  143, 217)
