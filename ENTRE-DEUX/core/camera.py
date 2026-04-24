@@ -119,6 +119,15 @@ class Camera:
         # de systems/juice.py).
         self.shake_offset = (0, 0)
 
+        # ── Mode cinématique ──────────────────────────────────────────────────
+        # Pendant une cutscene, la caméra peut viser un POINT FIXE (centre du
+        # cadre voulu, en coords monde) au lieu de suivre le joueur.
+        # Activé via set_cinematic_target((x, y)), désactivé par release_cinematic().
+        # Le lissage utilise le MÊME facteur 0.1 que pour le suivi joueur,
+        # donc transition douce dans les 2 sens.
+        self._cinematic_active = False
+        self._cinematic_target = (0, 0)   # (x, y) monde — à CENTRER à l'écran
+
     # ─────────────────────────────────────────────────────────────────────────
     #  MISE À JOUR (chaque frame, en mode "suit le joueur")
     # ─────────────────────────────────────────────────────────────────────────
@@ -134,6 +143,22 @@ class Camera:
 
         if self.free_mode:
             return                           # la caméra est pilotée à la souris
+
+        # ── Mode cinématique : la cible n'est PAS le joueur, mais un point fixe ─
+        # Priorité sur le suivi joueur. On centre exactement le point demandé
+        # (sans y_offset : en cinématique on veut cadrer pile sur la cible).
+        if self._cinematic_active:
+            cx, cy = self._cinematic_target
+            target_x = cx - self._sw // 2
+            target_y = cy - self._sh // 2
+            self.offset_x += (target_x - self.offset_x) * 0.1
+            self.offset_y += (target_y - self.offset_y) * 0.1
+            # Clamp identique au mode joueur (évite de sortir du monde).
+            max_y = settings.GROUND_Y + 40 - self._sh
+            min_y = settings.CEILING_Y - self._sh // 2
+            self.offset_x = max(0, min(self.offset_x, self.scene_width - self._sw))
+            self.offset_y = max(min_y, min(self.offset_y, max(0, max_y)))
+            return
 
         # Position visée : centrer la cible à l'écran (et y_offset au-dessus).
         target_x = target_rect.centerx - self._sw // 2
@@ -211,3 +236,26 @@ class Camera:
                 rect.left   < self.offset_x + self._sw and
                 rect.bottom > self.offset_y and
                 rect.top    < self.offset_y + self._sh)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    #  CAMÉRA CINÉMATIQUE (utilisé par systems/cutscene.py)
+    # ─────────────────────────────────────────────────────────────────────────
+    #
+    #  En cutscene, la caméra arrête de suivre le joueur et glisse vers un
+    #  point fixe du monde. On garde le même lerp 0.1 que pour le joueur,
+    #  donc le "switch" se voit comme un travelling doux.
+
+    def set_cinematic_target(self, target):
+        """Active le mode cinématique : la caméra glisse vers `target` (x, y monde)
+        et reste centrée dessus jusqu'à release_cinematic()."""
+        self._cinematic_active = True
+        self._cinematic_target = (float(target[0]), float(target[1]))
+
+    def release_cinematic(self):
+        """Désactive le mode cinématique : la caméra reprend le suivi du joueur
+        à la prochaine update(). La transition est douce grâce au lerp."""
+        self._cinematic_active = False
+
+    def is_cinematic(self):
+        """True si la caméra est actuellement en mode cinématique."""
+        return self._cinematic_active

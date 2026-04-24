@@ -102,6 +102,7 @@ PLAYER_SPEED  = 300           # vitesse horizontale de course (px/s)
 PLAYER_W      = 90            # largeur de la hitbox du joueur (px)
 PLAYER_H      = 104           # hauteur de la hitbox du joueur (px)
 PLAYER_SPAWN  = (100, 400)    # position (x, y) de spawn par défaut
+show_HUD = True
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -187,6 +188,73 @@ COMPAGNON_DIST_RASSURANT   = 260    # zone "rassurante" autour du joueur
 PEUR_VITESSE_BAISSE_CAPE   = 14     # peur baisse / s quand tous dans la cape
 PEUR_VITESSE_BAISSE_PROCHE = 6      # peur baisse / s par compagnon proche
 PEUR_VITESSE_HAUSSE_LOIN   = 8      # peur monte  / s par compagnon trop loin
+
+
+# ── PALETTE DES LUCIOLES (couleur + taille personnalisables par slot) ───────
+#
+#  Le joueur peut, via le menu Paramètres → Compagnons, choisir une couleur
+#  et une taille pour CHAQUE luciole individuellement (la 1ʳᵉ peut être
+#  jaune normale, la 2ᵉ violette grande, etc.).
+#
+#  - LUCIOLE_PALETTE = liste de (nom_affiché, (R, G, B)). Pour ajouter une
+#    couleur disponible dans le menu, il suffit d'ajouter une entrée ici.
+#  - LUCIOLE_TAILLES = liste de (nom_affiché, multiplicateur_du_rayon).
+#    1.0 = taille par défaut. 0.5 = moitié, 2.0 = double.
+#
+#  Lu par : entities/luciole.py (à chaque draw())
+#  Modifié par : ui/settings_screen.py (le joueur change ses préférences)
+
+LUCIOLE_PALETTE = [
+    ("Jaune chaud",   (255, 225, 170)),    # défaut — ambiance feu de camp
+    ("Vert marais",   (180, 255, 180)),    # un peu blafard, bestioles des bois
+    ("Bleu glacé",    (170, 220, 255)),    # froid, mystique
+    ("Rose blessé",   (255, 170, 190)),    # tendre, poétique
+    ("Violet rêve",   (210, 175, 255)),    # onirique
+    ("Blanc fantôme", (255, 245, 220)),    # presque blanc pur
+    ("Orange braise", (255, 180, 100)),    # plus orangée que la jaune chaud
+]
+
+LUCIOLE_TAILLES = [
+    ("Minuscule", 0.5),
+    ("Petite",    0.75),
+    ("Normale",   1.0),
+    ("Grande",    1.4),
+    ("Énorme",    2.0),
+]
+
+# Intensité = "puissance" d'éclairage. C'est juste un multiplicateur appliqué
+# à l'opacité du halo (cf. luciole.OPACITE_MAX). 1.0 = défaut. >1 = plus
+# brillant, plus présent. <1 = plus discret. On va plus haut que pour la
+# taille parce que l'opacité de base est volontairement basse (pour ne pas
+# faire "lampe LED") — les valeurs > 2.0 servent à éclairer vraiment la scène.
+LUCIOLE_INTENSITES = [
+    ("Très faible", 0.4),
+    ("Faible",      0.7),
+    ("Normale",     1.0),
+    ("Forte",       1.6),
+    ("Très forte",  2.4),
+    ("Maximale",    3.5),
+]
+
+# ── État runtime : choix du joueur, slot par slot ───────────────────────────
+#
+#  Listes de longueur COMPAGNON_NB_MAX. L'élément i est l'index choisi pour
+#  la luciole numéro i.
+#  - lucioles_couleurs_idx[i]   = index dans LUCIOLE_PALETTE
+#  - lucioles_tailles_idx[i]    = index dans LUCIOLE_TAILLES
+#  - lucioles_intensites_idx[i] = index dans LUCIOLE_INTENSITES
+#
+#  Valeurs par défaut : chaque luciole prend une couleur différente dans la
+#  palette (si on en a 5, on couvre les 5 premières), toutes en taille
+#  "Normale" (index 2) et en intensité "Forte" (index 3) — la "Normale"
+#  était trop discrète sur la scène d'après les tests utilisateur.
+#
+#  Hydratés au démarrage dans core/game.py depuis game_config.json,
+#  et réécrits dans ce fichier quand le joueur modifie le menu.
+
+lucioles_couleurs_idx   = [0, 1, 2, 3, 4]   # une couleur par défaut par slot
+lucioles_tailles_idx    = [2, 2, 2, 2, 2]   # toutes "Normale" par défaut
+lucioles_intensites_idx = [3, 3, 3, 3, 3]   # toutes "Forte" par défaut
 
 
 # ═════════════════════════════════════════════════════════════════════════════

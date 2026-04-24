@@ -260,15 +260,44 @@ class CompagnonGroup:
                 peur.increase(settings.PEUR_VITESSE_HAUSSE_LOIN * dt)
 
     # ═════════════════════════════════════════════════════════════════════════
-    #  7. RENDU (déléguée à chaque compagnon)
+    #  7. RENDU — en deux passes pour l'effet de profondeur
     # ═════════════════════════════════════════════════════════════════════════
     #
-    #  Appelé chaque frame par core/game.py dans _dessiner_monde(), juste
-    #  après avoir dessiné le joueur. On passe joueur au draw() du
-    #  compagnon pour que l'animation de cape puisse interpoler sa
-    #  position vers celle du joueur.
+    #  Les lucioles ont une profondeur Z (cf. entities/luciole.py) qui
+    #  dérive lentement entre -1 (derrière le joueur) et +1 (devant).
+    #  Pour rendre cet effet visible, core/game.py appelle :
+    #
+    #       compagnons.draw_derriere(...)   ← AVANT le draw du joueur
+    #       (le joueur se dessine)
+    #       compagnons.draw_devant(...)     ← APRÈS le draw du joueur
+    #
+    #  Comme ça, les lucioles "derrière" sont occultées par le joueur
+    #  (illusion 3D bon marché), celles "devant" recouvrent le joueur.
+    #
+    #  draw() (sans suffixe) reste disponible : elle dessine TOUTES les
+    #  lucioles dans une seule passe, comme avant. Utile pour les écrans
+    #  où on n'a pas la séparation (par ex. menu, ou debug).
+
+    def draw_derriere(self, surf, camera, joueur):
+        """Dessine UNIQUEMENT les lucioles dont z < 0 (derrière le joueur)."""
+        for c in self.compagnons:
+            # Compatible avec l'ancienne classe Compagnon (qui n'a pas
+            # est_devant_joueur) : si la méthode n'existe pas, on
+            # considère que la luciole est devant (rien à dessiner ici).
+            if hasattr(c, "est_devant_joueur") and not c.est_devant_joueur():
+                c.draw(surf, camera, joueur)
+
+    def draw_devant(self, surf, camera, joueur):
+        """Dessine UNIQUEMENT les lucioles dont z >= 0 (devant le joueur)."""
+        for c in self.compagnons:
+            # Compatible Compagnon : pas de est_devant_joueur → toujours devant.
+            if not hasattr(c, "est_devant_joueur") or c.est_devant_joueur():
+                c.draw(surf, camera, joueur)
 
     def draw(self, surf, camera, joueur):
-        """Dessine tous les compagnons (l'ordre = ordre de la liste)."""
+        """Dessine TOUTES les lucioles d'un coup (sans z-order).
+
+        Utile pour les écrans simples où on ne sépare pas avant/après le
+        joueur. Pour le rendu jeu normal, préférer draw_derriere / draw_devant."""
         for c in self.compagnons:
             c.draw(surf, camera, joueur)

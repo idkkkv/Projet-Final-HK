@@ -201,21 +201,36 @@ class PNJ:
     def conversation_actuelle(self):
         """Retourne la liste de lignes de la conversation à jouer maintenant.
 
-        Et avance l'index pour la prochaine fois :
+        N'AVANCE PAS l'index : c'est le rôle de passer_a_suivante(), appelée
+        par game.py UNE FOIS que le joueur a réellement fini de lire le
+        dialogue (boîte fermée).
+
+        Pourquoi ? Bug historique : on avançait l'index dès l'OUVERTURE de
+        la boîte. Si le joueur s'éloignait sans finir, ou pressait E par
+        erreur, la conversation suivante prenait sa place lors du prochain
+        E — il ne voyait jamais réellement les premiers dialogues. Maintenant
+        c'est la fin effective du dialogue qui décide d'avancer."""
+
+        if not self._dialogues:
+            return []
+        return self._dialogues[self._conv_idx]
+
+    def passer_a_suivante(self):
+        """Passe à la conversation suivante. À appeler quand le joueur a
+        FINI de lire le dialogue actuel (boîte fermée).
+
+        Comportement selon dialogue_mode :
           - boucle_dernier : la dernière conversation se répète indéfiniment.
           - restart        : après la dernière, on revient à la première."""
 
         if not self._dialogues:
-            return []
-
-        conv = self._dialogues[self._conv_idx]
+            return
         if self.dialogue_mode == "restart":
             # Modulo → boucle propre : 0 → 1 → 2 → 0 → 1 → ...
             self._conv_idx = (self._conv_idx + 1) % len(self._dialogues)
         else:
             # boucle_dernier — on bloque sur l'index de la dernière conversation.
             self._conv_idx = min(self._conv_idx + 1, len(self._dialogues) - 1)
-        return conv
 
     def reset_dialogue(self):
         """Revient à la première conversation (utilisé au respawn / nouvelle partie)."""

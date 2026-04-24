@@ -23,11 +23,20 @@
 #  core/game.py crée l'instance :
 #       self.parametres = SettingsScreen()
 #       self.parametres.bind_compagnons(self.compagnons, self.player)
+#       self.parametres.bind_editeur(self.editeur)   # ← après création éditeur
 #  Puis dans la boucle :
 #       if self.parametres.visible:
 #           resultat = self.parametres.handle_key(event.key)
 #           if resultat == "close": (revenir au menu Pause)
 #       self.parametres.draw(screen)
+#
+#  RÈGLE PRODUIT IMPORTANTE :
+#  --------------------------
+#  La page "Compagnons" (couleur / taille / nombre des Lueurs) n'est
+#  affichée QUE quand l'éditeur est ouvert (self._editeur.active = True).
+#  En mode normal, le joueur n'a aucun contrôle direct là-dessus :
+#  les Lueurs s'obtiennent au fil de l'aventure (récompenses de quêtes).
+#  L'éditeur, lui, sert à tester librement les combinaisons.
 #
 #  JE VEUX MODIFIER QUOI ?
 #  -----------------------
@@ -142,6 +151,11 @@ class SettingsScreen:
         self._compagnons = None
         self._joueur     = None
 
+        # Référence à l'éditeur (injectée par bind_editeur). Sert UNIQUEMENT
+        # à savoir si on est en mode éditeur, pour afficher (ou non) la
+        # page "Compagnons". Si None → on considère qu'on est en jeu normal.
+        self._editeur    = None
+
         # Polices initialisées paresseusement (la première fois qu'on dessine)
         # — on ne peut pas charger une SysFont avant pygame.font.init().
         self._font_titre = None
@@ -160,6 +174,22 @@ class SettingsScreen:
         en direct (et repositionner les compagnons autour du joueur)."""
         self._compagnons = group
         self._joueur     = joueur
+
+    def bind_editeur(self, editeur):
+        """Donne accès à l'éditeur (pour gating de la page Compagnons).
+
+        On lit `editeur.active` à chaque rendu : pas besoin d'événement,
+        l'utilisateur ne peut pas ouvrir l'éditeur ET le menu Paramètres
+        en même temps en pratique, mais on reste robuste."""
+        self._editeur = editeur
+
+    def _en_mode_editeur(self):
+        """True si l'éditeur est actuellement ouvert.
+
+        Utilisé pour décider si la page "Compagnons" est accessible :
+        en jeu normal, l'utilisateur n'a aucun contrôle direct là-dessus
+        (les Lueurs s'obtiennent via la progression / les quêtes)."""
+        return self._editeur is not None and getattr(self._editeur, "active", False)
 
     # ═════════════════════════════════════════════════════════════════════════
     #  5. OUVERTURE / FERMETURE
@@ -206,10 +236,14 @@ class SettingsScreen:
         elif key in (pygame.K_RETURN, pygame.K_SPACE):
             self._activer(options[self.selection])
         elif key in (pygame.K_LEFT, pygame.K_RIGHT):
-            # ←/→ : ajustement direct sur certaines options (page compagnons).
-            if self.page == "compagnons" and options[self.selection].startswith("Nombre"):
+            # ←/→ : ajustement direct sur les options de la page compagnons.
+            #   - "Nombre"               → +/- 1 luciole
+            #   - "Luciole N — Couleur"  → couleur précédente / suivante
+            #   - "Luciole N — Taille"   → taille précédente / suivante
+            #   - "Luciole N — Intensité"→ intensité précédente / suivante
+            if self.page == "compagnons":
                 delta = 1 if key == pygame.K_RIGHT else -1
-                self._ajuster_nb_compagnons(delta)
+                self._ajuster_option_compagnons(options[self.selection], delta)
         return None
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -224,8 +258,14 @@ class SettingsScreen:
         """Liste des options (= chaînes à afficher) pour la page courante."""
 
         if self.page == "main":
-            return ["Affichage", "Compagnons",
-                    "Aide — Jeu", "Aide — Mode éditeur", "Retour"]
+            # "Compagnons" n'apparaît qu'en mode éditeur — voir docstring
+            # de la classe (RÈGLE PRODUIT). En jeu normal, le joueur ne
+            # règle pas ses Lueurs : il les gagne au fil de l'aventure.
+            entrees = ["Affichage"]
+            if self._en_mode_editeur():
+                entrees.append("Compagnons")
+            entrees += ["Aide — Jeu", "Aide — Mode éditeur", "Retour"]
+            return entrees
 
         if self.page == "affichage":
             # On construit dynamiquement le libellé en fonction du mode actuel,
@@ -238,12 +278,7 @@ class SettingsScreen:
             return [label_hud, "Retour"]
 
         if self.page == "compagnons":
-            if self._compagnons:
-                nb = len(self._compagnons.compagnons)
-            else:
-                nb = 0
-            nb_max = settings.COMPAGNON_NB_MAX
-            return [f"Nombre : {nb} / {nb_max}   (← / →)", "Retour"]
+            return self._options_compagnons()
 
         # Pages d'aide : une seule option pour revenir
         return ["Retour"]
@@ -285,9 +320,15 @@ class SettingsScreen:
             self._toggler_hud_mode()
             return
 
-        # ── Page Compagnons : Entrée = +1 (boucle à 0 au max) ────────────────
-        if self.page == "compagnons" and option.startswith("Nombre"):
-            self._ajuster_nb_compagnons(+1, wrap=True)
+        # ── Page Compagnons : Entrée = avance d'un cran sur l'option ─────────
+        # Pour "Nombre" → +1 (avec bouclage à 0 quand on dépasse le max).
+        # Pour les options Luciole → cycle vers la valeur suivante (Entrée
+        # se comporte comme la flèche droite — utile sur clavier sans flèches).
+        if self.page == "compagnons":
+            if option.startswith("Nombre"):
+                self._ajuster_nb_compagnons(+1, wrap=True)
+            else:
+                self._ajuster_option_compagnons(option, +1)
 
     # ═════════════════════════════════════════════════════════════════════════
     #  9. ACTIONS (bascule HUD, ajustement nombre de compagnons)
@@ -298,8 +339,10 @@ class SettingsScreen:
 
         if settings.hud_mode == "permanent":
             nouveau = "immersion"
+            settings.show_HUD == False
         else:
             nouveau = "permanent"
+            settings.show_HUD == True
         settings.hud_mode = nouveau
 
         # Persistance dans game_config.json [D35] : on lit la config,
@@ -308,6 +351,147 @@ class SettingsScreen:
         cfg = lire_config()
         cfg["hud_mode"] = nouveau
         ecrire_config(cfg)
+
+    # ── Page Compagnons : génération dynamique des options ──────────────────
+    #
+    #  La liste affichée est :
+    #      "Nombre : N / Max"
+    #      pour chaque luciole active i :
+    #          "Luciole i+1 — Couleur : NomCouleur"
+    #          "Luciole i+1 — Taille  : NomTaille"
+    #      "Retour"
+    #
+    #  ←/→ fait défiler la valeur sous le curseur (couleur ou taille ou nb).
+    #  Entrée fait défiler aussi (alternative pour les ergonomies sans flèches).
+    #  Voir _activer() et handle_key() pour le cycling.
+
+    def _options_compagnons(self):
+        """Construit la liste d'options de la page Compagnons."""
+        if self._compagnons:
+            nb = len(self._compagnons.compagnons)
+        else:
+            nb = 0
+        nb_max = settings.COMPAGNON_NB_MAX
+
+        options = [f"Nombre : {nb} / {nb_max}   (← / →)"]
+
+        # Pour chaque luciole active, on ajoute 3 lignes éditables :
+        # couleur, taille et intensité (puissance d'éclairage).
+        for i in range(nb):
+            nom_couleur   = self._libelle_couleur(i)
+            nom_taille    = self._libelle_taille(i)
+            nom_intensite = self._libelle_intensite(i)
+            options.append(f"Luciole {i + 1}  —  Couleur   : {nom_couleur}")
+            options.append(f"Luciole {i + 1}  —  Taille    : {nom_taille}")
+            options.append(f"Luciole {i + 1}  —  Intensité : {nom_intensite}")
+
+        options.append("Retour")
+        return options
+
+    def _libelle_couleur(self, idx_luciole):
+        """Nom affichable de la couleur actuellement choisie pour la luciole idx."""
+        try:
+            i_choix = settings.lucioles_couleurs_idx[idx_luciole]
+            nom, _ = settings.LUCIOLE_PALETTE[i_choix]
+            return nom
+        except (AttributeError, IndexError, TypeError):
+            return "?"
+
+    def _libelle_taille(self, idx_luciole):
+        """Nom affichable de la taille actuellement choisie pour la luciole idx."""
+        try:
+            i_choix = settings.lucioles_tailles_idx[idx_luciole]
+            nom, _ = settings.LUCIOLE_TAILLES[i_choix]
+            return nom
+        except (AttributeError, IndexError, TypeError):
+            return "?"
+
+    def _libelle_intensite(self, idx_luciole):
+        """Nom affichable de l'intensité actuellement choisie pour la luciole idx."""
+        try:
+            i_choix = settings.lucioles_intensites_idx[idx_luciole]
+            nom, _ = settings.LUCIOLE_INTENSITES[i_choix]
+            return nom
+        except (AttributeError, IndexError, TypeError):
+            return "?"
+
+    def _cycler_couleur_luciole(self, idx_luciole, delta):
+        """Avance/recule l'index de couleur de la luciole idx, et persiste."""
+        n_couleurs = len(settings.LUCIOLE_PALETTE)
+        if n_couleurs == 0:
+            return
+        # Modulo Python gère bien les négatifs (-1 % 7 = 6) → cycling propre.
+        ancien = settings.lucioles_couleurs_idx[idx_luciole]
+        nouveau = (ancien + delta) % n_couleurs
+        settings.lucioles_couleurs_idx[idx_luciole] = nouveau
+
+        # Persistance dans game_config.json [D35].
+        cfg = lire_config()
+        cfg["lucioles_couleurs_idx"] = list(settings.lucioles_couleurs_idx)
+        ecrire_config(cfg)
+
+    def _cycler_taille_luciole(self, idx_luciole, delta):
+        """Avance/recule l'index de taille de la luciole idx, et persiste."""
+        n_tailles = len(settings.LUCIOLE_TAILLES)
+        if n_tailles == 0:
+            return
+        ancien = settings.lucioles_tailles_idx[idx_luciole]
+        nouveau = (ancien + delta) % n_tailles
+        settings.lucioles_tailles_idx[idx_luciole] = nouveau
+
+        cfg = lire_config()
+        cfg["lucioles_tailles_idx"] = list(settings.lucioles_tailles_idx)
+        ecrire_config(cfg)
+
+    def _cycler_intensite_luciole(self, idx_luciole, delta):
+        """Avance/recule l'index d'intensité de la luciole idx, et persiste.
+
+        Même schéma que pour couleur/taille : modulo pour cycler proprement,
+        écriture immédiate dans game_config.json [D35] pour que le réglage
+        survive au redémarrage du jeu."""
+        n_intens = len(settings.LUCIOLE_INTENSITES)
+        if n_intens == 0:
+            return
+        ancien = settings.lucioles_intensites_idx[idx_luciole]
+        nouveau = (ancien + delta) % n_intens
+        settings.lucioles_intensites_idx[idx_luciole] = nouveau
+
+        cfg = lire_config()
+        cfg["lucioles_intensites_idx"] = list(settings.lucioles_intensites_idx)
+        ecrire_config(cfg)
+
+    def _ajuster_option_compagnons(self, option, delta):
+        """Aiguillage : selon l'intitulé de l'option, on cycle la bonne valeur.
+
+        delta = +1 (suivant) ou -1 (précédent).
+
+        On reconnaît l'option à partir de son texte affiché. C'est moins
+        élégant qu'un identifiant abstrait, mais ça suit la convention déjà
+        utilisée pour "Nombre" / "Retour" / "HUD" dans cette classe."""
+
+        if option.startswith("Nombre"):
+            self._ajuster_nb_compagnons(delta)
+            return
+
+        # Format attendu : "Luciole N  —  Couleur : ..." ou "... Taille : ..."
+        if not option.startswith("Luciole"):
+            return
+
+        # On extrait N (numéro 1-based) entre "Luciole " et le double espace.
+        # Exemple : "Luciole 3  —  Couleur : Bleu glacé" → idx_luciole = 2
+        try:
+            apres_mot = option.split("Luciole", 1)[1].strip()
+            num_str   = apres_mot.split()[0]    # premier mot = "3"
+            idx_luciole = int(num_str) - 1
+        except (IndexError, ValueError):
+            return
+
+        if "Couleur" in option:
+            self._cycler_couleur_luciole(idx_luciole, delta)
+        elif "Taille" in option:
+            self._cycler_taille_luciole(idx_luciole, delta)
+        elif "Intensité" in option:
+            self._cycler_intensite_luciole(idx_luciole, delta)
 
     def _ajuster_nb_compagnons(self, delta, wrap=False):
         """Ajoute/retire un compagnon, met à jour le groupe et persiste.
@@ -407,10 +591,12 @@ class SettingsScreen:
     #  11. RENDU — pièces détachées
     # ═════════════════════════════════════════════════════════════════════════
 
-    def _dessiner_options(self, screen, px, y, panel_w):
+    def _dessiner_options(self, screen, px, y, panel_w, line_height=34):
         """Dessine la liste des options centrées dans le panneau.
 
-        L'option sélectionnée est en doré et précédée de ">"."""
+        L'option sélectionnée est en doré et précédée de ">".
+        line_height = espacement vertical entre les options (34 par défaut,
+        plus serré sur la page compagnons quand il y a beaucoup d'entrées)."""
 
         options = self._options_courantes()
         for i, opt in enumerate(options):
@@ -420,26 +606,27 @@ class SettingsScreen:
                 couleur = C_OPT
             surf = self._font_opt.render(opt, True, couleur)
             ox   = px + (panel_w - surf.get_width()) // 2
-            screen.blit(surf, (ox, y + i * 34))
+            screen.blit(surf, (ox, y + i * line_height))
             if i == self.selection:
                 ind = self._font_opt.render(">", True, couleur)
-                screen.blit(ind, (ox - ind.get_width() - 8, y + i * 34))
+                screen.blit(ind, (ox - ind.get_width() - 8, y + i * line_height))
 
     def _dessiner_compagnons(self, screen, px, y, panel_w):
-        """Petit texte d'explication + options de la page compagnons."""
+        """Petit texte d'explication + options de la page compagnons.
 
-        explication = [
-            "Les Lueurs te suivent et apaisent ta peur.",
-            "Touche C : les rappeler dans la cape.",
-            "Quand elles sont loin de toi → la peur monte.",
-        ]
-        for ligne in explication:
-            s = self._font_hint.render(ligne, True, C_DESC)
-            screen.blit(s, (px + (panel_w - s.get_width()) // 2, y))
-            y += s.get_height() + 4
+        Avec jusqu'à 5 lucioles, on a 1 + 2×5 + 1 = 12 options. Pour que ça
+        tienne dans le panneau standard (560 px), on rétrécit l'explication
+        à 1 ligne et on serre la hauteur de ligne à 28 px (au lieu de 34)."""
 
-        # Puis les options (Nombre : N / Max, Retour), un cran plus bas
-        self._dessiner_options(screen, px, y + 20, panel_w)
+        # Une seule ligne d'explication pour gagner de la place — les
+        # détails (touche C, peur) sont rappelés dans la page d'aide F1.
+        explication = "Tes Lueurs apaisent la peur. Personnalise leur couleur et leur taille ci-dessous."
+        s = self._font_hint.render(explication, True, C_DESC)
+        screen.blit(s, (px + (panel_w - s.get_width()) // 2, y))
+        y += s.get_height() + 12
+
+        # Espacement réduit à 28 px pour que les 12 options tiennent.
+        self._dessiner_options(screen, px, y, panel_w, line_height=28)
 
     def _dessiner_aide(self, screen, px, y, panel_w, panel_h, controles):
         """Dessine la liste "touche → description" pour les pages d'aide.

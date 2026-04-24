@@ -66,6 +66,7 @@ from entities.enemy import Enemy
 from world.editor import Editor
 from world.tilemap import Platform, Wall
 from world.collision import appliquer_plateformes
+from world.triggers import TriggerZoneGroup
 
 # ── Systèmes transversaux (peur, lumière, particules, combat…)
 from systems.lighting import LightingSystem
@@ -132,6 +133,13 @@ class Game:
         self.dialogue = BoiteDialogue()
         self.gestionnaire_histoire = GestionnaireHistoire()
 
+        # PNJ qui parle ACTUELLEMENT (None si la boîte est fermée).
+        # Sert à savoir à QUI demander d'avancer son index de conversation
+        # quand la boîte se ferme (cf. update — on appelle passer_a_suivante
+        # à ce moment-là, pas à l'ouverture, pour ne pas sauter de dialogues
+        # si le joueur s'éloigne en plein milieu).
+        self._pnj_actif = None
+
         # ── 1.5 Chargement des sons ──
         # On charge les sons UNE fois au démarrage, pas à chaque utilisation.
         sfx.init_sons_ui()
@@ -152,11 +160,43 @@ class Game:
         # Nombre de compagnons choisi par le joueur dans le menu Paramètres.
         nb_compagnons = int(cfg.get("nb_compagnons", 0))
 
+        # Couleur + taille de chaque luciole (préférences personnalisées).
+        # Les listes en config sont attendues de longueur COMPAGNON_NB_MAX.
+        # Si elles sont absentes ou trop courtes, on garde les défauts définis
+        # dans settings.py, en complétant par recyclage des valeurs.
+        nb_max = settings.COMPAGNON_NB_MAX
+        couleurs_cfg = cfg.get("lucioles_couleurs_idx")
+        if isinstance(couleurs_cfg, list) and len(couleurs_cfg) > 0:
+            # On complète avec la dernière valeur si la liste est trop courte
+            # (config créée quand COMPAGNON_NB_MAX était plus petit).
+            settings.lucioles_couleurs_idx = [
+                int(couleurs_cfg[min(i, len(couleurs_cfg) - 1)])
+                for i in range(nb_max)
+            ]
+        tailles_cfg = cfg.get("lucioles_tailles_idx")
+        if isinstance(tailles_cfg, list) and len(tailles_cfg) > 0:
+            settings.lucioles_tailles_idx = [
+                int(tailles_cfg[min(i, len(tailles_cfg) - 1)])
+                for i in range(nb_max)
+            ]
+        # Intensité (puissance d'éclairage) : même logique de complétion.
+        # Hydrate settings.lucioles_intensites_idx (cf. luciole._get_intensite_mult).
+        intens_cfg = cfg.get("lucioles_intensites_idx")
+        if isinstance(intens_cfg, list) and len(intens_cfg) > 0:
+            settings.lucioles_intensites_idx = [
+                int(intens_cfg[min(i, len(intens_cfg) - 1)])
+                for i in range(nb_max)
+            ]
+
         # ── 1.9 Création du joueur, des compagnons et des ennemis ──
         self.compagnons = CompagnonGroup(nb=nb_compagnons)
         self.joueur     = Player((100, 400))
         # On branche le menu Paramètres MAINTENANT (après joueur créé).
         self.parametres.bind_compagnons(self.compagnons, self.joueur)
+
+        # Zones-déclencheurs (téléportation, cinématiques) — vide au boot,
+        # rempli par les cartes / l'éditeur. cf. world/triggers.py [D02]
+        self.triggers = TriggerZoneGroup()
 
         self.camera  = Camera(SCENE_WIDTH, SCENE_HEIGHT)
         self.ennemis = [Enemy(500, 530 - 60)]
@@ -184,6 +224,12 @@ class Game:
         self.editeur = Editor(self.platforms, self.ennemis,
                               self.camera, self.lumieres, self.joueur)
         self.editeur.build_border_segments()
+
+        # On branche l'éditeur dans le menu Paramètres : la page
+        # "Compagnons" (couleur/taille/nb des Lueurs) n'est accessible
+        # qu'en mode éditeur (en jeu normal, ces réglages se gagnent
+        # via les quêtes — règle produit, voir ui/settings_screen.py).
+        self.parametres.bind_editeur(self.editeur)
 
         # ── 1.13 Variables d'état (transitions, caches) ──
         self._init_transitions()
@@ -593,11 +639,12 @@ class Game:
                 self.carte_actuelle = debut
             else:
                 # Pas de carte de départ définie → carte vide.
-                self.editeur._new_map()
+                self._lancer_fondu_menu(lambda: self.editeur._new_map())
                 self.carte_actuelle = ""
         else:
             # Mode éditeur → carte vide prête à éditer.
-            self.editeur._new_map()
+            self._lancer_fondu_menu(lambda: self.editeur._new_map())
+            print("p")
             self.carte_actuelle = ""
 
         # Dans tous les cas : reconstruire la grille et le cache.
@@ -670,12 +717,18 @@ class Game:
         """Cherche un PNJ proche et démarre son dialogue.
 
         Appelé quand le joueur appuie sur E en mode histoire.
-        """
+
+        On NE FAIT PLUS avancer l'index de conversation ici (c'était le
+        bug : l'index avançait à l'ouverture, donc un dialogue interrompu
+        était quand même 'consommé'). À la place, on retient le PNJ actif
+        dans self._pnj_actif ; quand la boîte se ferme (cf. update_play),
+        on appelle pnj.passer_a_suivante() pour avancer proprement."""
         for pnj in self.editeur.pnjs:
             if pnj.peut_interagir(self.joueur.rect):
                 lignes = pnj.conversation_actuelle()
                 if lignes:
                     self.dialogue.demarrer(lignes)
+                    self._pnj_actif = pnj
                 return
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -716,6 +769,8 @@ class Game:
                     self.mode = "histoire"
                     self._nouvelle_partie()
                 self._lancer_fondu_menu(_action)
+
+                
 
             elif choix == "Mode éditeur":
                 self.mode = "editeur"
@@ -1053,6 +1108,17 @@ class Game:
         self._update_fondu(dt)
         self.dialogue.update(dt)
 
+        # ── PNJ : on avance la conversation seulement quand le joueur a
+        # FINI de la lire (boîte fermée). Évite que l'index avance dès
+        # l'ouverture, ce qui sautait des dialogues si on s'éloignait.
+        if self._pnj_actif is not None and not self.dialogue.actif:
+            self._pnj_actif.passer_a_suivante()
+            self._pnj_actif = None
+
+        # Zones-déclencheurs (téléportation / cinématiques) — front-montant
+        # sur la collision joueur/zone. Vide tant qu'aucune carte n'en pose.
+        self.triggers.check(self.joueur, {"game": self})
+
         # Compagnons : IA + influence sur la jauge de peur.
         self.compagnons.update(dt, self.joueur)
         self.compagnons.affecter_peur(self.peur, self.joueur, dt)
@@ -1079,8 +1145,9 @@ class Game:
     #     4. Plateformes
     #     5. Décors
     #     6. Ennemis, PNJ
-    #     7. Joueur
-    #     8. Compagnons
+    #     7a. Lucioles "derrière" (z < 0)  — masquées par le joueur
+    #     7b. Joueur
+    #     8. Lucioles "devant" (z >= 0)    — recouvrent le joueur
     #     9. Particules
     #    10. Portails (seulement en mode debug)
     #    11. Overlays éditeur
@@ -1140,11 +1207,17 @@ class Game:
             if self.camera.is_visible(pnj.rect):
                 pnj.draw(self.screen, self.camera, self.joueur.rect)
 
-        # 7. Joueur.
+        # 7a. Lucioles "derrière" (z < 0) : dessinées AVANT le joueur,
+        #     donc le joueur les masque si elles passent pile derrière lui.
+        #     Effet de profondeur 3D bon marché.
+        self.compagnons.draw_derriere(self.screen, self.camera, self.joueur)
+
+        # 7b. Joueur.
         self.joueur.draw(self.screen, self.camera, self.editeur.show_hitboxes)
 
-        # 8. Compagnons (on passe le joueur pour l'animation de cape).
-        self.compagnons.draw(self.screen, self.camera, self.joueur)
+        # 8. Lucioles "devant" (z >= 0) : dessinées APRÈS le joueur,
+        #     elles passent par-dessus lui.
+        self.compagnons.draw_devant(self.screen, self.camera, self.joueur)
 
         # 9. Particules.
         self.particles.draw(self.screen, self.camera)
@@ -1154,6 +1227,13 @@ class Game:
             police = self.editeur._get_font()
             for portail in self.editeur.portals:
                 portail.draw(self.screen, self.camera, police)
+
+        # 10.b Zones-déclencheurs (rectangles colorés) — éditeur uniquement.
+        # Vert = téléportation, jaune = cinématique. cf. world/triggers.py
+        if self.editeur.active:
+            self.triggers.draw_debug(
+                self.screen, self.camera, self.editeur._get_font()
+            )
 
         # 11. Overlays éditeur.
         if self.editeur.active:
@@ -1175,7 +1255,7 @@ class Game:
         self._dessiner_indicateur_mode()
 
         # 16-17. Overlay PV + HUD (masqués en mode éditeur).
-        if not self.editeur.active:
+        if not self.editeur.active and settings.show_HUD == True:
             self.hp_overlay.draw(self.screen, self.joueur)
             self.hud.draw(self.screen, self.joueur, self.peur)
 
@@ -1307,7 +1387,7 @@ class Game:
                 self._reconstruire_grille()
                 self._murs_modifies()
                 self._menu_choix_carte = None
-                self.etats.switch(GAME)
+                self._lancer_fondu_menu(lambda: self.etats.switch(GAME))
             elif choix is not None:
                 if self.editeur.load_map_for_portal(choix):
                     self.carte_actuelle     = choix
@@ -1315,7 +1395,8 @@ class Game:
                     self._reconstruire_grille()
                     self._murs_modifies()
                 self._menu_choix_carte = None
-                self.etats.switch(GAME)
+                self._lancer_fondu_menu(lambda: self.etats.switch(GAME))
+                
 
         # On a changé d'état → on laisse la boucle principale reprendre.
         if self._menu_choix_carte is None:
