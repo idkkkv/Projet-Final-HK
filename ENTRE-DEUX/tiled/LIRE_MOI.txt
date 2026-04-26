@@ -1,0 +1,17 @@
+DOSSIER DES CARTES TILED
+========================
+
+Placer ici les fichiers .tmj exportés depuis Tiled.
+
+CONVENTION DE NOMMAGE DES CALQUES (dans Tiled) :
+  - "fond"       → calque visuel (tuiles décoratives)
+  - "collisions" → calque solide (tuiles où le joueur ne peut pas aller)
+
+EXPORT DEPUIS TILED :
+  Fichier > Exporter sous > JSON (*.tmj)
+  Cocher "Embarquer les tilesets" si possible (sinon le .tsj doit être à côté)
+
+IMPORT DANS L'ÉDITEUR DU JEU :
+  En mode éditeur, appuyer sur [I] → taper le nom du fichier (sans .tmj)
+  Les collisions sont ajoutées à la carte courante.
+  Le fond visuel (si le tileset PNG est accessible) est ajouté comme décor.

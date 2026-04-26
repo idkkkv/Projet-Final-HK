@@ -119,7 +119,16 @@ class CutsceneContext:
         # cours d'initialisation, tests, etc.).
         self.camera       = getattr(game, "camera", None)
         self.joueur       = getattr(game, "joueur", None)
-        self.dialogue_box = getattr(game, "dialogue_box", None)
+        # Note : la boîte de dialogue s'appelle "dialogue" dans game.py, pas
+        # "dialogue_box". On expose les deux noms pour rester compatible
+        # avec les anciens scripts.
+        self.dialogue_box = getattr(game, "dialogue_box", None) \
+                         or getattr(game, "dialogue",     None)
+        self.particles    = getattr(game, "particles",    None)
+        self.shake        = getattr(game, "shake",        None)
+        # Liste des PNJ disponibles (passée par editeur.pnjs).
+        editeur           = getattr(game, "editeur",      None)
+        self.pnjs         = getattr(editeur, "pnjs", []) if editeur else []
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -308,8 +317,9 @@ class Cutscene:
             # Active la caméra cinématique si la caméra le supporte.
             cible = params.get("target", (0, 0))
             duree = params.get("duration", None)
+            speed = params.get("speed",    None)
             if ctx.camera is not None and hasattr(ctx.camera, "set_cinematic_target"):
-                ctx.camera.set_cinematic_target(cible)
+                ctx.camera.set_cinematic_target(cible, speed=speed)
             self._local["t_ecoule"] = 0.0
             self._local["duree"]    = duree   # None = blocage manuel via release
 
@@ -334,6 +344,56 @@ class Cutscene:
 
         elif step_type == "callback":
             # Appel d'une fonction libre. Étape instantanée.
+            pass
+
+        elif step_type == "shake":
+            # Déclenche un screenshake : amplitude (px), duree (s).
+            amplitude = float(params.get("amplitude", 6))
+            duree     = float(params.get("duration",  0.3))
+            if ctx.shake is not None:
+                ctx.shake.trigger(amplitude=amplitude, duree=duree)
+            self._local["t_restant"] = duree
+
+        elif step_type == "play_sound":
+            nom    = params.get("nom", "")
+            volume = float(params.get("volume", 1.0))
+            if nom:
+                try:
+                    from audio import sound_manager
+                    sound_manager.jouer(nom, volume=volume)
+                except Exception as e:
+                    print(f"[Cutscene] Son '{nom}' échoué : {e}")
+
+        elif step_type == "particles_burst":
+            x       = float(params.get("x", 0))
+            y       = float(params.get("y", 0))
+            nb      = int(params.get("nb", 12))
+            couleur = tuple(params.get("couleur", (255, 255, 200)))
+            if ctx.particles is not None:
+                ctx.particles.burst(x, y, nb=nb, couleur=couleur)
+
+        elif step_type == "player_walk":
+            self._local["t_ecoule"] = 0.0
+
+        elif step_type == "npc_walk_by_name":
+            # Résolution du PNJ par nom (au moment du démarrage de l'étape)
+            nom_pnj = params.get("nom_pnj", "")
+            self._local["t_ecoule"] = 0.0
+            self._local["npc_ref"]  = _trouver_pnj(ctx, nom_pnj)
+
+        elif step_type == "camera_focus_pnj":
+            # Cible un PNJ par son nom. On résout la position MAINTENANT.
+            nom_pnj = params.get("nom", "")
+            duree   = params.get("duration", None)
+            speed   = params.get("speed",    None)
+            cible   = _trouver_position_pnj(ctx, nom_pnj)
+            if cible and ctx.camera is not None and hasattr(ctx.camera, "set_cinematic_target"):
+                ctx.camera.set_cinematic_target(cible, speed=speed)
+            self._local["t_ecoule"] = 0.0
+            self._local["duree"]    = duree
+
+        elif step_type == "set_player_pos":
+            # Téléporte le joueur à (x, y) instantanément. Étape instantanée.
             pass
 
     def _exec_step(self, step_type, params, ctx, dt):
@@ -417,6 +477,78 @@ class Cutscene:
                 fn(ctx)
             return True
 
+        if step_type == "shake":
+            self._local["t_restant"] -= dt
+            return self._local["t_restant"] <= 0.0
+
+        if step_type == "play_sound":
+            return True   # Étape instantanée
+
+        if step_type == "particles_burst":
+            return True   # Étape instantanée
+
+        if step_type == "player_walk":
+            cible    = params.get("target", (0, 0))
+            vitesse  = float(params.get("speed", 100))
+            tol      = float(params.get("tolerance", 6.0))
+            self._local["t_ecoule"] += dt
+
+            joueur = ctx.joueur
+            if joueur is None or not hasattr(joueur, "rect"):
+                return True
+
+            dx = cible[0] - joueur.rect.centerx
+            dy = cible[1] - joueur.rect.centery
+            distance = math.hypot(dx, dy)
+
+            if distance <= tol:
+                return True
+
+            pas = min(vitesse * dt, distance)
+            if distance > 0:
+                joueur.rect.centerx += int(round(dx / distance * pas))
+                joueur.rect.centery += int(round(dy / distance * pas))
+
+            # Sécurité : timeout 30 s
+            return self._local["t_ecoule"] > 30.0
+
+        if step_type == "camera_focus_pnj":
+            duree = self._local.get("duree", None)
+            if duree is None:
+                return True
+            self._local["t_ecoule"] += dt
+            return self._local["t_ecoule"] >= duree
+
+        if step_type == "npc_walk_by_name":
+            npc      = self._local.get("npc_ref")
+            cible    = params.get("target", (0, 0))
+            vitesse  = float(params.get("speed", 80))
+            tol      = float(params.get("tolerance", 4.0))
+            self._local["t_ecoule"] += dt
+
+            if npc is None or not hasattr(npc, "rect"):
+                return True   # PNJ introuvable : on saute
+
+            dx = cible[0] - npc.rect.centerx
+            dy = cible[1] - npc.rect.centery
+            distance = math.hypot(dx, dy)
+            if distance <= tol:
+                return True
+            pas = min(vitesse * dt, distance)
+            if distance > 0:
+                npc.rect.centerx += int(round(dx / distance * pas))
+                npc.rect.centery += int(round(dy / distance * pas))
+            return self._local["t_ecoule"] > 30.0
+
+        if step_type == "set_player_pos":
+            x = params.get("x", None)
+            y = params.get("y", None)
+            joueur = ctx.joueur
+            if joueur is not None and hasattr(joueur, "rect") and x is not None and y is not None:
+                joueur.rect.x = int(x)
+                joueur.rect.y = int(y)
+            return True
+
         # Type inconnu → on n'ose pas bloquer la cinématique : on saute.
         return True
 
@@ -476,19 +608,19 @@ def npc_walk(npc, target, speed=80, tolerance=4.0):
     })
 
 
-def camera_focus(target, duration=None):
+def camera_focus(target, duration=None, speed=None):
     """Pose la caméra sur un point fixe (x, y monde).
 
-    Si `duration` est None → l'étape est instantanée (la caméra reste
-    focalisée jusqu'à camera_release). Si `duration` est un nombre →
-    on libère automatiquement la caméra à la fin du délai.
-
-    Nécessite que la caméra ait une méthode `set_cinematic_target((x,y))`
-    et `release_cinematic()` (à ajouter dans world/scene_manager.py ou
-    dans la classe Camera utilisée)."""
+    duration : si None → l'étape est instantanée (la caméra reste focalisée
+               jusqu'à camera_release). Si nombre → libération auto à la fin.
+    speed    : facteur de lissage du déplacement (0.0 < x ≤ 1.0).
+               0.1 = doux (défaut), 0.5 = nerveux, 1.0 = instantané.
+               None = garde la vitesse en cours."""
     params = {"target": tuple(target)}
     if duration is not None:
         params["duration"] = float(duration)
+    if speed is not None:
+        params["speed"] = float(speed)
     return ("camera_focus", params)
 
 
@@ -517,3 +649,92 @@ def callback(fn):
     type d'étape dédié (jouer un son, changer de carte, ajouter un item à
     l'inventaire…), on l'enveloppe dans une fonction et on la passe ici."""
     return ("callback", {"fn": fn})
+
+
+def shake(amplitude=6.0, duration=0.3):
+    """Tremblement de caméra. amplitude en px, duration en secondes."""
+    return ("shake", {"amplitude": float(amplitude), "duration": float(duration)})
+
+
+def play_sound(nom, volume=1.0):
+    """Joue le son `nom` (déjà chargé via audio/sound_manager.charger)."""
+    return ("play_sound", {"nom": str(nom), "volume": float(volume)})
+
+
+def particles_burst(x, y, nb=12, couleur=(255, 255, 200)):
+    """Émet `nb` particules à (x, y). couleur = (r, g, b)."""
+    return ("particles_burst", {
+        "x": float(x), "y": float(y), "nb": int(nb), "couleur": tuple(couleur),
+    })
+
+
+def player_walk(target, speed=100, tolerance=6.0):
+    """Déplace le JOUEUR jusqu'à `target` (x, y monde) à `speed` px/s.
+
+    Le joueur n'est pas piloté par le clavier pendant la cinématique
+    (cf. game.cutscene → mouvement_bloque), donc on peut le bouger ici."""
+    return ("player_walk", {
+        "target": tuple(target),
+        "speed": float(speed),
+        "tolerance": float(tolerance),
+    })
+
+
+def npc_walk_by_name(nom_pnj, target, speed=80, tolerance=4.0):
+    """Comme npc_walk, mais on retrouve le PNJ par son NOM (au moment du run).
+
+    Plus pratique que npc_walk(npc=...) qui exige une référence Python : ici
+    on stocke juste le nom dans le JSON et on résout au runtime."""
+    return ("npc_walk_by_name", {
+        "nom_pnj":   str(nom_pnj),
+        "target":    tuple(target),
+        "speed":     float(speed),
+        "tolerance": float(tolerance),
+    })
+
+
+def camera_focus_pnj(nom_pnj, duration=None, speed=None):
+    """Pose la caméra sur le PNJ dont le nom est `nom_pnj`.
+
+    Si plusieurs PNJ portent le même nom, on prend le premier trouvé.
+    Si aucun n'est trouvé, l'étape ne fait rien (mais ne bloque pas).
+    speed : cf. camera_focus."""
+    params = {"nom": str(nom_pnj)}
+    if duration is not None:
+        params["duration"] = float(duration)
+    if speed is not None:
+        params["speed"] = float(speed)
+    return ("camera_focus_pnj", params)
+
+
+def set_player_pos(x, y):
+    """Téléporte le joueur à (x, y) instantanément (en coords monde)."""
+    return ("set_player_pos", {"x": float(x), "y": float(y)})
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  4. UTILITAIRES INTERNES
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _trouver_position_pnj(ctx, nom_pnj):
+    """Renvoie (x, y) du PNJ nommé `nom_pnj` ou None s'il n'existe pas.
+
+    Cherche dans ctx.pnjs (peuplé par CutsceneContext depuis editeur.pnjs).
+    Insensible à la casse pour la souplesse."""
+    pnj = _trouver_pnj(ctx, nom_pnj)
+    if pnj is None:
+        return None
+    r = getattr(pnj, "rect", None)
+    return (r.centerx, r.centery) if r is not None else None
+
+
+def _trouver_pnj(ctx, nom_pnj):
+    """Renvoie l'OBJET PNJ nommé `nom_pnj` (insensible à la casse) ou None."""
+    if not nom_pnj:
+        return None
+    cible = nom_pnj.lower().strip()
+    for pnj in (ctx.pnjs or []):
+        nom = getattr(pnj, "nom", "")
+        if nom and nom.lower().strip() == cible:
+            return pnj
+    return None

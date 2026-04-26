@@ -127,6 +127,15 @@ class Camera:
         # donc transition douce dans les 2 sens.
         self._cinematic_active = False
         self._cinematic_target = (0, 0)   # (x, y) monde — à CENTRER à l'écran
+        # Facteur de lerp en cinématique (0.0 < x ≤ 1.0).
+        # 0.1 = défaut, doux. 0.5 = nerveux. 1.0 = collé direct (pas de lissage).
+        # Modifié par cutscene "camera_focus" via param "speed".
+        self._cinematic_speed     = 0.1
+        # Quand on libère la caméra (camera_release), on garde un instant la
+        # vitesse cinématique pour que le RETOUR vers le joueur soit aussi
+        # progressif que l'aller. Désactivé automatiquement quand la caméra
+        # arrive proche du joueur.
+        self._cinematic_returning = False
 
     # ─────────────────────────────────────────────────────────────────────────
     #  MISE À JOUR (chaque frame, en mode "suit le joueur")
@@ -151,8 +160,9 @@ class Camera:
             cx, cy = self._cinematic_target
             target_x = cx - self._sw // 2
             target_y = cy - self._sh // 2
-            self.offset_x += (target_x - self.offset_x) * 0.1
-            self.offset_y += (target_y - self.offset_y) * 0.1
+            f = max(0.01, min(1.0, self._cinematic_speed))
+            self.offset_x += (target_x - self.offset_x) * f
+            self.offset_y += (target_y - self.offset_y) * f
             # Clamp identique au mode joueur (évite de sortir du monde).
             max_y = settings.GROUND_Y + 40 - self._sh
             min_y = settings.CEILING_Y - self._sh // 2
@@ -164,10 +174,19 @@ class Camera:
         target_x = target_rect.centerx - self._sw // 2
         target_y = target_rect.centery - self._sh // 2 + self.y_offset
 
-        # ── Lerp : on avance de 10 % du chemin restant à chaque frame ────────
-        # → la caméra "glisse" doucement vers sa cible plutôt que de la coller.
-        self.offset_x += (target_x - self.offset_x) * 0.1
-        self.offset_y += (target_y - self.offset_y) * 0.1
+        # ── Lerp : 10 % du chemin par défaut ; pendant la "phase de retour"
+        # juste après une release_cinematic(), on garde la vitesse de la
+        # cinématique pour un retour symétrique de l'aller.
+        if self._cinematic_returning:
+            f = max(0.01, min(1.0, self._cinematic_speed))
+            # Quand on est suffisamment proche du joueur, on repasse au lerp
+            # standard (sinon on resterait à vitesse lente même en jeu normal).
+            if abs(target_x - self.offset_x) < 8 and abs(target_y - self.offset_y) < 8:
+                self._cinematic_returning = False
+        else:
+            f = 0.1
+        self.offset_x += (target_x - self.offset_x) * f
+        self.offset_y += (target_y - self.offset_y) * f
 
         # ── Clamp : on empêche la caméra de sortir du monde ──────────────────
         max_y = settings.GROUND_Y + 40 - self._sh
@@ -245,16 +264,23 @@ class Camera:
     #  point fixe du monde. On garde le même lerp 0.1 que pour le joueur,
     #  donc le "switch" se voit comme un travelling doux.
 
-    def set_cinematic_target(self, target):
+    def set_cinematic_target(self, target, speed=None):
         """Active le mode cinématique : la caméra glisse vers `target` (x, y monde)
-        et reste centrée dessus jusqu'à release_cinematic()."""
+        et reste centrée dessus jusqu'à release_cinematic().
+
+        speed : vitesse du lissage (lerp). 0.1 = défaut doux ; 0.5 = nerveux ;
+                1.0 = collage immédiat. None = ne change pas la valeur en cours."""
         self._cinematic_active = True
         self._cinematic_target = (float(target[0]), float(target[1]))
+        if speed is not None:
+            self._cinematic_speed = float(speed)
 
     def release_cinematic(self):
         """Désactive le mode cinématique : la caméra reprend le suivi du joueur
-        à la prochaine update(). La transition est douce grâce au lerp."""
-        self._cinematic_active = False
+        à la prochaine update(). On marque _cinematic_returning=True pour que
+        le RETOUR utilise la même vitesse que l'aller (cf. update())."""
+        self._cinematic_active    = False
+        self._cinematic_returning = True
 
     def is_cinematic(self):
         """True si la caméra est actuellement en mode cinématique."""

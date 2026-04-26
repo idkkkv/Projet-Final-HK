@@ -66,7 +66,7 @@ from entities.enemy import Enemy
 from world.editor import Editor
 from world.tilemap import Platform, Wall
 from world.collision import appliquer_plateformes
-from world.triggers import TriggerZoneGroup
+from world.triggers import TriggerZoneGroup, creer_depuis_dict
 
 # ── Systèmes transversaux (peur, lumière, particules, combat…)
 from systems.lighting import LightingSystem
@@ -198,6 +198,18 @@ class Game:
         # rempli par les cartes / l'éditeur. cf. world/triggers.py [D02]
         self.triggers = TriggerZoneGroup()
 
+        # Cinématique en cours (None si pas de cutscene active).
+        # Mis à jour par CutsceneTrigger.on_enter qui pose ici un objet Cutscene.
+        # Lu chaque frame dans _simuler_jeu pour avancer la cinématique.
+        self.cutscene = None
+        self.state    = "play"   # "play" | "cinematic"
+
+        # Compteur persistant : combien de fois CHAQUE cinématique a été
+        # jouée dans la partie en cours. Sauvegardé dans save.json, reset
+        # à "Nouvelle partie". Utilisé par CutsceneTrigger.on_enter pour
+        # respecter max_plays (cinématique unique vs répétable).
+        self.cinematiques_jouees = {}
+
         self.camera  = Camera(SCENE_WIDTH, SCENE_HEIGHT)
         self.ennemis = [Enemy(500, 530 - 60)]
 
@@ -224,6 +236,10 @@ class Game:
         self.editeur = Editor(self.platforms, self.ennemis,
                               self.camera, self.lumieres, self.joueur)
         self.editeur.build_border_segments()
+        # L'éditeur de cinématique a besoin d'un callback pour TESTER une
+        # cinématique (touche [T]) : on construit un Cutscene depuis sa liste
+        # d'étapes JSON et on le pose dans game.cutscene.
+        self.editeur.cine_editor.on_test_callback = self._tester_cinematique
 
         # On branche l'éditeur dans le menu Paramètres : la page
         # "Compagnons" (couleur/taille/nb des Lueurs) n'est accessible
@@ -607,6 +623,31 @@ class Game:
             self.joueur.knockback_vx = 0
 
         self._portail_en_attente = None
+        self._sync_triggers()
+
+    def _sync_triggers(self):
+        """Reconstruit self.triggers depuis les trigger_zones de l'éditeur.
+
+        À appeler après chaque chargement de carte (portail, démarrage, sauvegarde)
+        pour que les zones déclencheurs de la nouvelle carte soient actives."""
+        self.triggers = TriggerZoneGroup(
+            creer_depuis_dict(z.to_dict())
+            for z in self.editeur.trigger_zones
+        )
+
+    def _tester_cinematique(self, steps_data):
+        """Lance une cinématique depuis les données JSON brutes (touche [T]
+        de l'éditeur de cinématiques). Permet de prévisualiser sans avoir
+        à sauvegarder + recharger la carte + entrer dans la zone trigger."""
+        from systems.cutscene import Cutscene
+        from world.triggers   import _steps_depuis_data
+        try:
+            scene = Cutscene(_steps_depuis_data(steps_data))
+        except Exception as e:
+            print(f"[Cutscene] Erreur construction : {e}")
+            return
+        self.cutscene = scene
+        self.state    = "cinematic"
 
     def _dessiner_fondu(self):
         """Dessine le voile noir si l'alpha est > 0."""
@@ -627,6 +668,10 @@ class Game:
 
     def _nouvelle_partie(self):
         """Démarre une nouvelle partie (carte initiale, PV pleins)."""
+        # Reset du compteur de cinématiques (toutes les cinématiques uniques
+        # rejoueront depuis le début).
+        self.cinematiques_jouees = {}
+
         # Mode histoire → l'éditeur est désactivé (le joueur ne doit pas y accéder).
         if self.mode == "histoire":
             self.editeur.active = False
@@ -639,17 +684,17 @@ class Game:
                 self.carte_actuelle = debut
             else:
                 # Pas de carte de départ définie → carte vide.
-                self._lancer_fondu_menu(lambda: self.editeur._new_map())
+                self.editeur._new_map()
                 self.carte_actuelle = ""
         else:
             # Mode éditeur → carte vide prête à éditer.
-            self._lancer_fondu_menu(lambda: self.editeur._new_map())
-            print("p")
+            self.editeur._new_map()
             self.carte_actuelle = ""
 
         # Dans tous les cas : reconstruire la grille et le cache.
         self._reconstruire_grille()
         self._murs_modifies()
+        self._sync_triggers()
 
         # Réinitialiser le joueur.
         self.joueur.rect.x       = self.editeur.spawn_x
@@ -682,6 +727,8 @@ class Game:
         self.joueur.hp   = donnees.get("hp", self.joueur.max_hp)
         self.joueur.dead = False
         self.joueur.vy   = 0
+        # Restaure le compteur de cinématiques jouées (cinématiques uniques).
+        self.cinematiques_jouees = dict(donnees.get("cinematiques_jouees", {}))
 
         if self.mode == "histoire":
             self.editeur.active = False
@@ -693,6 +740,7 @@ class Game:
             self.carte_actuelle = carte
             self._reconstruire_grille()
             self._murs_modifies()
+            self._sync_triggers()
 
         self.joueur.rect.x = donnees.get("x", self.joueur.spawn_x)
         self.joueur.rect.y = donnees.get("y", self.joueur.spawn_y)
@@ -702,11 +750,12 @@ class Game:
     def _sauvegarder(self):
         """Écrit la partie courante dans save.json."""
         sauvegarder({
-            "mode": self.mode,
-            "hp":   self.joueur.hp,
-            "map":  self.carte_actuelle,
-            "x":    self.joueur.rect.x,
-            "y":    self.joueur.rect.y,
+            "mode":                 self.mode,
+            "hp":                   self.joueur.hp,
+            "map":                  self.carte_actuelle,
+            "x":                    self.joueur.rect.x,
+            "y":                    self.joueur.rect.y,
+            "cinematiques_jouees":  self.cinematiques_jouees,
         })
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -739,12 +788,23 @@ class Game:
         """Lance un fondu noir depuis le menu, puis exécute `action()`.
 
         Pourquoi ? Pour ne pas avoir de passage brutal du menu titre au
-        jeu. La musique du menu s'éteint pendant que l'écran devient noir.
+        jeu. La musique du menu s'éteint en 4 s, l'effet "rayons de
+        lumière" (effet_reveil) commence à s'estomper IMMÉDIATEMENT
+        (forcer_extinction) — l'utilisateur garde un petit halo de
+        l'écran-titre pendant qu'il entre dans le jeu / l'éditeur, qui
+        disparaît sur ~8 s.
         """
         self._menu_fondu_etat   = "out"
         self._menu_fondu_alpha  = 0
         self._menu_fondu_action = action
-        music.arreter(fadeout_ms=2000)
+        # Fadeout musique 4 s → laisse l'ambiance "bonne nuit" s'estomper
+        # progressivement plutôt que se couper sec.
+        music.arreter(fadeout_ms=4000)
+        # Effet de réveil : commence à descendre TOUT DE SUITE (sans
+        # attendre que la musique se coupe). Vitesse 0.12 → ~8 s avant
+        # disparition complète, donc on garde un halo pendant les
+        # premières secondes en éditeur / jeu.
+        self.effet_reveil.forcer_extinction()
 
     def _gerer_menu(self, events):
         """Gestion du menu titre (état MENU)."""
@@ -769,8 +829,6 @@ class Game:
                     self.mode = "histoire"
                     self._nouvelle_partie()
                 self._lancer_fondu_menu(_action)
-
-                
 
             elif choix == "Mode éditeur":
                 self.mode = "editeur"
@@ -813,6 +871,9 @@ class Game:
                     self._musique_menu, volume=0.7,
                     fadeout_ms=600, fadein_ms=1500,
                 )
+                # On revient au menu → l'effet_reveil reprend son
+                # comportement normal (synchronisé sur la musique).
+                self.effet_reveil.reactiver()
                 self.etats.switch(MENU)
             elif choix == "Quitter":
                 self.running = False
@@ -834,6 +895,7 @@ class Game:
                     self._musique_menu, volume=0.7,
                     fadeout_ms=600, fadein_ms=1500,
                 )
+                self.effet_reveil.reactiver()
                 self.etats.switch(MENU)
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -879,7 +941,23 @@ class Game:
 
     def _traiter_evenements_jeu(self, events):
         """Traite chaque event du frame (clavier, souris, molette)."""
+        # Si un éditeur overlay (cine ou pnj) est ouvert, il consomme TOUS
+        # les events clavier (le jeu en arrière-plan reste figé).
+        cine = getattr(self.editeur, "cine_editor", None)
+        pnj_ed = getattr(self.editeur, "pnj_editor",  None)
+        cine_open = cine is not None and cine.actif
+        pnj_open  = pnj_ed is not None and pnj_ed.actif
+        overlay   = cine if cine_open else (pnj_ed if pnj_open else None)
+
         for event in events:
+            if overlay is not None:
+                if event.type == pygame.KEYDOWN:
+                    mods = pygame.key.get_mods()
+                    overlay.handle_key(event.key, mods)
+                elif event.type == pygame.TEXTINPUT:
+                    overlay.handle_textinput(event.text)
+                continue
+
             # ── Clavier (touches pressées) ──
             if event.type == pygame.KEYDOWN:
                 self._gerer_touche(event.key)
@@ -972,6 +1050,7 @@ class Game:
             # Modification structurelle → recalculs.
             self._reconstruire_grille()
             self._murs_modifies()
+            self._sync_triggers()
         elif resultat and resultat.startswith("set_start:"):
             # Résultat au format "set_start:nom_de_la_carte"
             nom = resultat.split(":", 1)[1]
@@ -1042,8 +1121,11 @@ class Game:
         else:
             phys_dt = dt
 
-        # On bloque aussi le mouvement pendant un fondu ou un dialogue.
-        mouvement_bloque = (self._fondu_etat != "none" or self.dialogue.actif)
+        # On bloque aussi le mouvement pendant un fondu, un dialogue ou
+        # une cinématique en cours.
+        mouvement_bloque = (self._fondu_etat != "none"
+                            or self.dialogue.actif
+                            or self.cutscene is not None)
         if not mouvement_bloque:
             self.joueur.mouvement(phys_dt, keys, holes=trous)
 
@@ -1118,6 +1200,32 @@ class Game:
         # Zones-déclencheurs (téléportation / cinématiques) — front-montant
         # sur la collision joueur/zone. Vide tant qu'aucune carte n'en pose.
         self.triggers.check(self.joueur, {"game": self})
+
+        # Cinématique en cours : on l'avance, et quand elle est terminée
+        # on rend la main au joueur. Le contexte donne accès à camera,
+        # joueur, dialogue_box, particles, shake, son, pnjs (cf. CutsceneContext).
+        if self.cutscene is not None:
+            # Stoppe net la marche du joueur : sinon il garde sa vitesse et
+            # son animation walking jusqu'à la fin de la cinématique. Le son
+            # de pas est aussi arrêté pour éviter qu'il continue.
+            self.joueur.vx           = 0
+            self.joueur.knockback_vx = 0
+            self.joueur.walking      = False
+            try:
+                from audio import sound_manager
+                sound_manager.arreter("pas")
+            except Exception:
+                pass
+
+            from systems.cutscene import CutsceneContext
+            self.cutscene.update(dt, CutsceneContext(self))
+            if self.cutscene.is_done():
+                self.cutscene = None
+                self.state    = "play"
+                # Sécurité : on libère la caméra cinématique au cas où une
+                # étape l'aurait laissée active.
+                if hasattr(self.camera, "release_cinematic"):
+                    self.camera.release_cinematic()
 
         # Compagnons : IA + influence sur la jauge de peur.
         self.compagnons.update(dt, self.joueur)
@@ -1247,6 +1355,15 @@ class Game:
             draw_mouse_coords(self.screen, self.camera, y_start=110)
             self.editeur.draw_preview(self.screen, pygame.mouse.get_pos())
             self.editeur.draw_hud(self.screen, self._dt)
+            # Éditeurs overlays (cine + pnj) par-dessus tout
+            cine = getattr(self.editeur, "cine_editor", None)
+            if cine is not None and cine.actif:
+                cine.update(self._dt)
+                cine.draw(self.screen)
+            pnj_ed = getattr(self.editeur, "pnj_editor", None)
+            if pnj_ed is not None and pnj_ed.actif:
+                pnj_ed.update(self._dt)
+                pnj_ed.draw(self.screen)
 
         # 14. FPS (coin bas-droite) et nom de la carte (coin bas-gauche).
         self._dessiner_fps_et_carte()
@@ -1255,7 +1372,7 @@ class Game:
         self._dessiner_indicateur_mode()
 
         # 16-17. Overlay PV + HUD (masqués en mode éditeur).
-        if not self.editeur.active and settings.show_HUD == True:
+        if not self.editeur.active:
             self.hp_overlay.draw(self.screen, self.joueur)
             self.hud.draw(self.screen, self.joueur, self.peur)
 
@@ -1377,26 +1494,36 @@ class Game:
                 self._menu_fondu_alpha  = 0
                 music.transition(self._musique_menu, volume=0.7,
                                  fadeout_ms=300, fadein_ms=1500)
+                self.effet_reveil.reactiver()
                 self.etats.switch(MENU)
                 break
 
             choix = self._menu_choix_carte.handle_key(event.key)
             if choix == "Nouvelle carte":
-                self.editeur._new_map()
-                self.carte_actuelle = ""
-                self._reconstruire_grille()
-                self._murs_modifies()
-                self._menu_choix_carte = None
-                self._lancer_fondu_menu(lambda: self.etats.switch(GAME))
-            elif choix is not None:
-                if self.editeur.load_map_for_portal(choix):
-                    self.carte_actuelle     = choix
-                    self.editeur._nom_carte = choix
+                # Fondu vers le mode éditeur : on charge la carte + on
+                # passe en GAME une fois l'écran noir. Ça arrête la musique
+                # du menu en douceur et laisse l'effet_reveil s'estomper.
+                def _action_nouvelle():
+                    self.editeur._new_map()
+                    self.carte_actuelle = ""
                     self._reconstruire_grille()
                     self._murs_modifies()
-                self._menu_choix_carte = None
-                self._lancer_fondu_menu(lambda: self.etats.switch(GAME))
-                
+                    self._menu_choix_carte = None
+                    self.etats.switch(GAME)
+                self._lancer_fondu_menu(_action_nouvelle)
+            elif choix is not None:
+                # Idem : fondu doux puis chargement de la carte choisie.
+                carte_choisie = choix
+                def _action_charger():
+                    if self.editeur.load_map_for_portal(carte_choisie):
+                        self.carte_actuelle     = carte_choisie
+                        self.editeur._nom_carte = carte_choisie
+                        self._reconstruire_grille()
+                        self._murs_modifies()
+                        self._sync_triggers()
+                    self._menu_choix_carte = None
+                    self.etats.switch(GAME)
+                self._lancer_fondu_menu(_action_charger)
 
         # On a changé d'état → on laisse la boucle principale reprendre.
         if self._menu_choix_carte is None:
@@ -1405,7 +1532,45 @@ class Game:
         # Sinon, on dessine le menu de sélection.
         self.screen.fill((0, 0, 0))
         self._menu_choix_carte.draw(self.screen)
+
+        # Pendant le fondu vers GAME : on fait progresser le voile noir
+        # ICI aussi (sinon il resterait figé à 0 — _frame_menu n'est jamais
+        # appelé tant qu'on est dans le sélecteur). Et on continue à
+        # dessiner l'effet_reveil par-dessus → "lumières du titre qui
+        # s'éteignent doucement" pendant la transition vers l'éditeur.
+        self.effet_reveil.update(self._dt)
+        self.effet_reveil.draw(self.screen)
+        # update musique aussi (sinon le fadeout ne progresse pas).
+        music.update(self._dt)
+        self._avancer_fondu_menu()
+        if self._menu_fondu_alpha > 0:
+            self._dessiner_voile_noir(self._menu_fondu_alpha)
         return True
+
+    # Vitesse du voile noir, en alpha/seconde. 100 → 2.55 s pour aller de
+    # 0 à 255 (fade-out) ou inverse (fade-in). Plus lent que 170 → ressenti
+    # plus contemplatif, et laisse à l'effet_reveil le temps de s'estomper.
+    _MENU_FONDU_VITESSE = 100.0
+
+    def _avancer_fondu_menu(self):
+        """Fait progresser le fondu noir d'une frame.
+
+        Centralisé pour que _frame_menu, _frame_jeu ET le sélecteur de
+        carte (mode éditeur) partagent exactement la même logique."""
+        if self._menu_fondu_etat == "out":
+            self._menu_fondu_alpha += self._MENU_FONDU_VITESSE * self._dt
+            if self._menu_fondu_alpha >= 255:
+                self._menu_fondu_alpha = 255
+                if self._menu_fondu_action:
+                    self._menu_fondu_action()
+                    self._menu_fondu_action = None
+                # Passe au fondu entrant (le jeu va réapparaître).
+                self._menu_fondu_etat = "in"
+        elif self._menu_fondu_etat == "in" and self._menu_fondu_alpha > 0:
+            self._menu_fondu_alpha -= self._MENU_FONDU_VITESSE * self._dt
+            if self._menu_fondu_alpha <= 0:
+                self._menu_fondu_alpha = 0
+                self._menu_fondu_etat  = "none"
 
     def _frame_menu(self, events):
         """Un frame dans l'état MENU."""
@@ -1415,15 +1580,7 @@ class Game:
         self.menu_titre.draw(self.screen)
 
         # Fondu menu → jeu (quand on a cliqué "Nouvelle partie" par ex.)
-        if self._menu_fondu_etat == "out":
-            self._menu_fondu_alpha += 170 * self._dt
-            if self._menu_fondu_alpha >= 255:
-                self._menu_fondu_alpha = 255
-                if self._menu_fondu_action:
-                    self._menu_fondu_action()
-                    self._menu_fondu_action = None
-                # Passe au fondu entrant (le jeu va réapparaître).
-                self._menu_fondu_etat = "in"
+        self._avancer_fondu_menu()
 
         # Voile noir par-dessus le menu si alpha > 0.
         if self._menu_fondu_alpha > 0:
@@ -1436,10 +1593,7 @@ class Game:
 
         # Fondu entrant (après une transition depuis le menu).
         if self._menu_fondu_etat == "in" and self._menu_fondu_alpha > 0:
-            self._menu_fondu_alpha -= 170 * self._dt
-            if self._menu_fondu_alpha <= 0:
-                self._menu_fondu_alpha = 0
-                self._menu_fondu_etat  = "none"
+            self._avancer_fondu_menu()
             self._dessiner_voile_noir(self._menu_fondu_alpha)
 
     def _frame_pause(self, events):

@@ -102,7 +102,6 @@ PLAYER_SPEED  = 300           # vitesse horizontale de course (px/s)
 PLAYER_W      = 90            # largeur de la hitbox du joueur (px)
 PLAYER_H      = 104           # hauteur de la hitbox du joueur (px)
 PLAYER_SPAWN  = (100, 400)    # position (x, y) de spawn par défaut
-show_HUD = True
 
 
 # ═════════════════════════════════════════════════════════════════════════════

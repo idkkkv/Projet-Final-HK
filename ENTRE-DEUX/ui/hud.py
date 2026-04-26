@@ -145,12 +145,15 @@ class HUD:
         # getattr(obj, "nom", default) : récupère un attribut s'il existe,
         # sinon la valeur par défaut. Évite des crashs si le joueur n'a
         # pas encore tous les attributs (ex: ancien save).
+        #
+        # ⚠️ On NE déclenche PAS sur "peur non pleine" : la peur descend en
+        # permanence dès que les compagnons sont proches → le HUD ne se
+        # cacherait jamais. Le joueur consulte sa peur en regardant en haut.
         if settings.hud_mode == "immersion":
             visible = (
-                getattr(joueur, "looking_up",   False)        # regarde en haut
-                or getattr(joueur, "show_hp_timer", 0) > 0    # vient d'être touché ou regen
+                getattr(joueur, "looking_up",   False)        # regarde en haut (Z)
+                or getattr(joueur, "show_hp_timer", 0) > 0    # vient d'être touché
                 or getattr(joueur, "regen_active",  False)    # en train de regen
-                or not plein_peur                              # peur en cours
             )
             return 255 if visible else 0
 

@@ -71,7 +71,14 @@
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
+import json
+import os
 import pygame
+
+# Dossier des cinématiques (fichiers JSON).
+CINEMATIQUES_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "cinematiques"
+)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -153,6 +160,18 @@ class TriggerZone:
         Par défaut : ne fait rien — utile pour les triggers rearmables."""
         pass
 
+    def to_dict(self):
+        """Sérialise la zone pour la sauvegarde JSON (map ou snapshot)."""
+        return {
+            "type":     "base",
+            "x":        self.rect.x,
+            "y":        self.rect.y,
+            "w":        self.rect.width,
+            "h":        self.rect.height,
+            "nom":      self.nom,
+            "one_shot": self.one_shot,
+        }
+
     # ─────────────────────────────────────────────────────────────────────────
     #  Rendu de debug (mode éditeur)
     # ─────────────────────────────────────────────────────────────────────────
@@ -232,6 +251,14 @@ class TeleportTrigger(TriggerZone):
         self.target_y   = float(target_y)
         self.target_map = target_map        # None = même carte
 
+    def to_dict(self):
+        d = super().to_dict()
+        d["type"]       = "teleport"
+        d["target_x"]   = self.target_x
+        d["target_y"]   = self.target_y
+        d["target_map"] = self.target_map
+        return d
+
     def on_enter(self, ctx):
         game = ctx.get("game")
         if game is None:
@@ -292,28 +319,60 @@ class CutsceneTrigger(TriggerZone):
     # Jaune doré : "ici, il se passe quelque chose de scénarisé".
     _COULEUR_DEBUG = (240, 200, 80)
 
-    def __init__(self, rect, cutscene_factory, nom="", one_shot=True):
-        super().__init__(rect, nom=nom, one_shot=one_shot)
+    def __init__(self, rect, cutscene_nom="", cutscene_factory=None,
+                 nom="", one_shot=True, max_plays=1):
+        """cutscene_nom  : nom du fichier JSON dans cinematiques/ (ex: "intro").
+        cutscene_factory : fabrique Python optionnelle (rétrocompatibilité).
+                           Si fournie, elle a priorité sur le chargement JSON.
+        max_plays        : nombre TOTAL de lectures dans toute la partie.
+                           1 = unique (défaut). 0 = illimité. Compteur stocké
+                           dans la sauvegarde, reset à `Nouvelle partie`."""
+        super().__init__(rect, nom=nom or cutscene_nom, one_shot=one_shot)
+        self.cutscene_nom     = cutscene_nom
         self.cutscene_factory = cutscene_factory
+        self.max_plays        = int(max_plays)
+
+    def _charger_scene(self, ctx):
+        """Construit la Cutscene : fabrique Python d'abord, fichier JSON ensuite."""
+        if callable(self.cutscene_factory):
+            return self.cutscene_factory(ctx)
+        if self.cutscene_nom:
+            return _charger_cutscene_fichier(self.cutscene_nom, ctx)
+        return None
 
     def on_enter(self, ctx):
         game = ctx.get("game")
-        if game is None or not callable(self.cutscene_factory):
+        if game is None:
             return
 
-        scene = self.cutscene_factory(ctx)
+        # Compteur persistant : si on a déjà joué cette cinématique le nombre
+        # max de fois autorisé (toute la partie confondue), on ne refait rien.
+        # max_plays=0 = illimité.
+        if self.max_plays > 0 and self.cutscene_nom:
+            joues = getattr(game, "cinematiques_jouees", {})
+            deja  = joues.get(self.cutscene_nom, 0)
+            if deja >= self.max_plays:
+                return
+
+        scene = self._charger_scene(ctx)
         if scene is None:
             return
 
-        # Pose la cinématique dans game.cutscene si l'attribut existe.
-        # Si game.state existe, bascule vers "cinematic" pour que la boucle
-        # du jeu sache qu'il faut figer le joueur. On reste tolérant : si
-        # ces attributs n'existent pas encore (refactor en cours), on se
-        # contente de poser la cutscene → game.py la traitera quand il sera
-        # prêt à l'utiliser.
         game.cutscene = scene
         if hasattr(game, "state"):
             game.state = "cinematic"
+
+        # Incrémente le compteur (et le marque pour sauvegarde).
+        if self.cutscene_nom and hasattr(game, "cinematiques_jouees"):
+            game.cinematiques_jouees[self.cutscene_nom] = \
+                game.cinematiques_jouees.get(self.cutscene_nom, 0) + 1
+
+    def to_dict(self):
+        d = super().to_dict()
+        d["type"]         = "cutscene"
+        d["cutscene_nom"] = self.cutscene_nom
+        d["max_plays"]    = self.max_plays
+        return d
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -363,3 +422,150 @@ class TriggerZoneGroup:
         Délègue à TriggerZone.draw_debug() pour chaque zone."""
         for zone in self.zones:
             zone.draw_debug(surface, camera, font)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  5. UTILITAIRES — sérialisation / chargement de cinématiques depuis JSON
+# ═════════════════════════════════════════════════════════════════════════════
+
+def creer_depuis_dict(data):
+    """Reconstruit un TriggerZone depuis un dict (issu de to_dict / JSON carte).
+
+    Utilisé par game.py pour reconstruire les triggers après chaque chargement
+    de carte (via _sync_triggers_depuis_editeur)."""
+    rect     = (data["x"], data["y"], data["w"], data["h"])
+    nom      = data.get("nom", "")
+    one_shot = data.get("one_shot", True)
+    t        = data.get("type", "base")
+
+    if t == "cutscene":
+        return CutsceneTrigger(
+            rect,
+            cutscene_nom=data.get("cutscene_nom", ""),
+            nom=nom,
+            one_shot=one_shot,
+            max_plays=int(data.get("max_plays", 1)),
+        )
+    if t == "teleport":
+        return TeleportTrigger(
+            rect,
+            target_x=data.get("target_x", 0),
+            target_y=data.get("target_y", 0),
+            target_map=data.get("target_map"),
+            nom=nom,
+            one_shot=one_shot,
+        )
+    return TriggerZone(rect, nom=nom, one_shot=one_shot)
+
+
+def _charger_cutscene_fichier(nom, ctx):
+    """Charge cinematiques/<nom>.json et renvoie un objet Cutscene.
+
+    Renvoie None si le fichier est introuvable ou invalide (log console)."""
+    from systems.cutscene import Cutscene
+
+    chemin = os.path.join(CINEMATIQUES_DIR, f"{nom}.json")
+    try:
+        with open(chemin, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"[Trigger] Cinématique introuvable : {chemin}")
+        return None
+    except Exception as e:
+        print(f"[Trigger] Erreur chargement '{nom}' : {e}")
+        return None
+
+    return Cutscene(_steps_depuis_data(data))
+
+
+def _steps_depuis_data(data):
+    """Convertit une liste de dicts JSON en étapes Cutscene.
+
+    Types supportés (cf. systems/cutscene.py pour la sémantique) :
+        wait, dialogue, fade, camera_focus, camera_focus_pnj, camera_release,
+        shake, play_sound, particles_burst, player_walk, set_player_pos
+    """
+    from systems.cutscene import (
+        wait, dialogue, fade, camera_focus, camera_focus_pnj, camera_release,
+        shake, play_sound, particles_burst, player_walk, npc_walk_by_name,
+        set_player_pos,
+    )
+
+    def _opt_float(v):
+        """Convertit en float, ou None si vide/None (pour les durées optionnelles)."""
+        if v is None or v == "" or v == "None":
+            return None
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    def _f(v, defaut=0.0):
+        """Convertit en float avec un défaut si invalide."""
+        try:
+            return float(v) if v not in (None, "", "None") else float(defaut)
+        except (TypeError, ValueError):
+            return float(defaut)
+
+    def _i(v, defaut=0):
+        try:
+            return int(float(v)) if v not in (None, "", "None") else int(defaut)
+        except (TypeError, ValueError):
+            return int(defaut)
+
+    steps = []
+    for step in data:
+        t = step.get("type", "")
+        if t == "wait":
+            steps.append(wait(_f(step.get("duration"), 1.0)))
+        elif t == "dialogue":
+            lines = [(l["texte"], l.get("auteur", ""))
+                     for l in step.get("lignes", [])]
+            steps.append(dialogue(lines))
+        elif t == "fade":
+            steps.append(fade(step.get("direction", "out"),
+                              _f(step.get("duration"), 1.0)))
+        elif t == "camera_focus":
+            steps.append(camera_focus(
+                (_f(step.get("x")), _f(step.get("y"))),
+                _opt_float(step.get("duration")),
+                speed=_opt_float(step.get("speed")),
+            ))
+        elif t == "camera_focus_pnj":
+            steps.append(camera_focus_pnj(
+                step.get("nom", ""),
+                _opt_float(step.get("duration")),
+                speed=_opt_float(step.get("speed")),
+            ))
+        elif t == "camera_release":
+            steps.append(camera_release())
+        elif t == "shake":
+            steps.append(shake(
+                _f(step.get("amplitude"), 6.0),
+                _f(step.get("duration"),  0.3),
+            ))
+        elif t == "play_sound":
+            steps.append(play_sound(
+                step.get("nom", ""),
+                _f(step.get("volume"), 1.0),
+            ))
+        elif t == "particles_burst":
+            steps.append(particles_burst(
+                _f(step.get("x")), _f(step.get("y")),
+                _i(step.get("nb"), 12),
+                tuple(step.get("couleur", (255, 255, 200))),
+            ))
+        elif t == "player_walk":
+            steps.append(player_walk(
+                (_f(step.get("x")), _f(step.get("y"))),
+                _f(step.get("speed"), 100),
+            ))
+        elif t == "npc_walk_by_name":
+            steps.append(npc_walk_by_name(
+                step.get("nom_pnj", ""),
+                (_f(step.get("x")), _f(step.get("y"))),
+                _f(step.get("speed"), 80),
+            ))
+        elif t == "set_player_pos":
+            steps.append(set_player_pos(_f(step.get("x")), _f(step.get("y"))))
+    return steps

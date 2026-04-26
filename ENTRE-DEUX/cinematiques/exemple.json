@@ -1,0 +1,12 @@
+[
+  {"type": "fade", "direction": "out", "duration": 0.5},
+  {
+    "type": "dialogue",
+    "lignes": [
+      {"texte": "...", "auteur": "Narrateur"},
+      {"texte": "Quelque chose se passe ici.", "auteur": "Voix"}
+    ]
+  },
+  {"type": "wait", "duration": 1.0},
+  {"type": "fade", "direction": "in", "duration": 0.5}
+]

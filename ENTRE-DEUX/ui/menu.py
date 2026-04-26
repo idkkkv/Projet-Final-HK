@@ -425,7 +425,25 @@ class Menu:
 
         # ── Options — texte centré, indicateur ">" à gauche ──────────────────
         debut_y = int(h * self.options_y) + self.offset_y
-        for i, option in enumerate(self.options):
+
+        # Scroll : si trop d'options pour tenir à l'écran, on n'en montre
+        # qu'une fenêtre autour de la sélection courante.
+        max_h        = h - debut_y - 50
+        max_visible  = max(3, max_h // self.options_spacing)
+        n            = len(self.options)
+        if n <= max_visible:
+            scroll_start = 0
+            scroll_end   = n
+        else:
+            # Centre la sélection dans la fenêtre visible
+            scroll_start = max(0, min(n - max_visible,
+                                      self.selection - max_visible // 2))
+            scroll_end   = scroll_start + max_visible
+
+        # Tronque l'affichage des noms trop longs (en gardant le centre)
+        max_text_w = w - 80
+        for i in range(scroll_start, scroll_end):
+            option = self.options[i]
             # Option surlignée : doré ; autres : violet pâle.
             if i == self.selection:
                 couleur = (255, 215, 70)
@@ -433,12 +451,28 @@ class Menu:
                 couleur = (150, 135, 200)
 
             opt_surf = self._police_option.render(option, True, couleur)
+            if opt_surf.get_width() > max_text_w:
+                # Tronque avec "…" si trop long
+                texte = option
+                while texte and self._police_option.size(texte + "…")[0] > max_text_w:
+                    texte = texte[:-1]
+                opt_surf = self._police_option.render(texte + "…", True, couleur)
+
             ox = cx - opt_surf.get_width() // 2
-            oy = debut_y + i * self.options_spacing
+            oy = debut_y + (i - scroll_start) * self.options_spacing
             surf.blit(opt_surf, (ox, oy))
             if i == self.selection:
                 ind = self._police_option.render(">", True, couleur)
                 surf.blit(ind, (ox - ind.get_width() - 8, oy))
+
+        # Indicateurs "il y en a au-dessus / en-dessous"
+        if scroll_start > 0:
+            up = self._police_option.render("▲", True, (150, 135, 200))
+            surf.blit(up, (cx - up.get_width() // 2, debut_y - 28))
+        if scroll_end < n:
+            dn = self._police_option.render("▼", True, (150, 135, 200))
+            surf.blit(dn, (cx - dn.get_width() // 2,
+                           debut_y + (scroll_end - scroll_start) * self.options_spacing + 4))
 
         # ── Petite indication en bas ─────────────────────────────────────────
         aide = self._police_sous.render("↑↓ Naviguer   Entrée Valider", True, (70, 60, 110))

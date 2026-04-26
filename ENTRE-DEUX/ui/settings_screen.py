@@ -339,10 +339,8 @@ class SettingsScreen:
 
         if settings.hud_mode == "permanent":
             nouveau = "immersion"
-            settings.show_HUD == False
         else:
             nouveau = "permanent"
-            settings.show_HUD == True
         settings.hud_mode = nouveau
 
         # Persistance dans game_config.json [D35] : on lit la config,

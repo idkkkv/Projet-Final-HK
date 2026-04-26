@@ -86,6 +86,12 @@ class EffetReveil:
         self.intensite = 0.0
         self._cible    = 0.0
 
+        # Quand True : la cible est forcée à 0 même si la musique joue
+        # encore. Permet à game.py de déclencher l'extinction de l'effet
+        # AU MOMENT où on quitte le menu (sans attendre que la musique
+        # soit coupée). Réinitialisé par activer_normal().
+        self._force_extinction = False
+
         # Cache du halo pré-rendu (recalculé seulement si la taille change).
         self._halo_cache = None
         self._halo_size  = (0, 0)
@@ -177,12 +183,25 @@ class EffetReveil:
     #  3. UPDATE (synchronisation avec la musique + animation particules)
     # ═════════════════════════════════════════════════════════════════════════
 
+    def forcer_extinction(self):
+        """Force la cible à 0 indépendamment de la musique. Utilisé par
+        game.py quand on quitte le menu titre : l'effet commence à
+        s'estomper TOUT DE SUITE, sans attendre que la musique se coupe."""
+        self._force_extinction = True
+
+    def reactiver(self):
+        """Annule forcer_extinction(). À appeler quand on revient au menu."""
+        self._force_extinction = False
+
     def update(self, dt):
         """Calcule l'intensité cible selon la position dans la musique,
         puis lisse l'intensité affichée vers cette cible."""
 
+        # ── Extinction forcée (transition menu → jeu) ────────────────────────
+        if self._force_extinction:
+            self._cible = 0.0
         # ── Pas de musique en cours → tout retombe vers 0 ────────────────────
-        if not pygame.mixer.music.get_busy():
+        elif not pygame.mixer.music.get_busy():
             self._cible = 0.0
         else:
             # Position en secondes (get_pos renvoie des millisecondes).
@@ -209,12 +228,14 @@ class EffetReveil:
 
         # ── Lissage de l'intensité vers la cible (interpolation [D13]) ───────
         # Vitesses différentes pour la montée (rapide, dt*0.6) et la
-        # descente (lente, dt*0.25) → l'effet apparaît comme une révélation
-        # et disparaît progressivement.
+        # descente (très lente, dt*0.12) → l'effet apparaît comme une
+        # révélation et S'ÉTEINT TRÈS PROGRESSIVEMENT quand on lance une
+        # partie / le mode éditeur (≈8 s avant disparition complète, on
+        # garde donc un peu d'ambiance "bonne nuit" pendant le début du jeu).
         if self._cible > self.intensite:
             self.intensite += (self._cible - self.intensite) * min(1.0, dt * 0.6)
         else:
-            self.intensite += (self._cible - self.intensite) * min(1.0, dt * 0.25)
+            self.intensite += (self._cible - self.intensite) * min(1.0, dt * 0.12)
 
         # Petit seuil pour éviter de garder une intensité résiduelle qui
         # ferait dessiner pour rien (et qui n'atteindrait jamais 0).

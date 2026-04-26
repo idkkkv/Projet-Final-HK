@@ -16,26 +16,5 @@
   ],
   "carte_debut": "map1",
   "hud_mode": "immersion",
-  "nb_compagnons": 3,
-  "lucioles_couleurs_idx": [
-    2,
-    1,
-    3,
-    3,
-    4
-  ],
-  "lucioles_tailles_idx": [
-    3,
-    3,
-    3,
-    2,
-    2
-  ],
-  "lucioles_intensites_idx": [
-    5,
-    5,
-    5,
-    3,
-    3
-  ]
+  "nb_compagnons": 3
 }

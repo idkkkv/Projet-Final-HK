@@ -160,6 +160,10 @@ from systems.hitbox_config   import (get_hitbox, set_hitbox,
                                       PLAYER_KEY,
                                       get_player_hitbox, set_player_hitbox)
 from world.tilemap           import Platform, Wall, Decor
+from world.triggers          import CutsceneTrigger, creer_depuis_dict
+from world.tiled_importer    import importer_tiled
+from world.cinematique_editor import CinematiqueEditor
+from world.pnj_editor         import PNJEditor
 from utils                   import find_file
 
 
@@ -410,6 +414,7 @@ class Editor:
         self._mode_names = [
             "Plateforme", "Mob", "Lumiere", "Spawn", "Portail",
             "Mur", "Hitbox", "Trou", "Copier/Coller", "Décor", "PNJ", "Blocs",
+            "Trigger",
         ]
 
         # ── Copier/Coller ──
@@ -459,7 +464,19 @@ class Editor:
         self._text_input          = ""
         self._text_mode           = None
         self._text_prompt         = ""
-        self._pending_portal_rect = None
+        self._pending_portal_rect  = None
+        self._pending_trigger_rect = None
+        self._pending_trigger_nom  = ""
+        self._editing_trigger      = None   # zone en cours de rename ([R])
+        self.trigger_zones         = []
+
+        # Éditeur de cinématiques (overlay activé par [F2]).
+        self.cine_editor = CinematiqueEditor()
+        # Partage la caméra pour le picker [P] (cliquer dans le monde).
+        self.cine_editor.camera = self.camera
+
+        # Éditeur de PNJ (overlay activé par [F3] sur un PNJ proche).
+        self.pnj_editor = PNJEditor()
 
         # ── Spawn et couleurs ──
         self.spawn_x    = self.player.spawn_x
@@ -569,6 +586,19 @@ class Editor:
                 bd   = d
                 best = p
         return best
+
+    def _trigger_sous_curseur(self):
+        """Renvoie la zone-déclencheur sous le curseur, ou None.
+
+        Sert au mode 12 [R] pour identifier quelle zone on veut éditer."""
+        mx, my = pygame.mouse.get_pos()
+        wx = int(mx + self.camera.offset_x)
+        wy = int(my + self.camera.offset_y)
+        pt = pygame.Rect(wx, wy, 1, 1)
+        for z in self.trigger_zones:
+            if z.rect.colliderect(pt):
+                return z
+        return None
 
     def _decor_sprites_filtrés(self):
         """Liste des décors filtrée par la catégorie courante."""
@@ -743,9 +773,10 @@ class Editor:
                           "flicker_speed": l["flicker_speed"]}
                          for l in self.lighting.lights
                          if not l.get("_enemy_light")],
-            "portals":  [p.to_dict() for p in self.portals],
-            "decors":   [d.to_dict() for d in self.decors],
-            "pnjs":     [p.to_dict() for p in self.pnjs],
+            "portals":       [p.to_dict() for p in self.portals],
+            "decors":        [d.to_dict() for d in self.decors],
+            "pnjs":          [p.to_dict() for p in self.pnjs],
+            "trigger_zones": [z.to_dict() for z in self.trigger_zones],
         }
         self._history.append(state)
         # On limite la taille : si on dépasse, on retire le PLUS ancien.
@@ -811,7 +842,7 @@ class Editor:
 
     def change_mode(self):
         """Passe au mode suivant (touche [M] en éditeur). Remet les états à zéro."""
-        self.mode              = (self.mode + 1) % 12
+        self.mode              = (self.mode + 1) % len(self._mode_names)
         self.first_point       = None
         self.light_first_point = None
         self._hb_first_point   = None
@@ -899,6 +930,35 @@ class Editor:
             self._ask_text("load", "Charger :" +
                            (f"  ({', '.join(maps)})" if maps else ""))
             return "text_input"
+        elif key == pygame.K_i and not (mods & pygame.KMOD_CTRL):
+            tiled_files = self._list_tiled_files()
+            hint = f"  ({', '.join(tiled_files)})" if tiled_files else "  (aucun fichier dans tiled/)"
+            self._ask_text("import_tiled", f"Importer Tiled (.tmj) :{hint}")
+            return "text_input"
+        elif key == pygame.K_F2:
+            # Si on est sur une zone trigger, on ouvre la cinématique liée ;
+            # sinon, le navigateur de cinématiques.
+            cine_nom = ""
+            if self.mode == 12 and self.trigger_zones:
+                # Zone la plus proche du curseur souris (en monde)
+                mx, my = pygame.mouse.get_pos()
+                wx = int(mx + self.camera.offset_x)
+                wy = int(my + self.camera.offset_y)
+                pt = pygame.Rect(wx, wy, 1, 1)
+                for z in self.trigger_zones:
+                    if z.rect.colliderect(pt) and getattr(z, "cutscene_nom", ""):
+                        cine_nom = z.cutscene_nom
+                        break
+            self.cine_editor.ouvrir(cine_nom)
+            return "cine_open"
+        elif key == pygame.K_F3:
+            # Édite les dialogues du PNJ le plus proche du curseur.
+            pnj = self._pnj_le_plus_proche(max_dist=200)
+            if pnj is None:
+                self._show_msg("Aucun PNJ proche — passe en mode 11 (PNJ) et survole-en un")
+            else:
+                self.pnj_editor.ouvrir(pnj)
+            return "pnj_open"
         elif key == pygame.K_k and self._nom_carte:
             # Définir la carte actuelle comme point de départ de l'histoire.
             return f"set_start:{self._nom_carte}"
@@ -1124,6 +1184,24 @@ class Editor:
             label = self._BLOC_FACINGS[self._bloc_shape][self._bloc_facing]
             self._show_msg(f"Sens : {label}")
 
+        # ── Mode 12 : Trigger (cinématiques) ──────────────────────────────
+        # [R] = renommer / régler la zone trigger SOUS LE CURSEUR (cutscene_nom
+        #       puis max_plays). Évite de devoir supprimer + recréer la zone.
+        elif key == pygame.K_r and self.mode == 12:
+            zone = self._trigger_sous_curseur()
+            if zone is None:
+                self._show_msg("Aucun trigger sous le curseur")
+            else:
+                self._snapshot()
+                self._editing_trigger      = zone
+                self._pending_trigger_nom  = ""
+                actuel = getattr(zone, "cutscene_nom", "")
+                self._ask_text(
+                    "trigger_edit_nom",
+                    f"Nouveau nom de cinématique (actuel : '{actuel}') :"
+                )
+                return "text_input"
+
         return None
 
     def _new_map(self, bg_color=None):
@@ -1136,6 +1214,7 @@ class Editor:
         self.custom_walls.clear()
         self.decors.clear()
         self.pnjs.clear()
+        self.trigger_zones.clear()
         self._has_clipboard         = False
         self._restore_confirm       = False
         self._restore_confirm_timer = 0.0
@@ -1210,16 +1289,76 @@ class Editor:
                 r = self._pending_portal_rect
                 self.portals.append(Portal(r[0], r[1], r[2], r[3], name))
                 self._pending_portal_rect = None
+            elif mode == "trigger_nom" and self._pending_trigger_rect:
+                # Étape 1/2 : on a le nom, on demande max_plays
+                self._pending_trigger_nom = name
+                self._ask_text("trigger_max_plays",
+                               "Nombre max de lectures (1=unique, 0=illimité, défaut=1) :")
+                return "done"
+            elif mode == "trigger_max_plays" and self._pending_trigger_rect:
+                # Étape 2/2 : on construit le trigger
+                try:
+                    max_plays = int(name) if name else 1
+                except ValueError:
+                    max_plays = 1
+                r   = self._pending_trigger_rect
+                nom_cine = self._pending_trigger_nom
+                zone = CutsceneTrigger(
+                    (r[0], r[1], r[2], r[3]),
+                    cutscene_nom=nom_cine,
+                    nom=nom_cine,
+                    max_plays=max_plays,
+                )
+                self.trigger_zones.append(zone)
+                self._pending_trigger_rect = None
+                self._pending_trigger_nom  = ""
+                if max_plays == 0:
+                    self._show_msg(f"Trigger '{nom_cine}' placé (illimité)")
+                else:
+                    self._show_msg(f"Trigger '{nom_cine}' placé (max {max_plays} fois)")
+            elif mode == "trigger_edit_nom" and self._editing_trigger is not None:
+                # Étape 1/2 du rename : on retient le nouveau nom (vide = on
+                # garde l'ancien) et on demande max_plays.
+                if name:
+                    self._pending_trigger_nom = name
+                else:
+                    self._pending_trigger_nom = self._editing_trigger.cutscene_nom
+                actuel = self._editing_trigger.max_plays
+                self._ask_text(
+                    "trigger_edit_max_plays",
+                    f"Max lectures (actuel : {actuel}, 1=unique, 0=illimité) :"
+                )
+                return "done"
+            elif mode == "trigger_edit_max_plays" and self._editing_trigger is not None:
+                # Étape 2/2 : on applique les modifs
+                try:
+                    max_plays = int(name) if name else self._editing_trigger.max_plays
+                except ValueError:
+                    max_plays = self._editing_trigger.max_plays
+                z = self._editing_trigger
+                z.cutscene_nom = self._pending_trigger_nom
+                z.nom          = self._pending_trigger_nom or z.nom
+                z.max_plays    = max_plays
+                self._show_msg(
+                    f"Trigger mis à jour : '{z.cutscene_nom}'  (max {max_plays})"
+                )
+                self._editing_trigger     = None
+                self._pending_trigger_nom = ""
             elif mode == "bg_color":
                 color = _parse_color(name)
                 if color:
                     self.bg_color = list(color)
+            elif mode == "import_tiled":
+                self._appliquer_import_tiled(name)
             return "done"
 
         elif key == pygame.K_ESCAPE:
-            self._text_mode   = None
-            self._text_input  = ""
-            self._pending_portal_rect = None
+            self._text_mode            = None
+            self._text_input           = ""
+            self._pending_portal_rect  = None
+            self._pending_trigger_rect = None
+            self._pending_trigger_nom  = ""
+            self._editing_trigger      = None
             return "cancel"
 
         elif key == pygame.K_BACKSPACE:
@@ -1250,6 +1389,47 @@ class Editor:
             return []
         return sorted(f[:-5] for f in os.listdir(MAPS_DIR)
                       if f.endswith(".json") and not f.startswith("_"))
+
+    def _list_tiled_files(self):
+        """Liste les fichiers .tmj dans le dossier tiled/."""
+        from world.tiled_importer import TILED_DIR
+        if not os.path.isdir(TILED_DIR):
+            return []
+        return sorted(f[:-4] for f in os.listdir(TILED_DIR) if f.endswith(".tmj"))
+
+    def _appliquer_import_tiled(self, nom):
+        """Importe nom.tmj (depuis tiled/) et injecte les données dans la carte."""
+        resultat = importer_tiled(nom)
+        if resultat["erreur"]:
+            self._show_msg(f"Tiled: {resultat['erreur']}")
+            return
+
+        self._snapshot()
+
+        # Ajoute les platforms de collision à celles existantes.
+        self.platforms.extend(resultat["platforms"])
+
+        # Ajoute le décor fond (calque visuel boulonné).
+        self.decors.extend(resultat["decors"])
+
+        # Adapte la taille du monde si la carte Tiled est plus grande.
+        world_w = resultat["world_w"]
+        world_h = resultat["world_h"]
+        if world_w > 0:
+            import settings as _s
+            if world_w > _s.SCENE_WIDTH:
+                _s.SCENE_WIDTH           = world_w
+                self.camera.scene_width  = world_w
+            if world_h > 0:
+                # Le sol correspond au bas de la map Tiled.
+                _s.GROUND_Y = world_h
+
+        nb_p = len(resultat["platforms"])
+        nb_d = len(resultat["decors"])
+        self._show_msg(
+            f"Tiled '{nom}' importé : {nb_p} platform(s)"
+            + (f", {nb_d} décor(s)" if nb_d else "")
+        )
 
     # ═════════════════════════════════════════════════════════════════════════
     # 8.  SOURIS : molette, clic droit, clic gauche
@@ -1303,6 +1483,7 @@ class Editor:
         elif self.mode == 9:  self._click_decor(wx, wy)
         elif self.mode == 10: self._click_pnj(wx, wy)
         elif self.mode == 11: self._click_bloc(wx, wy)
+        elif self.mode == 12: self._click_rect(wx, wy, "trigger")
 
     def handle_right_click(self, mouse_pos):
         """Clic droit : supprimer l'objet sous le curseur (selon le mode)."""
@@ -1339,6 +1520,8 @@ class Editor:
             self.pnjs[:]         = [p for p in self.pnjs         if not p.rect.colliderect(pt)]
         elif self.mode == 11:
             self.decors[:]       = [d for d in self.decors       if not d.rect.colliderect(pt)]
+        elif self.mode == 12:
+            self.trigger_zones[:] = [z for z in self.trigger_zones if not z.rect.colliderect(pt)]
 
     # ═════════════════════════════════════════════════════════════════════════
     # 9.  ACTIONS DE CLIC (placer plateforme / mob / lumière / décor / …)
@@ -1372,6 +1555,9 @@ class Editor:
             maps = self._list_maps()
             self._ask_text("portal_name",
                            "Map cible :" + (f"  ({', '.join(maps)})" if maps else ""))
+        elif kind == "trigger":
+            self._pending_trigger_rect = (x, y, w, h)
+            self._ask_text("trigger_nom", "Nom de la cinématique (ex: intro) :")
         elif kind == "hole":
             # Avant le 1er trou, on crée un point de restauration (Phase 2).
             if not self.has_holes:
@@ -2257,6 +2443,8 @@ class Editor:
                   (sx - font.size("SPAWN")[0] // 2, sy - 22))
         for portal in self.portals:
             portal.draw(surf, self.camera, font)
+        for zone in self.trigger_zones:
+            zone.draw_debug(surf, self.camera, font)
 
     def draw_hud(self, surf, dt=0.016):
         """Bandeau d'information en haut + message éphémère en bas."""
@@ -2417,6 +2605,11 @@ class Editor:
                 f"[T]:{perso}  [G]sprite  [D]dialogue  [W]mode  ({len(self.pnjs)} PNJ)",
                 True, (190, 175, 240)), (10, y2))
 
+        elif self.mode == 12:
+            surf.blit(font.render(
+                f"Clic G x2=zone | Clic D=suppr | [R]=régler | [F2]=cinéma | {len(self.trigger_zones)} trigger(s)",
+                True, (240, 200, 80)), (10, y2))
+
         elif self.mode == 11:
             coul = (100, 160, 255) if self.bloc_theme == "bleu" else (100, 220, 100)
             px = self._bloc_base_size * self.bloc_scale
@@ -2432,8 +2625,8 @@ class Editor:
         carte_info = f" | carte: {self._nom_carte}" if self._nom_carte else ""
         cam_info   = "  [F5]CAM LIBRE" if not self.camera.free_mode else ""
         surf.blit(small.render(
-            f"[M]ode [H]itbox [N]ew [S]ave [L]oad [K]carte_debut [R]espawn "
-            f"[Ctrl+B]reset [Ctrl+Z]annuler [Ctrl+R]restaurer{cam_info}{carte_info}",
+            f"[M]ode [H]itbox [N]ew [S]ave [L]oad [I]mportTiled [K]carte_debut "
+            f"[Ctrl+Z]annuler [Ctrl+R]restaurer{cam_info}{carte_info}",
             True, (140, 140, 140)), (10, 70))
 
         # Indicateur caméra libre.
@@ -2463,7 +2656,10 @@ class Editor:
             surf.blit(msg_surf, (bx + 10, by + 5))
 
     def _draw_text_box(self, surf):
-        """Popup centrale de saisie de texte."""
+        """Popup centrale de saisie de texte.
+
+        Le prompt est wrappé sur plusieurs lignes si nécessaire, pour gérer
+        les listes de maps longues qui débordaient avant."""
         font  = self._get_font()
         w, h  = surf.get_size()
         # Voile noir semi-transparent derrière la popup.
@@ -2471,16 +2667,56 @@ class Editor:
         overlay.fill((0, 0, 0, 150))
         surf.blit(overlay, (0, 0))
 
-        # La boîte.
-        bw, bh = 540, 130
+        # Boîte plus large pour mieux accueillir les longues listes.
+        bw = min(w - 80, 800)
+        max_text_w = bw - 30
+
+        # Word-wrap du prompt
+        lignes = self._wrap_text(self._text_prompt, font, max_text_w)
+        # On limite à 6 lignes max pour éviter une popup géante
+        if len(lignes) > 6:
+            lignes = lignes[:6]
+            lignes[-1] = lignes[-1].rstrip(",") + " …"
+
+        # Hauteur dynamique
+        line_h = font.get_height() + 4
+        bh = 30 + line_h * len(lignes) + 30 + 30  # prompt + saisie + aide
         bx, by = (w - bw) // 2, (h - bh) // 2
         pygame.draw.rect(surf, (30, 20, 40), (bx, by, bw, bh))
         pygame.draw.rect(surf, (100, 200, 255), (bx, by, bw, bh), 2)
-        # Prompt + texte saisi (avec un _ fixe comme curseur).
-        surf.blit(font.render(self._text_prompt,    True, (200, 200, 255)), (bx + 15, by + 15))
-        surf.blit(font.render(self._text_input + "_", True, (255, 255, 255)), (bx + 15, by + 52))
+
+        # Prompt sur plusieurs lignes
+        y = by + 15
+        for ligne in lignes:
+            surf.blit(font.render(ligne, True, (200, 200, 255)), (bx + 15, y))
+            y += line_h
+
+        y += 6
+        surf.blit(font.render(self._text_input + "_", True, (255, 255, 255)),
+                  (bx + 15, y))
+        y += line_h + 6
         surf.blit(font.render("[Entrée]=valider  [Échap]=annuler",
-                              True, (140, 140, 140)), (bx + 15, by + 90))
+                              True, (140, 140, 140)), (bx + 15, y))
+
+    def _wrap_text(self, text, font, max_width):
+        """Word-wrap simple : casse aux espaces. Renvoie liste de lignes."""
+        if not text:
+            return [""]
+        mots = text.split(" ")
+        lignes = []
+        courante = ""
+        for mot in mots:
+            essai = (courante + " " + mot) if courante else mot
+            if font.size(essai)[0] <= max_width:
+                courante = essai
+            else:
+                if courante:
+                    lignes.append(courante)
+                # Si le mot seul dépasse → on le force quand même
+                courante = mot
+        if courante:
+            lignes.append(courante)
+        return lignes
 
     # ═════════════════════════════════════════════════════════════════════════
     # 13.  SAUVEGARDE / CHARGEMENT (JSON → disque et inverse)
@@ -2552,9 +2788,10 @@ class Editor:
                          "flicker_speed": l["flicker_speed"]}
                         for l in self.lighting.lights
                         if not l.get("_enemy_light")],
-            "portals": [p.to_dict() for p in self.portals],
-            "decors":  [d.to_dict() for d in self.decors],
-            "pnjs":    [p.to_dict() for p in self.pnjs],
+            "portals":       [p.to_dict() for p in self.portals],
+            "decors":        [d.to_dict() for d in self.decors],
+            "pnjs":          [p.to_dict() for p in self.pnjs],
+            "trigger_zones": [z.to_dict() for z in self.trigger_zones],
         }
 
     def save(self, name="map"):
@@ -2689,6 +2926,11 @@ class Editor:
         self.pnjs.clear()
         for p in data.get("pnjs", []):
             self.pnjs.append(PNJ.from_dict(p))
+
+        # Trigger zones (cinématiques, téléportations scriptées, etc.).
+        self.trigger_zones.clear()
+        for t in data.get("trigger_zones", []):
+            self.trigger_zones.append(creer_depuis_dict(t))
 
         # Remise à zéro du timer de confirmation.
         self._restore_confirm       = False

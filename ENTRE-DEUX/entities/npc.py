@@ -91,34 +91,73 @@ def list_pnj_sprites():
     return sprites
 
 
+def _charger_frames_dossier(chemin_dossier):
+    """Charge toutes les images d'un dossier, triées par numéro extrait du nom.
+
+    "frame_10.png" → 10 (extraction des chiffres) — évite que frame_10 passe
+    avant frame_2 dans un tri alphabétique."""
+    if not os.path.isdir(chemin_dossier):
+        return []
+    fichiers = sorted(
+        (g for g in os.listdir(chemin_dossier) if g.endswith((".png", ".jpg"))),
+        key=lambda s: int("".join(filter(str.isdigit, s)) or "0"),
+    )
+    return [pygame.image.load(os.path.join(chemin_dossier, ff)) for ff in fichiers]
+
+
 def _charger_frames_pnj(sprite_name):
-    """Charge les images pour un sprite PNJ (unique ou animé).
+    """Charge les images pour un sprite PNJ (mode rétrocompatible).
 
-    - Si sprite_name est un dossier → toutes les images triées par numéro
-      (frame_1.png, frame_2.png, …, frame_10.png — l'ordre numérique évite
-      "frame_10" avant "frame_2" qu'on aurait avec un tri alpha).
-    - Si sprite_name est un fichier → liste à 1 image.
-    - Sinon → liste vide (le PNJ tombera sur le fallback rectangle).
+    - sprite_name est un fichier .png/.jpg → liste à 1 image
+    - sprite_name est un dossier sans sous-dossiers idle/walk → toutes les
+      frames du dossier (animation cyclique unique, ancien comportement)
+    - Sinon → liste vide (fallback rectangle dans __init__).
     """
-
     chemin = os.path.join(PNJ_DIR, sprite_name)
-
-    # Cas dossier : on trie par numéro extrait du nom.
     if os.path.isdir(chemin):
-        # Lambda [D34] : extrait les chiffres du nom et les convertit en int.
-        # "frame_10.png" → "10" → 10. Si pas de chiffres → "0".
-        fichiers = sorted(
-            (g for g in os.listdir(chemin) if g.endswith((".png", ".jpg"))),
-            key=lambda s: int("".join(filter(str.isdigit, s)) or "0"),
-        )
-        return [pygame.image.load(os.path.join(chemin, ff)) for ff in fichiers]
-
-    # Cas fichier simple
+        return _charger_frames_dossier(chemin)
     if os.path.exists(chemin):
         return [pygame.image.load(chemin)]
-
-    # Cas fichier introuvable : liste vide → fallback rectangle dans __init__
     return []
+
+
+def _charger_animations_pnj(sprite_name):
+    """Charge les animations multi-états (idle / walk) d'un PNJ.
+
+    CONVENTION :
+        assets/images/pnj/<sprite_name>/idle/*.png  → animation au repos
+        assets/images/pnj/<sprite_name>/walk/*.png  → animation en marche
+
+    Renvoie un dict {"idle": [frames], "walk": [frames]}.
+        - Si seul l'un des deux dossiers existe, l'autre reprend ses frames.
+        - Si NI idle/ NI walk/ → renvoie {} (le PNJ retombera sur le mode
+          mono-animation via _charger_frames_pnj — back-compat avec les anciens
+          dossiers à frames directes ou les fichiers .png uniques)."""
+    chemin_base = os.path.join(PNJ_DIR, sprite_name)
+    if not os.path.isdir(chemin_base):
+        return {}
+    idle_dir = os.path.join(chemin_base, "idle")
+    walk_dir = os.path.join(chemin_base, "walk")
+    has_idle = os.path.isdir(idle_dir)
+    has_walk = os.path.isdir(walk_dir)
+    if not has_idle and not has_walk:
+        return {}
+
+    anims = {}
+    if has_idle:
+        idle_frames = _charger_frames_dossier(idle_dir)
+        if idle_frames:
+            anims["idle"] = idle_frames
+    if has_walk:
+        walk_frames = _charger_frames_dossier(walk_dir)
+        if walk_frames:
+            anims["walk"] = walk_frames
+    # Fallback croisé : un seul des deux états dispo → on duplique
+    if "idle" not in anims and "walk" in anims:
+        anims["idle"] = anims["walk"]
+    if "walk" not in anims and "idle" in anims:
+        anims["walk"] = anims["idle"]
+    return anims
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -159,18 +198,32 @@ class PNJ:
         # "boucle_dernier" = répète la dernière phrase ; "restart" = recommence.
         self.dialogue_mode = dialogue_mode
 
-        # ── Chargement du sprite (frames + animation) ────────────────────────
-        self._frames = []
-        self._anim   = None
+        # ── Chargement des sprites (multi-états ou mono) ─────────────────────
+        # Animations multi-états (idle/walk) si la convention de dossier est
+        # respectée, sinon fallback à _frames + _anim mono.
+        self._frames     = []        # frames du mode mono (back-compat)
+        self._anim       = None      # animation mono (back-compat)
+        self._anims      = {}        # {"idle": Animation, "walk": Animation}
+        self._etat_anim  = "idle"    # état courant ("idle" | "walk")
+        self._facing     = 1         # 1 = droite (sprite normal), -1 = gauche (flip)
+        self._prev_pos   = (x, y)    # pour détecter le mouvement
+
         if sprite_name:
-            self._frames = _charger_frames_pnj(sprite_name)
+            anims_par_etat = _charger_animations_pnj(sprite_name)
+            if anims_par_etat:
+                # Mode multi-états : idle/walk
+                for etat, frames in anims_par_etat.items():
+                    self._anims[etat] = Animation(frames, img_dur=8, loop=True)
+                # Pour le rect, on prend la 1re frame de idle (ou walk si pas d'idle)
+                ref_frames = anims_par_etat.get("idle") or anims_par_etat.get("walk")
+                self._frames = ref_frames or []
+            else:
+                # Mode mono (back-compat)
+                self._frames = _charger_frames_pnj(sprite_name)
 
         if self._frames:
-            # Animation cyclique ; img_dur = nb de frames d'affichage par image.
-            self._anim = Animation(self._frames, img_dur=8, loop=True)
-
-            # Hitbox configurée explicitement (via systems/hitbox_config) ?
-            # Sinon on se rabat sur la taille brute de la 1re image.
+            if not self._anims:
+                self._anim = Animation(self._frames, img_dur=8, loop=True)
             hb = get_hitbox(sprite_name) if sprite_name else None
             if hb:
                 self.rect = pygame.Rect(x, y, hb["w"], hb["h"])
@@ -178,7 +231,7 @@ class PNJ:
                 img = self._frames[0]
                 self.rect = pygame.Rect(x, y, img.get_width(), img.get_height())
         else:
-            # Pas de frames → on prend une taille raisonnable pour le fallback.
+            # Pas de frames → fallback rectangle.
             self.rect = pygame.Rect(x, y, 34, 54)
 
         # Police initialisée paresseusement (au premier draw).
@@ -241,8 +294,31 @@ class PNJ:
     # ═════════════════════════════════════════════════════════════════════════
 
     def update(self):
-        """Avance l'animation si elle existe (pas d'IA : le PNJ ne bouge pas)."""
-        if self._anim:
+        """Avance l'animation. Détecte le mouvement (rect a changé depuis la
+        dernière frame) pour switcher idle ↔ walk et déduire le sens facing."""
+        # Détection de mouvement : compare la position courante à la précédente
+        cur_x, cur_y = self.rect.x, self.rect.y
+        dx = cur_x - self._prev_pos[0]
+        dy = cur_y - self._prev_pos[1]
+        en_mouvement = (abs(dx) > 0 or abs(dy) > 0)
+
+        # Sens (uniquement déduit du déplacement horizontal)
+        if dx > 0:
+            self._facing = 1
+        elif dx < 0:
+            self._facing = -1
+        # dx == 0 → on garde le facing précédent
+
+        self._prev_pos = (cur_x, cur_y)
+
+        # Choix de l'animation à avancer
+        if self._anims:
+            etat_voulu = "walk" if en_mouvement and "walk" in self._anims else "idle"
+            self._etat_anim = etat_voulu
+            anim = self._anims.get(etat_voulu)
+            if anim is not None:
+                anim.update()
+        elif self._anim:
             self._anim.update()
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -262,8 +338,18 @@ class PNJ:
         rect_ecran = camera.apply(self.rect)
 
         # ── Sprite ou fallback ───────────────────────────────────────────────
-        if self._anim and self._frames:
+        img = None
+        if self._anims:
+            anim = self._anims.get(self._etat_anim)
+            if anim is not None:
+                img = anim.img()
+        elif self._anim and self._frames:
             img = self._anim.img()
+
+        if img is not None:
+            # Flip horizontal si le PNJ "regarde" vers la gauche.
+            if self._facing == -1:
+                img = pygame.transform.flip(img, True, False)
             surf.blit(img, (rect_ecran.x, rect_ecran.y))
         else:
             # Fallback : rectangle coloré + bordure blanche pour qu'on voie
