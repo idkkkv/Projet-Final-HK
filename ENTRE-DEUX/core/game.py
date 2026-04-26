@@ -58,6 +58,10 @@ from core.state_manager import StateManager, MENU, GAME, PAUSE, GAME_OVER
 from core.event_handler import x_y_man, man_on
 from core.camera import Camera
 
+# ── Inventaire
+from ui.inventory import Inventory, ITEMS
+from ui.items_effects import play_cassette
+
 # ── Entités vivantes
 from entities.player import Player
 from entities.enemy import Enemy
@@ -94,6 +98,7 @@ from utils import draw_mouse_coords
 from audio import music_manager as music
 from audio import sound_manager as sfx
 
+pygame.mixer.init()
 
 class Game:
     """La classe qui contient et orchestre tout le jeu."""
@@ -264,7 +269,8 @@ class Game:
     def _creer_systemes(self):
         """Crée les systèmes transversaux (peur, particules, shake…)."""
         self.inventory = Inventory()
-        self.inventory.add_pomme()                      # pomme offerte au départ
+        self.inventory.add_item("Pomme")                      # pomme offerte au départ
+        self.inventory.add_item("Cassette")                    # cassette offerte au départ
 
         self.hud        = HUD()                          # cœurs + jauge de peur
         self.peur       = FearSystem(max_fear=100)       # 0 → 100
@@ -1261,6 +1267,12 @@ class Game:
 
         # 18-21. Gestionnaire histoire, inventaire, dialogue, aide.
         self.gestionnaire_histoire.draw(self.screen)
+
+        if self.inventory.cassette_a_jouer:
+            visuel, sonore = self.inventory.cassette_a_jouer
+            self.inventory.cassette_a_jouer = None
+            play_cassette(visuel, sonore, self.screen)
+
         self.inventory.draw(self.screen, 6, 5)
         self.dialogue.draw(self.screen)
         self.aide.draw(self.screen)

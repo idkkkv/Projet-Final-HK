@@ -47,6 +47,19 @@ import pygame
 from settings import *
 from utils import find_file
 
+ITEMS = {
+    "Pomme": {
+        "category": "Matériel",
+        "image": "pomme.png"
+    },
+    "Cassette": {
+        "category": "Matériel",
+        "image": "cassette.png",
+        "contenu visuel": "video_cassette.mp4",
+        "contenu sonore": "video_cassette.mp3"
+    },
+}
+
 CATEGORIES = ["Consommable", "Équipement", "Matériel"]
 
 VITESSE_ANIMATION = 0.2 # 0 à 1, + grand = + rapide
@@ -97,6 +110,7 @@ class Inventory(ItemContainer):
         self.dragging_item = None
         self.dragging_pos = (0, 0)
         self.slot_rects = [None] * 30
+        self.drag_start_pos = (0, 0)
 
         # ── filtre catégorie ────────────────
         self.categorie_actuelle = 0 # 0 = Consommable, 1 = Équipement, 2 = Matériel
@@ -112,10 +126,17 @@ class Inventory(ItemContainer):
         self.inv_w = 0            # largeur de l'inventaire
         self.tab_rects = []       # rectangles des onglets pour détection clics
 
-        # ──  item ────────────────────────
-        pomme = pygame.image.load(find_file("pomme.png")).convert_alpha()
-        self.pomme_image = pygame.transform.scale(pomme, (self.slot_size - 10, self.slot_size - 10))
-        self.nb_pommes = 0
+        # ── images des items ─────────────────
+        self.images = {}
+
+        for name, data in ITEMS.items():
+            img = pygame.image.load(find_file(data["image"])).convert_alpha()
+            self.images[name] = pygame.transform.scale(
+                img, (self.slot_size - 10, self.slot_size - 10)
+            )
+
+        # ── items effects ────────────────────
+        self.cassette_a_jouer = None
 
     # ─────────────────────────────────────────
     # LOGIQUE INVENTAIRE
@@ -147,13 +168,14 @@ class Inventory(ItemContainer):
         """Inventaire ouvert ou pas"""
         return self.open
 
-    def add_pomme(self):
-        """ajoute une pomme à l'inventaire"""
-        item = InventoryItem("Pomme", self.pomme_image)
-        if self.add_item(item):
-            self.nb_pommes += 1
-            return True
-        return False
+    def add_item(self, objet):
+        """ajoute un item à l'inventaire"""
+
+        data = ITEMS[objet]  # objet = "Pomme"
+
+        item = InventoryItem(objet, self.images[objet], data["category"])
+
+        return super().add_item(item)
 
     # ─────────────────────────────────────────
     # DRAG & DROP + INTERACTIONS
@@ -163,6 +185,7 @@ class Inventory(ItemContainer):
         """Gère les clics pour drag/drop dans l'inventaire"""
         if not self.open:
             return
+        #miam pour marquer jusqu'ou faire retour
         
         for event in events:
             # ── clic sur onglets ──────────────────────────
@@ -180,6 +203,8 @@ class Inventory(ItemContainer):
                         if self.slots[i] is not None:
                             self.dragging_index = i #index
                             self.dragging_item = self.slots[i] #item
+                            self.drag_start_pos = event.pos
+                            self.dragging_pos = event.pos
                             self.slots[i] = None #vide le slot
                         break
                 
@@ -189,18 +214,39 @@ class Inventory(ItemContainer):
                     self.dragging_pos = event.pos
 
             # ── drop ──────────────────────────────────────
-            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and self.dragging_item is not None:
-                placed = False
-                for i, rect in enumerate(self.slot_rects):
-                    if rect and rect.collidepoint(event.pos):
-                        self.slots[i], self.dragging_item = self.dragging_item, self.slots[i]
-                        placed = True
-                        break
-                if not placed:
-                    self.slots[self.dragging_index] = self.dragging_item
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1 :
+                if self.dragging_item is not None:
 
-                self.dragging_index = None
-                self.dragging_item = None
+                    dx = event.pos[0] - self.drag_start_pos[0]
+                    dy = event.pos[1] - self.drag_start_pos[1]
+                    moved = abs(dx) > 5 or abs(dy) > 5
+
+                    if not moved:
+                        # video cassette
+                        if self.dragging_item.name == "Cassette":
+                            data = ITEMS[self.dragging_item.name]
+                            self.cassette_a_jouer = (data["contenu visuel"], data["contenu sonore"])
+                            self.slots[self.dragging_index] = self.dragging_item
+                            self.dragging_item = None
+                            return
+
+                        self.slots[self.dragging_index] = self.dragging_item
+                        self.dragging_item = None
+                        return
+                        
+                    placed = False
+                    for i, rect in enumerate(self.slot_rects):
+                        if rect and rect.collidepoint(event.pos):
+                            self.slots[self.dragging_index] = self.slots[i]
+                            self.slots[i] = self.dragging_item
+                            placed = True
+                            break
+
+                    if not placed:
+                        self.slots[self.dragging_index] = self.dragging_item
+
+                    self.dragging_index = None
+                    self.dragging_item = None
 
     # ─────────────────────────────────────────
     # DRAW + ANIMATION
@@ -226,23 +272,27 @@ class Inventory(ItemContainer):
             if row >= rows:
                 break
 
-            x = self.slot_margin + col * (self.slot_size + self.slot_margin)
-            y = 80 + self.slot_margin + row * (self.slot_size + self.slot_margin)
+            x = self.inv_x + int(self.slide_offset) + self.slot_margin + col * (self.slot_size + self.slot_margin)
+            y = self.inv_y + 80 + self.slot_margin + row * (self.slot_size + self.slot_margin)
 
             rect = pygame.Rect(x, y, self.slot_size, self.slot_size)
             self.slot_rects[i] = rect
+
+            local_x = x - self.inv_x - int(self.slide_offset)
+            local_y = y - self.inv_y
+            local_rect = pygame.Rect(local_x, local_y, self.slot_size, self.slot_size)
 
             # couleur slot dépend si vide ou plein
             if item is not None:
                 slot_color, border_color = (180, 150, 80), (220, 190, 100)
             else:
                 slot_color, border_color = (50, 65, 90), (70, 90, 120)
-
-            pygame.draw.rect(surface, slot_color, rect)
-            pygame.draw.rect(surface, border_color, rect, 2)
+                
+            pygame.draw.rect(surface, slot_color, local_rect)
+            pygame.draw.rect(surface, border_color, local_rect, 2)
 
             if item is not None:
-                img_rect = item.image.get_rect(center=rect.center)
+                img_rect = item.image.get_rect(center=local_rect.center)
                 surface.blit(item.image, img_rect)
         
     def update_rects(self, cols, rows):
@@ -336,10 +386,6 @@ class Inventory(ItemContainer):
         grid = pygame.Surface((self.inv_w, self.inv_h), pygame.SRCALPHA)
         self.draw_grille(grid, cols, rows)
         screen.blit(grid, (self.inv_x + int(self.slide_offset), self.inv_y))
-
-        for i, rect in enumerate(self.slot_rects):
-            if rect is not None:
-                self.slot_rects[i] = rect.move(self.inv_x, self.inv_y)
 
         # drag drop
         if self.dragging_item:
