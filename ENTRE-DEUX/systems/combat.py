@@ -217,6 +217,9 @@ def resoudre_attaques_joueur(joueur, ennemis):
             continue
         # colliderect = "ces deux rectangles se chevauchent ?" (True/False)
         if ennemi.rect.colliderect(joueur.attack_rect):
+
+            joueur.attack_has_hit = True #pour activer le visuel 
+
             infliger_degats(ennemi,
                             DEGAT_ATTAQUE_JOUEUR,
                             source_rect=joueur.rect,

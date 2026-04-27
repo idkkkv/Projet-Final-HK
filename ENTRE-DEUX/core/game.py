@@ -1486,7 +1486,8 @@ class Game:
 
         # 7b. Joueur.
         self.joueur.draw(self.screen, self.camera, self.editeur.show_hitboxes)
-
+        self.joueur.draw_slash(self.screen, self.camera)
+        
         # 8. Lucioles "devant" (z >= 0) : dessinées APRÈS le joueur,
         #     elles passent par-dessus lui.
         self.compagnons.draw_devant(self.screen, self.camera, self.joueur)

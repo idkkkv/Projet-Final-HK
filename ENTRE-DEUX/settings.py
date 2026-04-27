@@ -114,8 +114,8 @@ PLAYER_SPAWN  = (100, 400)    # position (x, y) de spawn par défaut
 #  créés pendant la durée de l'attaque.
 
 # Attaque face (gauche ou droite)
-ATTACK_DURATION       = 0.2   # durée d'une attaque (s)
-ATTACK_RECT_W         = 40    # largeur de la hitbox d'attaque (px)
+ATTACK_DURATION       = 0.15   # durée d'une attaque (s)
+ATTACK_RECT_W         = 120    # largeur de la hitbox d'attaque (px)
 ATTACK_RECT_H         = 40    # hauteur de la hitbox d'attaque (px)
 
 # Attaque vers le bas (en l'air → rebond si elle touche = "pogo")

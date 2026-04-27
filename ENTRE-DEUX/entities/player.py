@@ -57,6 +57,7 @@
 
 import pygame
 from pygame.locals import *
+import math
 
 # On importe settings pour les variables runtime (settings.axis_x, etc.)
 import settings
@@ -146,6 +147,7 @@ class Player:
         self.speed          = PLAYER_SPEED
 
         # ── Combat ──
+        self.attack_has_hit   = False                 # True si on a touché un ennemi durant l'attaque actuelle
         self.attacking        = False                 # True pendant une attaque
         self.attack_dir       = "side"                # "side" ou "down"
         self.attack_rect      = pygame.Rect(0, 0, ATTACK_RECT_W, ATTACK_RECT_H)
@@ -708,6 +710,7 @@ class Player:
         # Déclenchement.
         if attack_pressed and not self.attacking:
             self.attacking        = True
+            self.attack_has_hit   = False 
             self.attack_timer     = ATTACK_DURATION
             self._attack_buffered = True
             # Attaque vers le bas possible UNIQUEMENT en l'air (comme dans HK).
@@ -791,6 +794,7 @@ class Player:
     #   - la hitbox d'attaque en blanc (pendant une attaque)
     #   - les cœurs au-dessus du joueur (récents dégâts ou regard en l'air)
     #   - des rectangles de debug si show_hitbox=True
+    #   - dessin provisoire de l'attaque
 
     def draw(self, surf, camera, show_hitbox=False):
         # 1. Avance l'animation si on bouge.
@@ -824,8 +828,8 @@ class Player:
             surf.blit(img, camera.apply(sprite_rect))
 
         # 5. Hitbox d'attaque (rectangle blanc devant/sous le joueur).
-        if self.attacking:
-            pygame.draw.rect(surf, BLANC, camera.apply(self.attack_rect))
+        #if self.attacking:
+        #    pygame.draw.rect(surf, BLANC, camera.apply(self.attack_rect))
 
         # 6. Cœurs (dégâts récents OU regard vers le haut).
         if self.show_hp_timer > 0:
@@ -865,3 +869,45 @@ class Player:
             # Rectangle plein (le "cœur") puis contour clair autour.
             pygame.draw.rect(surf, couleur,        (x, y, heart_size, heart_size))
             pygame.draw.rect(surf, (200, 200, 200), (x, y, heart_size, heart_size), 1)
+
+    def draw_slash(self, surface, camera):
+        if not self.attacking:
+            return
+
+        has_hit = getattr(self, "attack_has_hit", False)
+        puissance = 1.8 if has_hit else 1.0
+        
+        # 1. On crée un rectangle bien large pour l'arc
+        vis_rect = self.attack_rect.inflate(
+            self.attack_rect.width * (puissance - 0.2), 
+            self.attack_rect.height * (puissance + 0.2)
+        )
+        rect_ecran = camera.apply(vis_rect)
+
+        # 2. Préparation de la surface
+        surf_slash = pygame.Surface(vis_rect.size, pygame.SRCALPHA)
+        alpha = int((self.attack_timer / 0.15) * 255)
+        couleur = (255, 255, 255, alpha)
+        
+        if self.attack_dir == "down":
+            # Arc vers le bas
+            start_angle, end_angle = math.pi, 2 * math.pi
+        elif self.direction == 1:
+            # Arc vers la droite (de -90° à 90°)
+            start_angle, end_angle = -math.pi/2, math.pi/2
+        else:
+            # Arc vers la gauche (de 90° à 270°)
+            start_angle, end_angle = math.pi/2, 3*math.pi/2
+
+        # 4. Dessin de l'arc (plusieurs épaisseurs pour faire "briller")
+        epaisseur = 8 if has_hit else 5
+        
+        # L'arc principal
+        pygame.draw.arc(surf_slash, couleur, (0, 0, vis_rect.width, vis_rect.height), 
+                        start_angle, end_angle, epaisseur)
+        
+        # Un deuxième arc plus fin et plus clair pour l'éclat
+        pygame.draw.arc(surf_slash, (200, 240, 255, alpha), (2, 2, vis_rect.width-4, vis_rect.height-4), 
+                        start_angle, end_angle, 2)
+
+        surface.blit(surf_slash, rect_ecran.topleft)
