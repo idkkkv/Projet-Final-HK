@@ -133,7 +133,7 @@ class Player:
         self.vy            = 0
         self.knockback_vx  = 0.0      # vitesse "poussée" (après avoir pris un coup)
         self.on_ground     = True     # True = pieds au sol
-        self.direction     = 1        # 1 = regarde à droite, -1 = à gauche
+        self.direction     = -1        # 1 = regarde à droite, -1 = à gauche
         self.walking       = False    # True = se déplace horizontalement
         self.looking_up    = False    # True = appuie vers le haut
 
@@ -194,7 +194,7 @@ class Player:
         frames = self._charger_frames_marche()
         self.sprite_w  = frames[0].get_width()
         self.sprite_h  = frames[0].get_height()
-        self.idle_anim = Animation(frames, img_dur=10)
+        self.idle_anim = Animation(frames, img_dur=5, loop=True)
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -214,18 +214,19 @@ class Player:
     # 2.  CHARGEMENT DES SPRITES DE MARCHE
     # ═════════════════════════════════════════════════════════════════════════
     #
-    # On cherche 8 frames nommées hrwalk_0000.png ... hrwalk_0007.png.
+    # On cherche 24 frames nommées Sprite Sheet Frame 0001.png ... Sprite Sheet Frame 0024.png.
     # Si elles ne sont pas toutes là, on se rabat sur player_idle.png.
     # Si même ce fichier manque, on crée un rectangle rose vif pour que le
     # jeu puisse au moins démarrer (et qu'on voie tout de suite le problème).
 
     def _charger_frames_marche(self):
-        """Charge les 8 frames de marche, avec repli si des fichiers manquent."""
+        """Charge les 24 frames de marche, avec repli si des fichiers manquent."""
         frames = []
-        for i in range(8):
+        for i in range(24):
             try:
-                frames.append(pygame.image.load(find_file(f"hrwalk_000{i}.png")))
+                frames.append(pygame.image.load(find_file(f"Sprite Sheet Frame 00{i+1}.png")))
             except FileNotFoundError:
+                print(f"Frame de marche manquante : Sprite Sheet Frame 00{i+1}.png")
                 # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
                 break
 
@@ -799,7 +800,7 @@ class Player:
 
         # 2. Récupère la frame courante.
         img = self.idle_anim.img()
-        if self.direction == -1:
+        if self.direction == 1:
             # Miroir horizontal (le sprite regarde "à l'envers").
             img = pygame.transform.flip(img, True, False)
 
