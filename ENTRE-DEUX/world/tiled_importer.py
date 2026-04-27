@@ -88,16 +88,31 @@ def importer_tiled(nom_fichier):
     layers = data.get("layers", [])
 
     # Trouver les calques par nom (insensible à la casse, prefixe "col"/"fond")
-    layer_col  = _trouver_calque(layers, ["collision", "col"])
-    layer_fond = _trouver_calque(layers, ["fond", "background", "bg", "sol"])
+    layers_col = _trouver_calques(layers, ["collision", "col", "wall", "solid",
+                                            "mur", "platform"])
+    layer_fond = _trouver_calque(layers,  ["fond", "background", "bg", "sol"])
 
     platforms = []
-    if layer_col:
-        platforms = _calque_vers_platforms(layer_col, map_w, tile_w, tile_h)
+    if layers_col:
+        # On supporte PLUSIEURS calques de collision : leurs platforms sont
+        # ajoutées les unes après les autres (utile si l'utilisateur sépare
+        # collisions de mur, de sol, de plafond...).
+        for lc in layers_col:
+            platforms.extend(_calque_vers_platforms(lc, map_w, tile_w, tile_h))
+        # Fusion verticale : transforme les 'lignes empilées' en gros rect
+        # (économise les Platform et fait un peu de spatial indexing).
+        platforms = _fusionner_vertical(platforms)
     elif layers:
-        # Aucun calque "collision" trouvé → on essaie le 2e calque
+        # Aucun calque "collision" trouvé → on essaie le 2e calque (fallback
+        # historique, cas où l'utilisateur n'a pas nommé ses calques).
         if len(layers) >= 2:
             platforms = _calque_vers_platforms(layers[1], map_w, tile_w, tile_h)
+            platforms = _fusionner_vertical(platforms)
+            print("[Tiled] Aucun calque nommé 'collision' — fallback sur le 2e calque. "
+                  "Renomme ton calque pour éviter les surprises.")
+        else:
+            print("[Tiled] Aucun calque de collision détecté. Crée un calque "
+                  "nommé 'collision' (ou 'col', 'wall', 'mur', 'solid', 'platform').")
 
     decors = []
     tilesets = data.get("tilesets", [])
@@ -124,13 +139,59 @@ def importer_tiled(nom_fichier):
 # ═════════════════════════════════════════════════════════════════════════════
 
 def _trouver_calque(layers, mots_cles):
-    """Renvoie le premier calque dont le nom contient un des mots-clés
+    """Renvoie le PREMIER calque dont le nom contient un des mots-clés
     (insensible à la casse), ou None si rien ne correspond."""
     for layer in layers:
         nom = layer.get("name", "").lower()
         if any(mc in nom for mc in mots_cles):
             return layer
     return None
+
+
+def _trouver_calques(layers, mots_cles):
+    """Comme _trouver_calque mais renvoie TOUS les calques qui matchent
+    (insensible à la casse). Utile quand l'utilisateur a séparé ses
+    collisions en plusieurs calques (sol / mur / plafond / décor solide)."""
+    trouves = []
+    for layer in layers:
+        if layer.get("type") != "tilelayer":
+            continue                # ignore les calques d'objets, groupes, etc.
+        nom = layer.get("name", "").lower()
+        if any(mc in nom for mc in mots_cles):
+            trouves.append(layer)
+    return trouves
+
+
+def _fusionner_vertical(platforms):
+    """Fusionne les Platforms verticalement adjacentes (même x, même w)
+    pour réduire le nombre de rect (économie spatial grid + collisions).
+
+    Ex : 5 plateformes 32x32 empilées en colonne deviennent 1 plateforme 32x160.
+    Ne change pas le résultat des collisions — juste l'efficacité."""
+    if not platforms:
+        return platforms
+
+    # Tri par (x, w, y) pour grouper les colonnes alignées.
+    plats = sorted(platforms,
+                   key=lambda p: (p.rect.x, p.rect.w, p.rect.y))
+    fusionnees = []
+    courante   = None
+
+    for p in plats:
+        if (courante is not None
+                and p.rect.x == courante.rect.x
+                and p.rect.w == courante.rect.w
+                and p.rect.y == courante.rect.bottom):
+            # Plateforme exactement collée en bas → on étend la courante.
+            courante.rect.h += p.rect.h
+        else:
+            if courante is not None:
+                fusionnees.append(courante)
+            courante = p
+
+    if courante is not None:
+        fusionnees.append(courante)
+    return fusionnees
 
 
 def _calque_vers_platforms(layer, map_w, tile_w, tile_h):

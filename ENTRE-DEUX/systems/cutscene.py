@@ -383,14 +383,22 @@ class Cutscene:
 
         elif step_type == "camera_focus_pnj":
             # Cible un PNJ par son nom. On résout la position MAINTENANT.
+            # Si follow=True, on garde la référence pour mettre à jour la
+            # cible chaque frame dans _exec_step (suit un PNJ qui marche).
             nom_pnj = params.get("nom", "")
             duree   = params.get("duration", None)
             speed   = params.get("speed",    None)
-            cible   = _trouver_position_pnj(ctx, nom_pnj)
+            follow  = bool(params.get("follow", False))
+            pnj_ref = _trouver_pnj(ctx, nom_pnj)
+            cible   = None
+            if pnj_ref is not None and hasattr(pnj_ref, "rect"):
+                cible = (pnj_ref.rect.centerx, pnj_ref.rect.centery)
             if cible and ctx.camera is not None and hasattr(ctx.camera, "set_cinematic_target"):
                 ctx.camera.set_cinematic_target(cible, speed=speed)
             self._local["t_ecoule"] = 0.0
             self._local["duree"]    = duree
+            self._local["pnj_ref"]  = pnj_ref if follow else None
+            self._local["follow"]   = follow
 
         elif step_type == "set_player_pos":
             # Téléporte le joueur à (x, y) instantanément. Étape instantanée.
@@ -513,8 +521,22 @@ class Cutscene:
             return self._local["t_ecoule"] > 30.0
 
         if step_type == "camera_focus_pnj":
+            # Si follow=True, on met à jour la cible caméra chaque frame
+            # pour qu'elle suive le PNJ qui marche (cf. npc_walk_by_name
+            # exécuté en parallèle d'une autre étape, ou enchaîné).
+            if self._local.get("follow") and self._local.get("pnj_ref") is not None:
+                pnj = self._local["pnj_ref"]
+                if hasattr(pnj, "rect") and ctx.camera is not None \
+                        and hasattr(ctx.camera, "set_cinematic_target"):
+                    ctx.camera.set_cinematic_target(
+                        (pnj.rect.centerx, pnj.rect.centery)
+                    )
             duree = self._local.get("duree", None)
             if duree is None:
+                # Pas de durée → étape instantanée, la caméra reste fixée
+                # (ou suit avec follow) jusqu'à la prochaine étape camera_focus
+                # ou camera_release. Permet l'ENCHAÎNEMENT entre PNJ sans
+                # retour au joueur entre les deux dialogues.
                 return True
             self._local["t_ecoule"] += dt
             return self._local["t_ecoule"] >= duree
@@ -693,17 +715,28 @@ def npc_walk_by_name(nom_pnj, target, speed=80, tolerance=4.0):
     })
 
 
-def camera_focus_pnj(nom_pnj, duration=None, speed=None):
+def camera_focus_pnj(nom_pnj, duration=None, speed=None, follow=False):
     """Pose la caméra sur le PNJ dont le nom est `nom_pnj`.
 
     Si plusieurs PNJ portent le même nom, on prend le premier trouvé.
     Si aucun n'est trouvé, l'étape ne fait rien (mais ne bloque pas).
-    speed : cf. camera_focus."""
+
+    duration : durée explicite de l'étape (s).
+               Si None → ÉTAPE INSTANTANÉE : la caméra se pose puis on passe
+               directement à l'étape suivante (un dialogue par exemple). La
+               caméra reste fixée jusqu'au prochain camera_focus ou
+               camera_release. C'est ce qui permet d'enchaîner caméra-PNJ-A
+               → dialogue-A → caméra-PNJ-B → dialogue-B sans retour au joueur.
+    speed    : vitesse du lerp caméra (0.05 lent → 1.0 instantané, défaut 0.1).
+    follow   : True = la caméra met à jour sa cible chaque frame pour suivre
+               le PNJ s'il bouge (npc_walk_by_name)."""
     params = {"nom": str(nom_pnj)}
     if duration is not None:
         params["duration"] = float(duration)
     if speed is not None:
         params["speed"] = float(speed)
+    if follow:
+        params["follow"] = True
     return ("camera_focus_pnj", params)
 
 

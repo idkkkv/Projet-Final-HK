@@ -1,0 +1,18 @@
+[
+  {
+    "type": "camera_focus_pnj",
+    "nom": "nymbus",
+    "duration": null,
+    "speed": "0.05",
+    "follow": "1"
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "kdjhgfh",
+        "auteur": "nymbus"
+      }
+    ]
+  }
+]

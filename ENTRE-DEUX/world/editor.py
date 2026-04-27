@@ -617,15 +617,18 @@ class Editor:
     # trou, d'où les listes `*_segments`.
 
     def build_border_segments(self):
-        """Reconstruit les 4 bordures à partir de GROUND_Y / CEILING_Y / SCENE_WIDTH."""
+        """Reconstruit les 4 bordures à partir de GROUND_Y / CEILING_Y /
+        SCENE_LEFT (bord gauche, peut être négatif) et SCENE_WIDTH (bord droit)."""
         gy = settings.GROUND_Y
         cy = settings.CEILING_Y
-        sw = settings.SCENE_WIDTH
+        sw = settings.SCENE_WIDTH       # X du bord droit
+        sl = settings.SCENE_LEFT        # X du bord gauche
+        largeur = sw - sl
         t  = 800                         # épaisseur de chaque bordure
-        self.ground_segments  = [Wall(0,  gy,     sw, t,           visible=True, is_border=True)]
-        self.ceiling_segments = [Wall(0,  cy - t, sw, t,           visible=True, is_border=True)]
-        self.left_segments    = [Wall(-t, cy - t, t,  gy - cy + t * 2, visible=True, is_border=True)]
-        self.right_segments   = [Wall(sw, cy - t, t,  gy - cy + t * 2, visible=True, is_border=True)]
+        self.ground_segments  = [Wall(sl,     gy,      largeur, t, visible=True, is_border=True)]
+        self.ceiling_segments = [Wall(sl,     cy - t,  largeur, t, visible=True, is_border=True)]
+        self.left_segments    = [Wall(sl - t, cy - t,  t, gy - cy + t * 2, visible=True, is_border=True)]
+        self.right_segments   = [Wall(sw,     cy - t,  t, gy - cy + t * 2, visible=True, is_border=True)]
         self.holes            = []
 
     def all_segments(self):
@@ -744,6 +747,7 @@ class Editor:
             "ground_y":    settings.GROUND_Y,
             "ceiling_y":   settings.CEILING_Y,
             "scene_width": settings.SCENE_WIDTH,
+            "scene_left":  settings.SCENE_LEFT,
             "spawn":       {"x": self.spawn_x, "y": self.spawn_y},
             "bg_color":    list(self.bg_color),
             "platforms":   [{"x": p.rect.x, "y": p.rect.y,
@@ -909,7 +913,7 @@ class Editor:
             return None
 
         # R seul : respawn (replace le joueur au spawn).
-        if key == pygame.K_r and not (mods & pygame.KMOD_CTRL):
+        if key == pygame.K_o and not (mods & pygame.KMOD_CTRL):
             self.player.respawn()
             return None
 
@@ -992,11 +996,25 @@ class Editor:
             elif key == pygame.K_END:   settings.CEILING_Y = min(settings.GROUND_Y - 100,
                                                                  settings.CEILING_Y + 20)
             elif key == pygame.K_LEFT:
-                settings.SCENE_WIDTH    = max(800, settings.SCENE_WIDTH - 100)
-                self.camera.scene_width = settings.SCENE_WIDTH
+                if mods & pygame.KMOD_SHIFT:
+                    settings.SCENE_LEFT = max(-5000, settings.SCENE_LEFT - 100)
+                    self._show_msg(f"Mur GAUCHE → x={settings.SCENE_LEFT}")
+                else:
+                    nouvelle = max(settings.SCENE_LEFT + 800,
+                                   settings.SCENE_WIDTH - 100)
+                    settings.SCENE_WIDTH    = nouvelle
+                    self.camera.scene_width = settings.SCENE_WIDTH
+                    self._show_msg(f"Mur DROIT → x={settings.SCENE_WIDTH}")
             elif key == pygame.K_RIGHT:
-                settings.SCENE_WIDTH    += 100
-                self.camera.scene_width  = settings.SCENE_WIDTH
+                if mods & pygame.KMOD_SHIFT:
+                    nouvelle = min(settings.SCENE_WIDTH - 800,
+                                   settings.SCENE_LEFT + 100)
+                    settings.SCENE_LEFT = nouvelle
+                    self._show_msg(f"Mur GAUCHE → x={settings.SCENE_LEFT}")
+                else:
+                    settings.SCENE_WIDTH    += 100
+                    self.camera.scene_width  = settings.SCENE_WIDTH
+                    self._show_msg(f"Mur DROIT → x={settings.SCENE_WIDTH}")
             self.build_border_segments()
             return "structure"
 
@@ -1223,6 +1241,7 @@ class Editor:
         settings.GROUND_Y    = 590
         settings.CEILING_Y   = 0
         settings.SCENE_WIDTH = 2400
+        settings.SCENE_LEFT  = 0
         self.spawn_x = self.spawn_y = 100
         self.player.spawn_x = self.player.spawn_y = 100
         self.player.respawn()
@@ -2480,9 +2499,11 @@ class Editor:
             f"{'  [Hitbox]' if self.show_hitboxes else ''}  |  {phase_label}",
             True, phase_color), (10, 6))
 
-        # Infos de taille à droite.
+        # Infos de taille à droite. Maj+←/→ déplacent le mur GAUCHE
+        # (= SCENE_LEFT, peut être négatif). ←/→ seuls déplacent le DROIT.
         info = (f"Sol:{settings.GROUND_Y} Plaf:{settings.CEILING_Y} "
-                f"Scene:{settings.SCENE_WIDTH} Cam:{self.camera.y_offset}")
+                f"X:[{settings.SCENE_LEFT},{settings.SCENE_WIDTH}] "
+                f"Cam:{self.camera.y_offset}")
         surf.blit(small.render(info, True, (255, 255, 0)),
                   (w - small.size(info)[0] - 10, 6))
 
@@ -2757,6 +2778,7 @@ class Editor:
             "ground_y":        settings.GROUND_Y,
             "ceiling_y":       settings.CEILING_Y,
             "scene_width":     settings.SCENE_WIDTH,
+            "scene_left":      settings.SCENE_LEFT,
             "camera_y_offset": self.camera.y_offset,
             "spawn":           {"x": self.spawn_x, "y": self.spawn_y},
             "bg_color":        self.bg_color,
@@ -2819,6 +2841,9 @@ class Editor:
         # Dimensions du monde.
         if "ground_y"    in data: settings.GROUND_Y  = data["ground_y"]
         if "ceiling_y"   in data: settings.CEILING_Y = data["ceiling_y"]
+        # scene_left avant scene_width pour que les clamps soient cohérents
+        # quand build_border_segments tourne ensuite. Anciennes maps : 0.
+        settings.SCENE_LEFT = data.get("scene_left", 0)
         if "scene_width" in data:
             settings.SCENE_WIDTH    = data["scene_width"]
             self.camera.scene_width = data["scene_width"]

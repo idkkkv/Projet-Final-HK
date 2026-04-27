@@ -536,6 +536,7 @@ def _steps_depuis_data(data):
                 step.get("nom", ""),
                 _opt_float(step.get("duration")),
                 speed=_opt_float(step.get("speed")),
+                follow=bool(step.get("follow", False)),
             ))
         elif t == "camera_release":
             steps.append(camera_release())

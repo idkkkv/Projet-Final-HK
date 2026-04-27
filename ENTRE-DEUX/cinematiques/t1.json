@@ -1,0 +1,19 @@
+[
+  {
+    "type": "camera_focus_pnj",
+    "nom": "nymbus",
+    "duration": "5",
+    "speed": "0.05"
+  },
+  {
+    "type": "shake",
+    "amplitude": 6.0,
+    "duration": 0.3
+  },
+  {
+    "type": "particles_burst",
+    "x": 217,
+    "y": 577,
+    "nb": 12
+  }
+]

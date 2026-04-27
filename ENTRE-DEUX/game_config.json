@@ -3,6 +3,14 @@
     {
       "nom": "nimbus",
       "sprite_name": null
+    },
+    {
+      "nom": "Nymbus",
+      "sprite_name": null
+    },
+    {
+      "nom": "nymbus",
+      "sprite_name": null
     }
   ],
   "histoire": [
@@ -10,7 +18,8 @@
       "nom": "&",
       "maps": [
         "map1",
-        "maps"
+        "maps",
+        "nymbus"
       ]
     }
   ],

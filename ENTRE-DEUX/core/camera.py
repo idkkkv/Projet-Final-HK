@@ -163,27 +163,38 @@ class Camera:
             f = max(0.01, min(1.0, self._cinematic_speed))
             self.offset_x += (target_x - self.offset_x) * f
             self.offset_y += (target_y - self.offset_y) * f
-            # Clamp identique au mode joueur (évite de sortir du monde).
+            # Clamp identique au mode joueur (cf. plus bas) : si le monde
+            # tient dans l'écran, on le centre ; sinon on clamp aux bords.
             max_y = settings.GROUND_Y + 40 - self._sh
             min_y = settings.CEILING_Y - self._sh // 2
-            self.offset_x = max(0, min(self.offset_x, self.scene_width - self._sw))
+            largeur_monde = self.scene_width - settings.SCENE_LEFT
+            if largeur_monde <= self._sw:
+                self.offset_x = settings.SCENE_LEFT - (self._sw - largeur_monde) // 2
+            else:
+                self.offset_x = max(settings.SCENE_LEFT,
+                                    min(self.offset_x, self.scene_width - self._sw))
             self.offset_y = max(min_y, min(self.offset_y, max(0, max_y)))
             return
 
-        # Position visée : centrer la cible à l'écran (et y_offset au-dessus).
-        target_x = target_rect.centerx - self._sw // 2
-        target_y = target_rect.centery - self._sh // 2 + self.y_offset
-
-        # ── Lerp : 10 % du chemin par défaut ; pendant la "phase de retour"
-        # juste après une release_cinematic(), on garde la vitesse de la
-        # cinématique pour un retour symétrique de l'aller.
+        # ── Phase de retour cinématique ──────────────────────────────────────
+        # Pendant cinematic_active, la caméra centrait PILE sur le PNJ (sans
+        # y_offset). Si on rebascule direct au mode joueur normal (qui a un
+        # y_offset de 150 px), le target saute de 150 px en Y et la trajectoire
+        # de retour n'est plus le miroir de l'aller (effet "bas puis droite"
+        # désagréable). Pour avoir un retour symétrique, on cible le centre
+        # EXACT du joueur (sans y_offset) pendant la phase de retour. Le
+        # y_offset est réintroduit ensuite, en douceur, par le lerp normal.
         if self._cinematic_returning:
+            target_x = target_rect.centerx - self._sw // 2
+            target_y = target_rect.centery - self._sh // 2
             f = max(0.01, min(1.0, self._cinematic_speed))
-            # Quand on est suffisamment proche du joueur, on repasse au lerp
-            # standard (sinon on resterait à vitesse lente même en jeu normal).
+            # Sortie de la phase quand on est très proche du centre joueur.
             if abs(target_x - self.offset_x) < 8 and abs(target_y - self.offset_y) < 8:
                 self._cinematic_returning = False
         else:
+            # Mode joueur normal : on regarde 150 px AU-DESSUS du joueur.
+            target_x = target_rect.centerx - self._sw // 2
+            target_y = target_rect.centery - self._sh // 2 + self.y_offset
             f = 0.1
         self.offset_x += (target_x - self.offset_x) * f
         self.offset_y += (target_y - self.offset_y) * f
@@ -192,9 +203,19 @@ class Camera:
         max_y = settings.GROUND_Y + 40 - self._sh
         min_y = settings.CEILING_Y - self._sh // 2
 
-        # min(self.offset_x, scene_width - _sw) : pas plus à droite que la fin du monde.
-        # max(0, ...)                          : pas plus à gauche que le début (x=0).
-        self.offset_x = max(0, min(self.offset_x, self.scene_width - self._sw))
+        # ── Cadrage horizontal ──────────────────────────────────────────────
+        # Si le monde est PLUS PETIT que l'écran, on le centre dans la fenêtre
+        # (le joueur ne fait plus défiler la caméra → on a des marges noires
+        # à gauche et à droite, comme une scène de théâtre). Sinon, on clamp
+        # entre SCENE_LEFT et SCENE_WIDTH - sw (on ne sort pas du monde).
+        largeur_monde = self.scene_width - settings.SCENE_LEFT
+        if largeur_monde <= self._sw:
+            # Centre le monde : offset_x tel que SCENE_LEFT s'affiche au centre
+            # avec les marges symétriques de chaque côté.
+            self.offset_x = settings.SCENE_LEFT - (self._sw - largeur_monde) // 2
+        else:
+            self.offset_x = max(settings.SCENE_LEFT,
+                                min(self.offset_x, self.scene_width - self._sw))
         self.offset_y = max(min_y, min(self.offset_y, max(0, max_y)))
 
     # ─────────────────────────────────────────────────────────────────────────

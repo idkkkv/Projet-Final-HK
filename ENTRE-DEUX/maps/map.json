@@ -79,7 +79,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 7318,
+      "x": 7717,
       "y": 499,
       "has_gravity": true,
       "has_collision": true,

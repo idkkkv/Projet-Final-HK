@@ -79,7 +79,8 @@ NOIR        = (  0,   0,   0)  # noir pur    — voile, contours
 #  Une « scène » est un écran de jeu. Elle peut être plus grande que la
 #  fenêtre : la caméra suit alors le joueur à l'intérieur. Voir [D20].
 
-SCENE_WIDTH  = 2400           # largeur d'une scène (≈ 3 écrans de large)
+SCENE_WIDTH  = 2400           # X du bord DROIT du monde (≈ 3 écrans de large)
+SCENE_LEFT   = 0              # X du bord GAUCHE du monde (négatif = monde étendu à gauche)
 SCENE_HEIGHT = 4000           # hauteur d'une scène (≈ 2 écrans de haut)
 
 GROUND_Y     = 590            # Y du sol par défaut (plus Y est grand = plus bas)

@@ -58,10 +58,6 @@ from core.state_manager import StateManager, MENU, GAME, PAUSE, GAME_OVER
 from core.event_handler import x_y_man, man_on
 from core.camera import Camera
 
-# ── Inventaire
-from ui.inventory import Inventory, ITEMS
-from ui.items_effects import play_cassette
-
 # ── Entités vivantes
 from entities.player import Player
 from entities.enemy import Enemy
@@ -98,7 +94,6 @@ from utils import draw_mouse_coords
 from audio import music_manager as music
 from audio import sound_manager as sfx
 
-pygame.mixer.init()
 
 class Game:
     """La classe qui contient et orchestre tout le jeu."""
@@ -215,6 +210,15 @@ class Game:
         # respecter max_plays (cinématique unique vs répétable).
         self.cinematiques_jouees = {}
 
+        # Journal des dialogues : trace TOUS les dialogues complétés avec
+        # chaque PNJ, organisés par carte. Permet au joueur de relire ce
+        # qu'un PNJ lui a dit (utile en mode boucle_dernier où le PNJ ne
+        # répète plus que sa dernière phrase). Sauvé dans save.json.
+        # Structure : {nom_pnj: {nom_map: [conversation, conversation, ...]}}
+        self.historique_dialogues = {}
+        from ui.dialogue_history import DialogueHistory
+        self.journal_dialogues = DialogueHistory()
+
         self.camera  = Camera(SCENE_WIDTH, SCENE_HEIGHT)
         self.ennemis = [Enemy(500, 530 - 60)]
 
@@ -245,6 +249,10 @@ class Game:
         # cinématique (touche [T]) : on construit un Cutscene depuis sa liste
         # d'étapes JSON et on le pose dans game.cutscene.
         self.editeur.cine_editor.on_test_callback = self._tester_cinematique
+        # [Ctrl+R] dans le cine_editor = reset compteur (rendre rejouable
+        # une cinématique 'unique' déjà consommée — utile en dev/test).
+        self.editeur.cine_editor.on_reset_counter_callback = \
+            self._reset_compteur_cinematique
 
         # On branche l'éditeur dans le menu Paramètres : la page
         # "Compagnons" (couleur/taille/nb des Lueurs) n'est accessible
@@ -285,8 +293,7 @@ class Game:
     def _creer_systemes(self):
         """Crée les systèmes transversaux (peur, particules, shake…)."""
         self.inventory = Inventory()
-        self.inventory.add_item("Pomme")                      # pomme offerte au départ
-        self.inventory.add_item("Cassette")                    # cassette offerte au départ
+        self.inventory.add_pomme()                      # pomme offerte au départ
 
         self.hud        = HUD()                          # cœurs + jauge de peur
         self.peur       = FearSystem(max_fear=100)       # 0 → 100
@@ -641,6 +648,79 @@ class Game:
             for z in self.editeur.trigger_zones
         )
 
+    def _logger_dialogue(self, pnj):
+        """Ajoute la conversation que le joueur vient de lire au journal.
+
+        Évite les doublons : si la conversation est exactement identique à
+        la dernière entrée pour ce PNJ sur cette map, on ne re-loggue pas
+        (cas typique : mode boucle_dernier qui re-renvoie la dernière ligne
+        à chaque talk → on ne pollue pas le journal)."""
+        conv = pnj.conversation_actuelle()
+        if not conv:
+            return
+        carte = self.carte_actuelle or "?"
+        nom   = pnj.nom or "PNJ"
+        par_pnj = self.historique_dialogues.setdefault(nom, {})
+        par_map = par_pnj.setdefault(carte, [])
+        # Conversion en tuples (texte, orateur) sérialisables pour json.
+        conv_norm = []
+        for ligne in conv:
+            if isinstance(ligne, (list, tuple)) and len(ligne) >= 2:
+                conv_norm.append([str(ligne[0]), str(ligne[1])])
+            else:
+                conv_norm.append([str(ligne), ""])
+        # Déduplication : si dernière entrée identique, on saute.
+        if par_map and par_map[-1] == conv_norm:
+            return
+        par_map.append(conv_norm)
+
+    def _reset_compteur_cinematique(self, nom):
+        """Remet à zéro le compteur de lectures pour la cinématique `nom`.
+
+        nom=None → reset TOUS les compteurs (Maj+Ctrl+R en cine_editor).
+        Aussi : on remet à zéro l'état `declenchee` des trigger_zones qui
+        ciblent cette cinématique, sinon une zone "consommée" reste figée
+        jusqu'au prochain rechargement de carte."""
+        if nom is None:
+            self.cinematiques_jouees.clear()
+            for z in self.editeur.trigger_zones:
+                if hasattr(z, "declenchee"):
+                    z.declenchee = False
+                    z._dedans_avant = False
+            for z in self.triggers.zones:
+                if hasattr(z, "declenchee"):
+                    z.declenchee = False
+                    z._dedans_avant = False
+        else:
+            self.cinematiques_jouees.pop(nom, None)
+            for z in self.editeur.trigger_zones:
+                if getattr(z, "cutscene_nom", "") == nom:
+                    z.declenchee     = False
+                    z._dedans_avant  = False
+            for z in self.triggers.zones:
+                if getattr(z, "cutscene_nom", "") == nom:
+                    z.declenchee     = False
+                    z._dedans_avant  = False
+
+    def _skipper_cinematique(self):
+        """Avorte proprement la cinématique en cours (touche [Echap]).
+
+        On rend la main au joueur, on libère la caméra cinématique et on
+        ferme la boîte de dialogue si elle est ouverte. Le compteur
+        cinematiques_jouees reste à sa valeur (la cinématique COMPTE comme
+        jouée même si on l'a passée — comportement attendu en jeu)."""
+        self.cutscene = None
+        self.state    = "play"
+        if hasattr(self.camera, "release_cinematic"):
+            self.camera.release_cinematic()
+        # Si un dialogue est encore affiché, on le ferme.
+        if hasattr(self.dialogue, "actif") and self.dialogue.actif:
+            try:
+                self.dialogue.fermer()
+            except AttributeError:
+                # Pas de méthode fermer : on coupe à la dure
+                self.dialogue.actif = False
+
     def _tester_cinematique(self, steps_data):
         """Lance une cinématique depuis les données JSON brutes (touche [T]
         de l'éditeur de cinématiques). Permet de prévisualiser sans avoir
@@ -676,7 +756,9 @@ class Game:
         """Démarre une nouvelle partie (carte initiale, PV pleins)."""
         # Reset du compteur de cinématiques (toutes les cinématiques uniques
         # rejoueront depuis le début).
-        self.cinematiques_jouees = {}
+        self.cinematiques_jouees  = {}
+        # Reset du journal des dialogues : nouvelle partie = nouveau journal.
+        self.historique_dialogues = {}
 
         # Mode histoire → l'éditeur est désactivé (le joueur ne doit pas y accéder).
         if self.mode == "histoire":
@@ -735,6 +817,8 @@ class Game:
         self.joueur.vy   = 0
         # Restaure le compteur de cinématiques jouées (cinématiques uniques).
         self.cinematiques_jouees = dict(donnees.get("cinematiques_jouees", {}))
+        # Restaure le journal des dialogues.
+        self.historique_dialogues = dict(donnees.get("historique_dialogues", {}))
 
         if self.mode == "histoire":
             self.editeur.active = False
@@ -762,6 +846,7 @@ class Game:
             "x":                    self.joueur.rect.x,
             "y":                    self.joueur.rect.y,
             "cinematiques_jouees":  self.cinematiques_jouees,
+            "historique_dialogues": self.historique_dialogues,
         })
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -947,13 +1032,18 @@ class Game:
 
     def _traiter_evenements_jeu(self, events):
         """Traite chaque event du frame (clavier, souris, molette)."""
-        # Si un éditeur overlay (cine ou pnj) est ouvert, il consomme TOUS
-        # les events clavier (le jeu en arrière-plan reste figé).
-        cine = getattr(self.editeur, "cine_editor", None)
-        pnj_ed = getattr(self.editeur, "pnj_editor",  None)
-        cine_open = cine is not None and cine.actif
-        pnj_open  = pnj_ed is not None and pnj_ed.actif
-        overlay   = cine if cine_open else (pnj_ed if pnj_open else None)
+        # Si un éditeur overlay (cine, pnj ou journal) est ouvert, il consomme
+        # TOUS les events clavier (le jeu en arrière-plan reste figé).
+        cine    = getattr(self.editeur, "cine_editor", None)
+        pnj_ed  = getattr(self.editeur, "pnj_editor",  None)
+        journal = self.journal_dialogues
+        cine_open    = cine is not None and cine.actif
+        pnj_open     = pnj_ed is not None and pnj_ed.actif
+        journal_open = journal is not None and journal.actif
+        overlay = (cine if cine_open
+                   else pnj_ed if pnj_open
+                   else journal if journal_open
+                   else None)
 
         for event in events:
             if overlay is not None:
@@ -997,10 +1087,16 @@ class Game:
             self.dialogue.avancer()
             return
 
-        # Échap : pause (sauf en mode saisie de texte éditeur).
+        # Échap :
+        #   1. Saisie texte éditeur ouverte → on annule la saisie.
+        #   2. Cinématique en cours          → on la SKIPE entièrement.
+        #   3. Sinon                         → menu pause.
         if key == pygame.K_ESCAPE:
             if self.editeur.active and self.editeur._text_mode:
                 self.editeur.handle_key(key)
+            elif self.cutscene is not None:
+                # Skip : on saute jusqu'à la fin et on libère tout.
+                self._skipper_cinematique()
             elif not self.dialogue.actif:
                 self.etats.switch(PAUSE)
                 self.menu_pause.selection = 0
@@ -1016,9 +1112,23 @@ class Game:
             self.compagnons.toggler_cape()
             return
 
-        # E : interagir (mode histoire) ou toggler éditeur (mode éditeur).
+        # E : interagir (mode histoire) ou toggler éditeur (mode éditeur,
+        # éditeur actif → ferme pour tester ; sinon → parle aux PNJ).
         if key == pygame.K_e:
             self._gerer_touche_e()
+            return
+
+        # F4 : toggle éditeur (mode 'editeur' uniquement). Permet de revenir
+        # à l'édition après un test, sans utiliser [E] qui est devenu dédié
+        # à l'interaction avec les PNJ pendant le test.
+        if key == pygame.K_F4:
+            self._toggle_editeur()
+            return
+
+        # J : Journal des dialogues (relire ce qu'un PNJ a dit). N'ouvre que
+        # si l'éditeur n'est pas actif (sinon J est utilisé en mode mob).
+        if key == pygame.K_j and not self.editeur.active and not self.dialogue.actif:
+            self.journal_dialogues.ouvrir(self.historique_dialogues)
             return
 
         # H : ouvre le gestionnaire d'histoire (éditeur uniquement).
@@ -1034,21 +1144,39 @@ class Game:
             self._traiter_resultat_editeur(resultat)
 
     def _gerer_touche_e(self):
-        """Gère l'appui sur E selon le mode."""
+        """Gère l'appui sur E selon le mode et l'état de l'éditeur.
+
+        - Mode 'histoire' : E parle aux PNJ.
+        - Mode 'editeur' éditeur ACTIF : E ferme l'éditeur (test de la map).
+        - Mode 'editeur' éditeur INACTIF : E parle aux PNJ (= test grandeur
+          nature). Pour ré-ouvrir l'éditeur après avoir testé, utiliser [F4]."""
         if self.mode == "editeur":
-            # En mode éditeur, E bascule l'éditeur (sauf pendant une saisie de texte).
             if self.editeur.active and self.editeur._text_mode:
                 return
-            etait_actif = self.editeur.active
-            self.editeur.toggle()
-            # Quand on ferme l'éditeur, on recharge la hitbox du joueur
-            # au cas où elle aurait été modifiée.
-            if etait_actif and not self.editeur.active:
+            if self.editeur.active:
+                # On sort de l'éditeur pour tester la map.
+                self.editeur.toggle()
                 self.joueur.reload_hitbox()
+            else:
+                # Éditeur fermé pendant un test → E doit parler aux PNJ.
+                if not self.dialogue.actif:
+                    self._tenter_interaction()
 
         elif self.mode == "histoire" and not self.dialogue.actif:
-            # En mode histoire, E parle aux PNJ.
             self._tenter_interaction()
+
+    def _toggle_editeur(self):
+        """[F4] : (re)bascule l'éditeur en mode éditeur. Sert à revenir à
+        l'édition après avoir testé la map (puisque [E] est dédié aux PNJ
+        pendant le test)."""
+        if self.mode != "editeur":
+            return
+        if self.editeur.active and self.editeur._text_mode:
+            return
+        etait_actif = self.editeur.active
+        self.editeur.toggle()
+        if etait_actif and not self.editeur.active:
+            self.joueur.reload_hitbox()
 
     def _traiter_resultat_editeur(self, resultat):
         """Gère la valeur renvoyée par editeur.handle_key()."""
@@ -1187,6 +1315,11 @@ class Game:
 
         # ── Animation des PNJ ──
         for pnj in self.editeur.pnjs:
+            # Physique active EN PERMANENCE (comme les ennemis). Si on les
+            # pose en l'air dans l'éditeur, ils tombent au sol — c'est le
+            # comportement attendu pour des ENTITÉS (vs des blocs statiques).
+            pnj.update_physique(phys_dt, self.grille_plateformes,
+                                self.editeur.holes)
             pnj.update()
 
         # ── Systèmes transversaux ──
@@ -1200,6 +1333,10 @@ class Game:
         # FINI de la lire (boîte fermée). Évite que l'index avance dès
         # l'ouverture, ce qui sautait des dialogues si on s'éloignait.
         if self._pnj_actif is not None and not self.dialogue.actif:
+            # On enregistre la conversation qui vient d'être lue dans le
+            # journal AVANT d'avancer l'index (sinon on logguerait celle
+            # d'après).
+            self._logger_dialogue(self._pnj_actif)
             self._pnj_actif.passer_a_suivante()
             self._pnj_actif = None
 
@@ -1278,9 +1415,24 @@ class Game:
     #    22. Fondu enchaîné
 
     def _dessiner_monde(self):
-        # 1. Fond uni.
+        # 1. Fond : noir partout, puis couleur d'éditeur seulement DANS la zone
+        # jouable (entre SCENE_LEFT et SCENE_WIDTH). Du coup les marges hors
+        # monde apparaissent en noir → on voit nettement les bords de la map
+        # quand elle est plus petite que l'écran.
+        self.screen.fill((0, 0, 0))
         couleur_fond = tuple(self.editeur.bg_color)
-        self.screen.fill(couleur_fond)
+        rect_monde = pygame.Rect(
+            settings.SCENE_LEFT - int(self.camera.offset_x),
+            settings.CEILING_Y  - int(self.camera.offset_y),
+            self.camera.scene_width - settings.SCENE_LEFT,
+            settings.GROUND_Y - settings.CEILING_Y,
+        )
+        # Clamp aux bords de l'écran (pygame ne dessine pas hors écran de
+        # toute façon, mais évite les valeurs négatives énormes).
+        sw, sh = self.screen.get_size()
+        rect_clip = rect_monde.clip(pygame.Rect(0, 0, sw, sh))
+        if rect_clip.width > 0 and rect_clip.height > 0:
+            self.screen.fill(couleur_fond, rect_clip)
 
         # 2. Murs.
         for mur in self.editeur.all_segments():
@@ -1384,18 +1536,37 @@ class Game:
 
         # 18-21. Gestionnaire histoire, inventaire, dialogue, aide.
         self.gestionnaire_histoire.draw(self.screen)
-
-        if self.inventory.cassette_a_jouer:
-            visuel, sonore = self.inventory.cassette_a_jouer
-            self.inventory.cassette_a_jouer = None
-            play_cassette(visuel, sonore, self.screen)
-
         self.inventory.draw(self.screen, 6, 5)
         self.dialogue.draw(self.screen)
         self.aide.draw(self.screen)
 
+        # 22. Hint "Echap pour passer" pendant une cinématique. Discret,
+        # en bas à droite. Sert au testeur ET au joueur impatient.
+        if self.cutscene is not None:
+            self._dessiner_hint_skip_cinematique()
+
+        # 23. Journal des dialogues (overlay par-dessus tout, mode histoire
+        # ou test de l'éditeur).
+        if self.journal_dialogues.actif:
+            self.journal_dialogues.update(self._dt)
+            self.journal_dialogues.draw(self.screen)
+
         # 22. Fondu enchaîné (par-dessus absolument tout).
         self._dessiner_fondu()
+
+    def _dessiner_hint_skip_cinematique(self):
+        """Petit hint discret 'Echap = passer' pendant une cinématique.
+
+        Affiché en haut à droite, avec un fond semi-transparent. Le joueur
+        peut toujours skipper depuis _gerer_touche."""
+        txt = "[ Echap ] passer"
+        rendu = self.fps_font.render(txt, True, (255, 220, 120))
+        bg = pygame.Surface((rendu.get_width() + 16, rendu.get_height() + 8),
+                            pygame.SRCALPHA)
+        bg.fill((0, 0, 0, 180))
+        sw = self.screen.get_width()
+        self.screen.blit(bg, (sw - bg.get_width() - 12, 12))
+        self.screen.blit(rendu, (sw - bg.get_width() - 12 + 8, 16))
 
     def _dessiner_fps_et_carte(self):
         """Affiche le compteur FPS et le nom de la carte courante."""

@@ -46,8 +46,10 @@
 
 import os
 import pygame
+import settings
 from entities.animation import Animation
 from systems.hitbox_config import get_hitbox
+from world.collision     import resoudre_collision
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -190,13 +192,28 @@ class PNJ:
     # ═════════════════════════════════════════════════════════════════════════
 
     def __init__(self, x, y, nom, dialogues, sprite_name=None,
-                 dialogue_mode="boucle_dernier"):
+                 dialogue_mode="boucle_dernier", has_gravity=True):
         self.nom           = nom
         self.sprite_name   = sprite_name
         self._dialogues    = dialogues
         self._conv_idx     = 0
-        # "boucle_dernier" = répète la dernière phrase ; "restart" = recommence.
+        # Marqué True dès que la DERNIÈRE conversation a été jouée. En mode
+        # boucle_dernier, après ce flag, on ne renvoie plus que LA DERNIÈRE
+        # LIGNE (et pas la conv entière) pour signifier "il a déjà tout dit".
+        self._has_played_last = False
+        # "boucle_dernier" = ne répète QUE la dernière phrase une fois tout dit ;
+        # "restart"        = recommence depuis la première conv.
         self.dialogue_mode = dialogue_mode
+
+        # ── Physique : un PNJ est une ENTITÉ comme un ennemi (gravité + ──
+        # collisions avec les plateformes). Avant, il était traité comme un
+        # bloc statique → on pouvait le "punaiser" en l'air, c'était bizarre.
+        # has_gravity=False permet de garder un PNJ qui flotte (fantôme,
+        # sprite céleste, etc.) — c'est un opt-out explicite.
+        self.vx          = 0
+        self.vy          = 0
+        self.on_ground   = False
+        self.has_gravity = has_gravity
 
         # ── Chargement des sprites (multi-états ou mono) ─────────────────────
         # Animations multi-états (idle/walk) si la convention de dossier est
@@ -254,44 +271,138 @@ class PNJ:
     def conversation_actuelle(self):
         """Retourne la liste de lignes de la conversation à jouer maintenant.
 
-        N'AVANCE PAS l'index : c'est le rôle de passer_a_suivante(), appelée
-        par game.py UNE FOIS que le joueur a réellement fini de lire le
-        dialogue (boîte fermée).
+        N'AVANCE PAS l'index (c'est le rôle de passer_a_suivante() à la
+        FERMETURE de la boîte de dialogue, pour ne pas "consommer" un
+        dialogue qu'on a interrompu).
 
-        Pourquoi ? Bug historique : on avançait l'index dès l'OUVERTURE de
-        la boîte. Si le joueur s'éloignait sans finir, ou pressait E par
-        erreur, la conversation suivante prenait sa place lors du prochain
-        E — il ne voyait jamais réellement les premiers dialogues. Maintenant
-        c'est la fin effective du dialogue qui décide d'avancer."""
-
+        Sémantique selon dialogue_mode :
+          - boucle_dernier : tant qu'on n'a pas encore vidé toutes les conv,
+                             on renvoie la conv courante en entier. Une fois
+                             que _has_played_last est marqué (toute la dernière
+                             conv a été jouée), on renvoie SEULEMENT la
+                             dernière ligne — d'où le nom : il ne re-dit que
+                             sa dernière phrase, en boucle.
+          - restart        : on renvoie la conv courante en entier, et l'index
+                             cycle 0→1→…→N-1→0 à chaque close de dialogue."""
         if not self._dialogues:
             return []
+
+        if self.dialogue_mode == "boucle_dernier" and self._has_played_last:
+            derniere_conv = self._dialogues[-1]
+            if not derniere_conv:
+                return []
+            # On enveloppe la dernière ligne dans une liste à 1 élément pour
+            # que la dialogue_box reçoive bien un format compatible.
+            return [derniere_conv[-1]]
+
         return self._dialogues[self._conv_idx]
 
     def passer_a_suivante(self):
-        """Passe à la conversation suivante. À appeler quand le joueur a
-        FINI de lire le dialogue actuel (boîte fermée).
+        """Avance après la fermeture d'une boîte de dialogue.
 
-        Comportement selon dialogue_mode :
-          - boucle_dernier : la dernière conversation se répète indéfiniment.
-          - restart        : après la dernière, on revient à la première."""
-
+        - boucle_dernier : avance l'index ; quand on vient de jouer la dernière
+                           conv, on lève le flag _has_played_last. Les talks
+                           suivants ne renverront plus que la dernière ligne.
+        - restart        : cycle 0 → 1 → … → 0."""
         if not self._dialogues:
             return
+
         if self.dialogue_mode == "restart":
-            # Modulo → boucle propre : 0 → 1 → 2 → 0 → 1 → ...
             self._conv_idx = (self._conv_idx + 1) % len(self._dialogues)
+            return
+
+        # boucle_dernier
+        if self._conv_idx >= len(self._dialogues) - 1:
+            # On vient de jouer (ou de re-jouer) la DERNIÈRE conversation.
+            # → à partir de maintenant, conversation_actuelle() ne donnera
+            # plus que la dernière ligne.
+            self._has_played_last = True
         else:
-            # boucle_dernier — on bloque sur l'index de la dernière conversation.
-            self._conv_idx = min(self._conv_idx + 1, len(self._dialogues) - 1)
+            self._conv_idx += 1
 
     def reset_dialogue(self):
-        """Revient à la première conversation (utilisé au respawn / nouvelle partie)."""
-        self._conv_idx = 0
+        """Revient à la 1re conversation (respawn / nouvelle partie). Reset
+        aussi le flag _has_played_last pour repartir de zéro."""
+        self._conv_idx        = 0
+        self._has_played_last = False
 
     # ═════════════════════════════════════════════════════════════════════════
     #  6. UPDATE (animation seulement)
     # ═════════════════════════════════════════════════════════════════════════
+
+    def update_physique(self, dt, platforms, holes=None):
+        """Applique gravité + collisions plateformes + sol/plafond du monde.
+
+        À appeler chaque frame DEPUIS LE JEU (pas l'éditeur — sinon le PNJ
+        tomberait pendant qu'on essaie de le placer).
+
+        platforms : liste OU SpatialGrid (compatible avec query() ou itération
+                    directe). Pour la liste, on itère ; pour la grille, on
+                    requête les plateformes proches du PNJ.
+        holes     : liste de Rect ou None. Si le PNJ est dans un trou et n'a
+                    pas la permission d'y tomber, on l'expulse au sol."""
+        if not self.has_gravity:
+            return
+
+        # Gravité : on accélère vers le bas.
+        self.vy += settings.GRAVITY * dt
+        # Cap pour éviter d'effrayer le moteur de collision (descente trop
+        # rapide → on traverse les plateformes fines en une seule frame).
+        if self.vy > 1200:
+            self.vy = 1200
+
+        # Application du déplacement vertical.
+        self.rect.y += int(self.vy * dt)
+        # Le déplacement horizontal est géré par les cinématiques via
+        # rect.centerx direct (cf. cutscene.npc_walk_by_name) → on ne touche
+        # pas à rect.x ici, mais on applique self.vx s'il est posé (utilisable
+        # par d'éventuels scripts d'IA ultérieurs).
+        if self.vx:
+            self.rect.x += int(self.vx * dt)
+
+        # ── Collisions avec les plateformes ─────────────────────────────────
+        # On part du principe qu'on n'est pas au sol et on remet on_ground=True
+        # uniquement si une collision avec une plateforme nous y pose.
+        ancien_sol      = self.on_ground
+        self.on_ground  = False
+
+        # Récupère les plateformes pertinentes : grille spatiale (query) si
+        # disponible, sinon itération brute. Cf. systems/spatial_grid.py.
+        plats_test = []
+        if hasattr(platforms, "query"):
+            plats_test = platforms.query(self.rect)
+        elif platforms is not None:
+            plats_test = platforms
+
+        for p in plats_test:
+            r = getattr(p, "rect", p)   # tolère Platform OU Rect direct
+            resoudre_collision(self, r)
+
+        # ── Sol / plafond du monde ──────────────────────────────────────────
+        if self.rect.bottom > settings.GROUND_Y:
+            self.rect.bottom = settings.GROUND_Y
+            self.vy          = 0
+            self.on_ground   = True
+        if self.rect.top < settings.CEILING_Y:
+            self.rect.top = settings.CEILING_Y
+            if self.vy < 0:
+                self.vy = 0
+
+        # ── Trous : si on est dedans et qu'on ne peut pas y tomber, on
+        # remonte au sol. Pour un PNJ, on ne peut PAS tomber par défaut
+        # (sinon il disparait en bas du monde sans raison).
+        if holes:
+            for h in holes:
+                if self.rect.colliderect(h):
+                    self.rect.bottom = settings.GROUND_Y
+                    self.vy          = 0
+                    self.on_ground   = True
+                    break
+
+        # Petit garde-fou : si on était au sol et qu'on l'est toujours
+        # globalement (sol monde ou plateforme), on conserve le flag.
+        if ancien_sol and not self.on_ground and self.vy == 0:
+            self.on_ground = True
 
     def update(self):
         """Avance l'animation. Détecte le mouvement (rect a changé depuis la
@@ -386,6 +497,7 @@ class PNJ:
             "sprite_name":   self.sprite_name,
             "dialogues":     self._dialogues,
             "dialogue_mode": self.dialogue_mode,
+            "has_gravity":   self.has_gravity,
         }
 
     @staticmethod
@@ -401,4 +513,5 @@ class PNJ:
             data.get("dialogues", []),
             sprite_name=data.get("sprite_name"),
             dialogue_mode=data.get("dialogue_mode", "boucle_dernier"),
+            has_gravity=data.get("has_gravity", True),
         )

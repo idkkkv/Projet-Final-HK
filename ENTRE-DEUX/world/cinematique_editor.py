@@ -96,10 +96,12 @@ TYPES_ETAPES = {
         "libelle": "Caméra → PNJ",
         "champs":  [
             ("nom",      "Nom du PNJ", ""),
-            ("duration", "Durée (s, vide=jusqu'à release)", ""),
+            ("duration", "Durée (s, vide=instantané, garde la caméra fixée)", ""),
             ("speed",    "Vitesse (0.05=très lent, 0.1=doux, 0.3=nerveux, 1=instantané)", ""),
+            ("follow",   "Suivre le PNJ s'il bouge (1=oui, vide=non)", ""),
         ],
         "resume":  lambda d: f"Caméra → PNJ '{d.get('nom', '?')}'"
+                             + (" suivi" if d.get('follow') else "")
                              + (f" v={d['speed']}" if d.get('speed') else ""),
     },
     "camera_release": {
@@ -190,6 +192,11 @@ class CinematiqueEditor:
         # Callback appelée par [T] (Tester) — posée par game.py.
         # Reçoit la liste d'étapes et lance la cinématique en jeu.
         self.on_test_callback = None
+
+        # Callback appelée par [Ctrl+R] (Reset compteur) — posée par game.py.
+        # Reçoit le nom de la cinématique à "oublier" (rendue rejouable).
+        # nom=None → reset TOUS les compteurs (Maj+Ctrl+R).
+        self.on_reset_counter_callback = None
 
         # État de saisie de champ
         self._field_step_idx   = -1
@@ -580,6 +587,18 @@ class CinematiqueEditor:
             # via le callback (game.py construit un Cutscene depuis self.steps).
             self.on_test_callback(list(self.steps))
             self.fermer()
+        elif key == pygame.K_r and ctrl and self.on_reset_counter_callback:
+            # Reset le compteur "cinematiques_jouees" pour la cinématique
+            # courante. Avec Maj : reset TOUS les compteurs (debug global).
+            shift = bool(mods & pygame.KMOD_SHIFT)
+            cible = None if shift else self.nom_fichier
+            self.on_reset_counter_callback(cible)
+            if shift:
+                self._msg_show("Tous les compteurs réinitialisés")
+            elif self.nom_fichier:
+                self._msg_show(f"Compteur '{self.nom_fichier}' réinitialisé")
+            else:
+                self._msg_show("Pas de cinématique chargée")
         return True
 
     def _handle_key_browser(self, key):
@@ -673,8 +692,8 @@ class CinematiqueEditor:
                   (cadre.x + 16, cadre.y + 12))
 
         # Aide
-        aide = ("[↑↓] naviguer  [A] ajouter  [D] supprimer  [Enter] éditer  "
-                "[Maj+↑↓] réordonner  [T] Tester  [Ctrl+S/N/O] sauver/nouveau/ouvrir  [Esc] fermer")
+        aide = ("[↑↓] [A] +  [D] -  [Enter] éditer  [Maj+↑↓] reord  "
+                "[T] Tester  [Ctrl+R] reset compteur  [Ctrl+S/N/O] sauv/new/open  [Esc]")
         surf.blit(fontsm.render(aide, True, (140, 140, 140)),
                   (cadre.x + 16, cadre.y + 38))
 
