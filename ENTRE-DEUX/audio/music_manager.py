@@ -94,7 +94,7 @@ import pygame
 #  Ces variables sont déclarées ICI pour être visibles partout dans le
 #  fichier. Une fonction qui veut les MODIFIER doit le déclarer avec
 #  `global` (sinon Python crée une variable LOCALE du même nom et la
-#  variable du module n'est pas touchée — piège classique de débutant !).
+#  variable du module n'est pas touchée).
 
 _current        = None    # chemin du fichier en cours de lecture (ou None)
 _target_volume  = 0.5     # volume qu'on VEUT atteindre (0.0 = muet, 1.0 = max)

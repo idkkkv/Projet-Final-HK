@@ -55,7 +55,7 @@
 #  Si on faisait offset_x = target_x direct, la caméra serait COLLÉE au
 #  joueur → quand il fait un pas, l'écran fait un pas. Désorientant.
 #  Avec * 0.1, la caméra glisse en douceur vers sa cible : ça donne une
-#  impression cinématique et ça évite le "mal des transports" à l'écran.
+#  impression cinématique et ça évite le "mal des transports XD" à l'écran.
 #
 #  POURQUOI y_offset = 150 ?
 #  -------------------------
@@ -124,7 +124,7 @@ class Camera:
         # cadre voulu, en coords monde) au lieu de suivre le joueur.
         # Activé via set_cinematic_target((x, y)), désactivé par release_cinematic().
         # Le lissage utilise le MÊME facteur 0.1 que pour le suivi joueur,
-        # donc transition douce dans les 2 sens.
+        # donc transition douce dans les 2! sens.
         self._cinematic_active = False
         self._cinematic_target = (0, 0)   # (x, y) monde — à CENTRER à l'écran
         # Facteur de lerp en cinématique (0.0 < x ≤ 1.0).
@@ -166,7 +166,7 @@ class Camera:
             # Clamp identique au mode joueur (cf. plus bas) : si le monde
             # tient dans l'écran, on le centre ; sinon on clamp aux bords.
             max_y = settings.GROUND_Y + 40 - self._sh
-            min_y = settings.CEILING_Y - self._sh // 2
+            min_y = settings.CEILING_Y - 40 - self._sh // 2
             largeur_monde = self.scene_width - settings.SCENE_LEFT
             if largeur_monde <= self._sw:
                 self.offset_x = settings.SCENE_LEFT - (self._sw - largeur_monde) // 2

@@ -275,52 +275,6 @@ class Compagnon:
     #  Pendant l'animation de cape, on interpole [D13] la position entre
     #  le compagnon et le joueur : il "rentre" dans le joueur en rétrécissant.
 
-    def draw(self, surf, camera, joueur):
-        """Dessine le compagnon sur surf."""
-
-        # Totalement invisible → rien à faire (optimisation).
-        if self.visibilite <= 0.01:
-            return
-
-        # ── Position affichée (interpolation linéaire [D13]) ────────────────
-        #   visibilite = 1 → pos réelle du compagnon
-        #   visibilite = 0 → pos du joueur
-        #   entre les deux → mélange pondéré.
-        # Formule classique : pos = (1 - t) * A  +  t * B
-        # avec t = self.visibilite ∈ [0, 1].
-        t = self.visibilite
-        pos_x = (1 - t) * joueur.rect.centerx + t * self.x
-        pos_y = (1 - t) * joueur.rect.centery + t * self.y
-
-        # Petit flottement vertical (sinus [D12] → va et vient ±3 px).
-        flottement = math.sin(self.oscillation) * 3
-
-        # Coordonnées à l'écran (on retire l'offset de la caméra [D20]).
-        sx = int(pos_x - camera.offset_x)
-        sy = int(pos_y - camera.offset_y + flottement)
-
-        # Échelle du corps : proportionnelle à la visibilité.
-        #   visibilité = 1 → taille normale
-        #   visibilité ≈ 0 → taille quasi nulle (on a déjà return juste au-dessus)
-        echelle = self.visibilite
-        largeur_corps = int(18 * echelle)
-        hauteur_corps = int(20 * echelle)
-
-        # Sécurité : si on est vraiment petit, inutile de dessiner.
-        if largeur_corps <= 1 or hauteur_corps <= 1:
-            return
-
-        # Ordre de dessin (du fond vers le dessus) :
-        #   1) lueur douce derrière le compagnon
-        #   2) petits traits de mouvement (seulement en état "court")
-        #   3) corps (ellipse blanche)
-        #   4) yeux bleus + petite bouche
-        self._dessiner_lueur(surf, sx, sy, echelle)
-        if self.etat == "court":
-            self._dessiner_trainee(surf, sx, sy, echelle)
-        self._dessiner_corps(surf, sx, sy, largeur_corps, hauteur_corps)
-        self._dessiner_yeux_et_sourire(surf, sx, sy, largeur_corps, hauteur_corps)
-
     # ═════════════════════════════════════════════════════════════════════════
     #  6. RENDU — pièces détachées
     # ═════════════════════════════════════════════════════════════════════════
@@ -383,45 +337,3 @@ class Compagnon:
             x2 = x1 - sens * int(6 * echelle)
             y2 = y1
             pygame.draw.line(surf, couleur, (x1, y1), (x2, y2), 2)
-
-    def _dessiner_corps(self, surf, cx, cy, largeur, hauteur):
-        """Ellipse blanche qui forme le "blob" du compagnon.
-
-        Changer les couleurs ici pour changer l'apparence du corps."""
-
-        # On prépare le rectangle qui contient l'ellipse (pygame demande
-        # un Rect pour draw.ellipse, pas un centre + rayons).
-        rect = pygame.Rect(cx - largeur, cy - hauteur, largeur * 2, hauteur * 2)
-        # Remplissage blanc cassé (très légèrement bleuté pour l'ambiance).
-        pygame.draw.ellipse(surf, (250, 250, 255), rect)
-        # Contour bleuté d'épaisseur 2 pour bien détacher le compagnon du fond.
-        pygame.draw.ellipse(surf, (170, 180, 210), rect, 2)
-
-    def _dessiner_yeux_et_sourire(self, surf, cx, cy, largeur, hauteur):
-        """Deux petits cercles bleus + un trait pour la bouche."""
-
-        # Quand le compagnon est très petit (en pleine animation de cape),
-        # on n'affiche plus les détails — ça ferait sale.
-        if largeur < 8:
-            return
-
-        # Écart entre les deux yeux et taille des yeux, proportionnels
-        # à la taille actuelle du corps (pour que ça reste joli quand
-        # le compagnon rétrécit).
-        ecart_yeux = max(3, largeur // 3)
-        taille_oeil = max(2, largeur // 6)
-
-        # Yeux : deux petits cercles bleus.
-        couleur_yeux = (70, 160, 220)
-        oeil_y = cy - hauteur // 4
-        pygame.draw.circle(surf, couleur_yeux, (cx - ecart_yeux, oeil_y), taille_oeil)
-        pygame.draw.circle(surf, couleur_yeux, (cx + ecart_yeux, oeil_y), taille_oeil)
-
-        # Bouche : un simple trait horizontal (on ne la dessine que si
-        # le corps est assez grand pour que ça soit lisible).
-        if largeur >= 10:
-            bouche_y = cy + hauteur // 4
-            demi_bouche = max(2, largeur // 5)
-            pygame.draw.line(surf, (120, 140, 180),
-                             (cx - demi_bouche, bouche_y),
-                             (cx + demi_bouche, bouche_y), 2)

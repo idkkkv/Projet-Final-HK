@@ -33,10 +33,11 @@
 #                        44 100 samples par seconde → c'est ça qui définit
 #                        la finesse du son (qualité CD).
 #     - stéréo 16-bit  = 2 canaux (gauche / droite), 16 bits par sample.
-#                        → 4 octets (bytes) par "instant" de son. C'est
+#                        → 4 octets (bites) par "instant" de son. C'est
 #                        le format standard de pygame.mixer.
 #     - synthèse       = générer un son MATHÉMATIQUEMENT (pas depuis un
-#                        fichier). On calcule sin(2π·f·t) → bip pur.
+#                        fichier). On calcule sin(2π·f·t) → bip pur. j'ai regardé
+#                        sur internet car c'est impossible sinon.
 #                        Ici c'est un PLAN B : si le fichier .wav manque,
 #                        on bipe pour ne pas planter le jeu.
 #     - enveloppe      = fonction qui module le volume au fil du son. Ici
@@ -46,13 +47,14 @@
 #     - struct.pack    = "convertir un nombre Python en octets binaires".
 #                        struct.pack("<h", 12345) → 2 octets = un int16
 #                        en little-endian. C'est le format que pygame attend.
+#                        De ce que j'ai compris.
 #     - get_raw()      = lecture des octets bruts d'un Sound. Utilisé ici
 #                        pour DÉTECTER et SUPPRIMER le silence en début de
 #                        son (sons de pas trop "mous").
 #     - registre _sons = dict {nom: Sound}. La variable est PRIVÉE (préfixe _)
 #                        et globale au module. On l'alimente avec charger()
 #                        et on lit avec jouer(). Pas besoin d'objet — c'est
-#                        un singleton fonctionnel.
+#                        un fonctionnel.
 #
 #  POURQUOI charger_ou_synth() ?
 #  -----------------------------
