@@ -24,6 +24,6 @@
     }
   ],
   "carte_debut": "map1",
-  "hud_mode": "immersion",
+  "hud_mode": "permanent",
   "nb_compagnons": 3
 }
