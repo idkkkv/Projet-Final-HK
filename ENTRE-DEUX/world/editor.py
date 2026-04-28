@@ -244,11 +244,11 @@ def _lister_sprites_joueur():
     Si le dossier est introuvable ou vide, on revient sur player_idle.png.
     """
     if not os.path.isdir(PLAYER_DIR):
-        return ["player_idle.png"]
+        return ["sheidle_001.png"]
 
     fichiers = [nom for nom in sorted(os.listdir(PLAYER_DIR))
                 if nom.endswith((".png", ".jpg"))]
-    return fichiers if fichiers else ["player_idle.png"]
+    return fichiers if fichiers else ["sheidle_001.png"]
 
 
 def _parse_color(s):

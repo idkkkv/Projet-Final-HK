@@ -135,3 +135,7 @@ class Animation:
         Ex : frame=12, img_dur=5 → 12 // 5 = 2 → on renvoie images[2].
         """
         return self.images[int(self.frame / self.img_duration)]
+    
+    def index(self):
+        """Renvoie l'index de l'image courante (0, 1, 2, ...)."""
+        return int(self.frame / self.img_duration)

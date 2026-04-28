@@ -41,11 +41,13 @@
 #  - La vitesse / la hauteur de saut / les dégâts etc. → settings.py
 #  - Les TOUCHES  (quelle touche fait quoi)            → core/event_handler.py
 #  - Le COMPORTEMENT (logique du saut, du dash...)     → ici, méthode mouvement()
-#  - L'ANIMATION (sprites de marche)                   → méthode _charger_frames_marche()
+#  - L'ANIMATION (sprites)                             → méthode _charger_frames()
 #  - Les CŒURS affichés au-dessus du joueur            → méthode _draw_hearts()
 #  - La HITBOX (rectangle de collision)                → hitboxes.json (édité par world/editor.py)
 #  - La TAILLE du sprite                               → ctrl+f, self.scale_factor
 #  - La VITESSE de marche du sprite                    → ctrl+f, self.idle_anim_walk (+ nb grand, + animation lente)
+#  - Ajouter une new animation (à modifier)            → __init__ # ── Animation (sprites de marche) ──
+#                                                        draw() # 1. Avance l'animation si on bouge.
 #
 #  CONCEPTS UTILISÉS (voir docs/DICTIONNAIRE.md) :
 #  -----------------------------------------------
@@ -80,7 +82,7 @@ from settings import (
     DOUBLE_JUMP_POWER, COYOTE_TIME, JUMP_BUFFER,
     WALL_SLIDE_SPEED, WALL_JUMP_VX, WALL_JUMP_VY, WALL_JUMP_LOCK,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
-    BLANC, VOLUME_PAS,
+    BLANC, VOLUME_PAS, FPS
 )
 from utils import find_file
 from entities.animation import Animation
@@ -200,9 +202,15 @@ class Player:
         self._prev_dash   = False
         self._prev_attack = False
 
-        # ── Animation (sprites de marche) ──
-        frames_marche = self._charger_frames_marche()
-        frames_idle = self._charger_frames_idle()
+        # ── Animation (sprites) ──
+        frames_marche = self._charger_frames("shewalks_0", 24)
+        frames_idle = self._charger_frames("sheidle_00", 10)
+
+        frames_idle_jump = self._charger_frames("shejumps__0", 24)
+        duree_saut = (2 * abs(JUMP_POWER)) / GRAVITY
+        img_duration_saut = (duree_saut * FPS) / len(frames_idle_jump)
+        print(len(frames_idle_jump))
+
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
         self.sprite_h  = frames_marche[0].get_height()
@@ -210,7 +218,8 @@ class Player:
         self.sprite_scaled_prop = pygame.transform.smoothscale(frames_marche[0], self.sprite_rescaled)
         
         self.idle_anim_walk = Animation(frames_marche, img_dur=3, loop=True)
-        self.idle_anim_idle = Animation(frames_idle, img_dur=15, loop=True)
+        self.idle_anim_idle = Animation(frames_idle, img_dur=5, loop=True)
+        self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -222,7 +231,7 @@ class Player:
         # _intended_x, c'est qu'un mur a poussé le joueur → on active le
         # wall-slide. Voir post_physics() pour le détail.
         #
-        # On l'initialise dès __init__ pour éviter d'avoir à utiliser
+        # On l'initialise dès __init__ pouself.frames_idle_jumpup.update()r éviter d'avoir à utiliser
         # getattr() plus tard (plus lisible).
         self._intended_x = self.rect.x
 
@@ -235,14 +244,16 @@ class Player:
     # Si même ce fichier manque, on crée un rectangle rose vif pour que le
     # jeu puisse au moins démarrer (et qu'on voie tout de suite le problème).
 
-    def _charger_frames_marche(self):
-        """Charge les 24 frames de marche, avec repli si des fichiers manquent."""
+    def _charger_frames(self, file, x, start = 1):
+        """Charge les x frames de marche, avec repli si des fichiers manquent."""
         frames = []
-        for i in range(24):
+        for i in range(start, x+1):
+            if file == "shejumps__0" :
+                print(f"Chargement de la frame de saut : {file}{i}.png")
             try:
-                frames.append(pygame.image.load(find_file(f"Sprite Sheet Frame 00{i+1}.png")))
+                frames.append(pygame.image.load(find_file(f"{file}{i}.png")))
             except FileNotFoundError:
-                print(f"Frame de marche manquante : Sprite Sheet Frame 00{i+1}.png")
+                print(f"Frame de marche manquante : {file}{i}.png")
                 # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
                 break
 
@@ -258,20 +269,6 @@ class Player:
             placeholder = pygame.Surface((PLAYER_W, PLAYER_H))
             placeholder.fill((255, 0, 200))
             return [placeholder]
-
-    def _charger_frames_idle(self):
-        """Charge les 2 frames d'attente, avec repli si des fichiers manquent."""
-        frames = []
-        for i in range(2):
-            try:
-                frames.append(pygame.image.load(find_file(f"She_Idle{i+1}.png")))
-            except FileNotFoundError:
-                print(f"Frame d'attente manquante : She_Idle{i+1}.png")
-                # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
-                break
-
-        if frames:
-                return frames
 
     # ═════════════════════════════════════════════════════════════════════════
     # 3.  CYCLE DE VIE (respawn, rechargement de la hitbox)
@@ -507,7 +504,7 @@ class Player:
             if ax != 0:
                 self.direction = ax
 
-        # Si on ne fait rien, on bloque l'animation sur la frame "idle" (2).
+        # Si on ne fait rien, on prend l'animation idle
         if not self.walking and not self.dashing:
             self.idle_anim_idle
 
@@ -539,6 +536,7 @@ class Player:
             if self._tenter_saut():
                 # Saut réussi → on consomme le buffer.
                 self.jump_buffer = 0.0
+                self.idle_anim_jump.frame = 0
 
         # ── 8. Dash ───────────────────────────────────────────────────────
         if dash_pressed and self.dash_cooldown <= 0 and not self.dashing:
@@ -690,6 +688,7 @@ class Player:
             self.on_ground    = False
             self.coyote_timer = 0
             self.jumps_used   = 1
+
             sound_manager.jouer("saut", volume=0.7)
             return True
 
@@ -838,26 +837,26 @@ class Player:
         if self.walking or self.dashing:
             self.idle_anim_walk.update()
             img = self.idle_anim_walk.img()
-
+        elif not self.on_ground:
+            self.idle_anim_jump.update()
+            img = self.idle_anim_jump.img() 
+            print("JUMP:", self.idle_anim_jump.index())
+            print("STATE:", "JUMP" if not self.on_ground else "GROUND")
         else :
             self.idle_anim_idle.update()
             img = self.idle_anim_idle.img()
-        img = pygame.transform.smoothscale(img, self.sprite_rescaled)
+            
+        img = pygame.transform.smoothscale(img, (int(img.get_width() * self.scale_factor), int(img.get_height() * self.scale_factor)))
+
+        img_w = img.get_width()
+        img_h = img.get_height()
+        sx = self.rect.centerx - img_w // 2
+        sy = self.rect.bottom - img_h
+        sprite_rect = pygame.Rect(sx, sy, img_w, img_h)
 
         if self.direction == 1:
             # Miroir horizontal (le sprite regarde "à l'envers").
             img = pygame.transform.flip(img, True, False)
-
-        # 3. Calcule la position du sprite dans le monde.
-        # Le sprite peut être plus grand que la hitbox. ox / oy servent à
-        # caler la hitbox À L'INTÉRIEUR du sprite. Quand on regarde à
-        # gauche, l'offset horizontal est inversé (miroir).
-        if self.direction >= 0:
-            sx = self.rect.x - self.hitbox_ox
-        else:
-            sx = self.rect.x - (self.sprite_w - self.hitbox_ox - self.hitbox_w)
-        sy = self.rect.y - self.hitbox_oy
-        sprite_rect = pygame.Rect(sx, sy, self.sprite_w, self.sprite_h)
 
         # 4. Dessin du sprite (avec clignotement pendant l'invincibilité).
         if self.invincible:
