@@ -219,7 +219,12 @@ def resoudre_attaques_joueur(joueur, ennemis):
         if ennemi.rect.colliderect(joueur.attack_rect):
 
             joueur.attack_has_hit = True #pour activer le visuel 
-
+            #POGO
+            if joueur.attack_dir == "down":
+                joueur.on_pogo_hit()
+            else:
+                joueur.on_side_hit() #recul pour coups normaux
+                
             infliger_degats(ennemi,
                             DEGAT_ATTAQUE_JOUEUR,
                             source_rect=joueur.rect,

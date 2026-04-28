@@ -338,6 +338,13 @@ class Player:
             self.vy         = POGO_BOUNCE_VY   # impulsion vers le haut
             self.jumps_used = 1                # autorise un double-saut après le pogo
 
+    def on_side_hit(self):
+        """Petit recul horizontal quand on touche un ennemi de côté."""
+        recul_force = 300  # ajuste cette valeur selon tes préférences
+        if self.direction == 1: # si on regarde à droite, on recule à gauche
+            self.vx = -recul_force
+        else: # Si on regarde à gauche, on recule à droite
+            self.vx = recul_force
     # ═════════════════════════════════════════════════════════════════════════
     # 5.  LECTURE DES ENTRÉES (clavier AZERTY + manette PS5)
     # ═════════════════════════════════════════════════════════════════════════
