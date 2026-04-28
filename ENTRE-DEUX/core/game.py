@@ -39,6 +39,7 @@
 #     - Un menu (texte, options)         → ui/menu.py
 #     - L'ordre des calques visuels      → ici, méthode _dessiner_monde()
 #     - L'enchaînement logique du jeu   → ici, méthode _update_jeu()
+#     - LE SON                           → ici, music.jouer()
 #
 #  Pour la carte générale de qui appelle qui : docs/ARCHITECTURE.md
 #  Pour l'index "où modifier quoi"           : docs/OU_EST_QUOI.md
@@ -367,7 +368,7 @@ class Game:
             _base, "assets", "music",
             "i think about you not thinking about me Piano Solo.mp3",
         )
-        music.jouer(self._musique_menu, volume=0.7, fadein_ms=2000)
+        music.jouer(self._musique_menu, volume=0.05, fadein_ms=2000)
 
         # Effet "rayons de lumière" qui apparaissent à ~1:57 (chant des oiseaux).
         duree = music.get_duree()

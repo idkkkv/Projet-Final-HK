@@ -211,6 +211,8 @@ class Player:
         img_duration_saut = (duree_saut * FPS) / len(frames_idle_jump)
         print(len(frames_idle_jump))
 
+        frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
+
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
         self.sprite_h  = frames_marche[0].get_height()
@@ -220,6 +222,7 @@ class Player:
         self.idle_anim_walk = Animation(frames_marche, img_dur=3, loop=True)
         self.idle_anim_idle = Animation(frames_idle, img_dur=5, loop=True)
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
+        self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=True)
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -239,21 +242,19 @@ class Player:
     # 2.  CHARGEMENT DES SPRITES DE MARCHE
     # ═════════════════════════════════════════════════════════════════════════
     #
-    # On cherche 24 frames nommées Sprite Sheet Frame 0001.png ... Sprite Sheet Frame 0024.png.
+    # On cherche x frames nommées file (sheshejumpsvertical_00 par ex) ... Sprite Sheet Frame 0024.png.
     # Si elles ne sont pas toutes là, on se rabat sur player_idle.png.
     # Si même ce fichier manque, on crée un rectangle rose vif pour que le
     # jeu puisse au moins démarrer (et qu'on voie tout de suite le problème).
 
     def _charger_frames(self, file, x, start = 1):
-        """Charge les x frames de marche, avec repli si des fichiers manquent."""
+        """Charge les x frames, avec repli si des fichiers manquent."""
         frames = []
         for i in range(start, x+1):
-            if file == "shejumps__0" :
-                print(f"Chargement de la frame de saut : {file}{i}.png")
             try:
                 frames.append(pygame.image.load(find_file(f"{file}{i}.png")))
             except FileNotFoundError:
-                print(f"Frame de marche manquante : {file}{i}.png")
+                print(f"Frame manquante : {file}{i}.png")
                 # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
                 break
 
@@ -838,10 +839,16 @@ class Player:
             self.idle_anim_walk.update()
             img = self.idle_anim_walk.img()
         elif not self.on_ground:
-            self.idle_anim_jump.update()
-            img = self.idle_anim_jump.img() 
-            print("JUMP:", self.idle_anim_jump.index())
-            print("STATE:", "JUMP" if not self.on_ground else "GROUND")
+            jump = 0
+            if self.jumps_used == 2 and jump<1:
+                self.idle_anim_jump.pause()
+                self.idle_anim_double_jump.update()
+                img = self.idle_anim_double_jump.img()
+                jump += 1
+            else:
+                self.idle_anim_jump.resume()
+                self.idle_anim_jump.update()
+                img = self.idle_anim_jump.img() 
         else :
             self.idle_anim_idle.update()
             img = self.idle_anim_idle.img()

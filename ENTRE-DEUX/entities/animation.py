@@ -110,6 +110,23 @@ class Animation:
         self.frame = img_index * self.img_duration
         self.done  = True
 
+    def pause (self):
+        """Fige sur l'image courante SANS marquer "done". Utile pour une pose
+        IDLE qui pourra redémarrer après."""
+        # Clamp : si img_index est hors plage, on borne à 0 ou len-1.
+        idx = max(0, min(int(self.frame / self.img_duration), len(self.images) - 1))
+        self.frame = idx * self.img_duration
+    
+    def resume(self):
+        """Reprend l'animation à partir de la frame courante. Utile pour une
+        pose IDLE qui a été mise en pause."""
+        # On ne fait rien : update() continuera à faire défiler les frames
+        # normalement à partir de la frame courante.
+        pass
+
+    def is_last_frame(self):
+        return self.frame >= len(self.images) - 1
+
     def pause_at(self, img_index):
         """Fige sur l'image `img_index` SANS marquer "done".
         Utile pour une pose IDLE qui pourra redémarrer après."""
