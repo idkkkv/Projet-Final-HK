@@ -44,6 +44,8 @@
 #  - L'ANIMATION (sprites de marche)                   → méthode _charger_frames_marche()
 #  - Les CŒURS affichés au-dessus du joueur            → méthode _draw_hearts()
 #  - La HITBOX (rectangle de collision)                → hitboxes.json (édité par world/editor.py)
+#  - La TAILLE du sprite                               → ctrl+f, self.scale_factor
+#  - La VITESSE de marche du sprite                    → ctrl+f, self.idle_anim
 #
 #  CONCEPTS UTILISÉS (voir docs/DICTIONNAIRE.md) :
 #  -----------------------------------------------
@@ -192,9 +194,13 @@ class Player:
 
         # ── Animation (sprites de marche) ──
         frames = self._charger_frames_marche()
+        self.scale_factor = 1.5
         self.sprite_w  = frames[0].get_width()
         self.sprite_h  = frames[0].get_height()
-        self.idle_anim = Animation(frames, img_dur=5, loop=True)
+        self.sprite_rescaled = (int(self.sprite_w * self.scale_factor), int(self.sprite_h * self.scale_factor))
+        self.sprite_scaled_prop = pygame.transform.smoothscale(frames[0], self.sprite_rescaled)
+        
+        self.idle_anim = Animation(frames, img_dur=3, loop=True)
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -800,6 +806,8 @@ class Player:
 
         # 2. Récupère la frame courante.
         img = self.idle_anim.img()
+        img = pygame.transform.smoothscale(img, self.sprite_rescaled)
+
         if self.direction == 1:
             # Miroir horizontal (le sprite regarde "à l'envers").
             img = pygame.transform.flip(img, True, False)
