@@ -217,8 +217,17 @@ def resoudre_attaques_joueur(joueur, ennemis):
             continue
         # colliderect = "ces deux rectangles se chevauchent ?" (True/False)
         if ennemi.rect.colliderect(joueur.attack_rect):
+            
+            #si c'est le premier ennemi
+            if not joueur.attack_has_hit:
+                #arreter bruit pas toucher
+                sound_manager.arreter("attaque")
 
-            joueur.attack_has_hit = True #pour activer le visuel 
+                #bruit toucher
+                sound_manager.jouer("attaque_contact")
+
+            joueur.attack_has_hit = True #pour activer le visuel et bloquer les attaques suivantes de la même animation 
+
             #POGO
             if joueur.attack_dir == "down":
                 joueur.on_pogo_hit()
