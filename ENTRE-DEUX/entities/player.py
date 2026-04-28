@@ -45,7 +45,7 @@
 #  - Les CŒURS affichés au-dessus du joueur            → méthode _draw_hearts()
 #  - La HITBOX (rectangle de collision)                → hitboxes.json (édité par world/editor.py)
 #  - La TAILLE du sprite                               → ctrl+f, self.scale_factor
-#  - La VITESSE de marche du sprite                    → ctrl+f, self.idle_anim
+#  - La VITESSE de marche du sprite                    → ctrl+f, self.idle_anim_walk (+ nb grand, + animation lente)
 #
 #  CONCEPTS UTILISÉS (voir docs/DICTIONNAIRE.md) :
 #  -----------------------------------------------
@@ -55,6 +55,10 @@
 #  [D22] Machine à états   — self.dashing, self.attacking, self.wall_sliding
 #  [D23] Coyote / buffer   — tolérances de saut
 #
+#  A IMPLEMENTER :
+#  ---------------
+#  Attaque vers le sol :self.attack_ground = False
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 import pygame
@@ -138,6 +142,7 @@ class Player:
         self.on_ground     = True     # True = pieds au sol
         self.direction     = -1        # 1 = regarde à droite, -1 = à gauche
         self.walking       = False    # True = se déplace horizontalement
+        self.idle          = (self.vx == 0 and self.vy == 0)     # True = immobile
         self.looking_up    = False    # True = appuie vers le haut
 
         # ── Constantes physiques (copiées pour autoriser des bonus en jeu) ──
@@ -156,6 +161,7 @@ class Player:
         self.attack_timer     = 0                     # temps restant de l'attaque
         # Drapeau qui assure qu'un pogo ne se déclenche qu'une fois par attaque.
         self._attack_buffered = False
+        self.attack_ground = False                    # True si l'attaque a été déclenchée vers le sol
 
         # ── Vie & dégâts ──
         self.max_hp           = PLAYER_MAX_HP
@@ -195,14 +201,16 @@ class Player:
         self._prev_attack = False
 
         # ── Animation (sprites de marche) ──
-        frames = self._charger_frames_marche()
+        frames_marche = self._charger_frames_marche()
+        frames_idle = self._charger_frames_idle()
         self.scale_factor = 1.5
-        self.sprite_w  = frames[0].get_width()
-        self.sprite_h  = frames[0].get_height()
+        self.sprite_w  = frames_marche[0].get_width()
+        self.sprite_h  = frames_marche[0].get_height()
         self.sprite_rescaled = (int(self.sprite_w * self.scale_factor), int(self.sprite_h * self.scale_factor))
-        self.sprite_scaled_prop = pygame.transform.smoothscale(frames[0], self.sprite_rescaled)
+        self.sprite_scaled_prop = pygame.transform.smoothscale(frames_marche[0], self.sprite_rescaled)
         
-        self.idle_anim = Animation(frames, img_dur=3, loop=True)
+        self.idle_anim_walk = Animation(frames_marche, img_dur=3, loop=True)
+        self.idle_anim_idle = Animation(frames_idle, img_dur=15, loop=True)
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -250,6 +258,20 @@ class Player:
             placeholder = pygame.Surface((PLAYER_W, PLAYER_H))
             placeholder.fill((255, 0, 200))
             return [placeholder]
+
+    def _charger_frames_idle(self):
+        """Charge les 2 frames d'attente, avec repli si des fichiers manquent."""
+        frames = []
+        for i in range(2):
+            try:
+                frames.append(pygame.image.load(find_file(f"She_Idle{i+1}.png")))
+            except FileNotFoundError:
+                print(f"Frame d'attente manquante : She_Idle{i+1}.png")
+                # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
+                break
+
+        if frames:
+                return frames
 
     # ═════════════════════════════════════════════════════════════════════════
     # 3.  CYCLE DE VIE (respawn, rechargement de la hitbox)
@@ -477,6 +499,7 @@ class Player:
             # Pendant un dash, la vitesse est fixée (ignore l'input).
             self.vx      = DASH_SPEED * self.dash_dir
             self.walking = False
+            self.idle = False
         else:
             self.vx      = ax * self.speed
             self.walking = (ax != 0)
@@ -486,7 +509,7 @@ class Player:
 
         # Si on ne fait rien, on bloque l'animation sur la frame "idle" (2).
         if not self.walking and not self.dashing:
-            self.idle_anim.pause_at(2)
+            self.idle_anim_idle
 
         # ── 5. Knockback (recul après avoir pris un coup) ─────────────────
         # On l'ajoute à la vitesse courante, puis on l'amortit (× 0.85).
@@ -813,10 +836,12 @@ class Player:
     def draw(self, surf, camera, show_hitbox=False):
         # 1. Avance l'animation si on bouge.
         if self.walking or self.dashing:
-            self.idle_anim.update()
+            self.idle_anim_walk.update()
+            img = self.idle_anim_walk.img()
 
-        # 2. Récupère la frame courante.
-        img = self.idle_anim.img()
+        else :
+            self.idle_anim_idle.update()
+            img = self.idle_anim_idle.img()
         img = pygame.transform.smoothscale(img, self.sprite_rescaled)
 
         if self.direction == 1:
