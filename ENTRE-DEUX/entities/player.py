@@ -212,6 +212,7 @@ class Player:
         print(len(frames_idle_jump))
 
         frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
+        frames_idle_double_jump_fwd = self._charger_frames("shejumpsfoward_00", 7)
 
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
@@ -223,6 +224,7 @@ class Player:
         self.idle_anim_idle = Animation(frames_idle, img_dur=5, loop=True)
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
         self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=False)
+        self.idle_anim_double_jump_fwd = Animation(frames_idle_double_jump_fwd, img_dur=5, loop=False)
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -705,9 +707,14 @@ class Player:
 
         # 3. Double-saut.
         if self.jumps_used < 2:
-            self.vy           = -DOUBLE_JUMP_POWER
-            self.jumps_used   = 2
-            self.idle_anim_double_jump.reset()   # frame=0 ET done=False
+            self.vy         = -DOUBLE_JUMP_POWER
+            self.jumps_used = 2
+            # On retient si le joueur tenait une direction (Q ou D / stick)
+            self.double_jump_forward = (self.vx != 0)
+            if self.double_jump_forward:
+                self.idle_anim_double_jump_fwd.reset()
+            else:
+                self.idle_anim_double_jump.reset()
             sound_manager.jouer("saut", volume=0.7)
             return True
 
@@ -834,18 +841,26 @@ class Player:
     #   - dessin provisoire de l'attaque
 
     def draw(self, surf, camera, show_hitbox=False):
-    # Choix de l'animation selon l'état physique
         if self.dashing:
-            # (pas d'anim dash dans ce fichier, on garde walk en attendant)
             self.idle_anim_walk.update()
             img = self.idle_anim_walk.img()
         elif not self.on_ground:
-            if self.jumps_used >= 2 and not self.idle_anim_double_jump.done:
-                # Double saut en cours : on joue l'anim une fois
-                self.idle_anim_double_jump.update()
-                img = self.idle_anim_double_jump.img()
+            # Double saut en cours ?
+            if self.jumps_used >= 2:
+                # Forward (touche maintenue) ou vertical (statique) ?
+                if self.double_jump_forward:
+                    anim = self.idle_anim_double_jump_fwd
+                else:
+                    anim = self.idle_anim_double_jump
+                if not anim.done:
+                    anim.update()
+                    img = anim.img()
+                else:
+                    # Anim terminée → on bascule sur jump (chute)
+                    self.idle_anim_jump.update()
+                    img = self.idle_anim_jump.img()
             else:
-                # Saut normal OU double saut terminé (chute) → anim jump
+                # Saut normal
                 self.idle_anim_jump.update()
                 img = self.idle_anim_jump.img()
         elif self.walking:
@@ -861,14 +876,14 @@ class Player:
             int(img.get_height() * self.scale_factor))
         )
 
+        if self.direction == 1:
+            img = pygame.transform.flip(img, True, False)
+
         img_w = img.get_width()
         img_h = img.get_height()
         sx = self.rect.centerx - img_w // 2
         sy = self.rect.bottom  - img_h
         sprite_rect = pygame.Rect(sx, sy, img_w, img_h)
-
-        if self.direction == 1:
-            img = pygame.transform.flip(img, True, False)
 
         if self.invincible:
             if int(self.invincible_timer * 12) % 2 == 0:
