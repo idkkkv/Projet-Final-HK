@@ -5,32 +5,7 @@
 #  À QUOI SERT CE FICHIER ?
 #  ------------------------
 #  C'est LE fichier qu'on lance pour démarrer le jeu :
-#
-#       py main.py
-#
-#  Tout le code utile vit ailleurs (core/game.py, entities/, ui/, ...).
-#  Ce fichier ne fait QUE 2 choses :
-#       1) Importer la classe Game.
-#       2) Si on est lancé directement → créer une instance et appeler run().
-#
-#  C'EST QUOI `if __name__ == "__main__"` ?
-#  -----------------------------------------
-#  C'est une PROTECTION. Quand Python exécute un fichier directement
-#  (`py main.py`), il met la variable spéciale `__name__` à `"__main__"`.
-#  Quand on IMPORTE ce fichier depuis ailleurs (`import main`), Python met
-#  `__name__` au nom du module (`"main"`).
-#
-#  Donc :
-#       py main.py            → __name__ == "__main__"  → on entre dans le if
-#                                                          → le jeu démarre
-#       import main           → __name__ == "main"      → on n'entre PAS dans
-#                                                          le if → rien ne démarre
-#
-#  Du coup, on peut importer main.py sans risquer de lancer le jeu par
-#  erreur (utile pour les tests, ou pour qu'un autre script utilise une
-#  fonction d'ici sans tout démarrer).
-#
-#  POURQUOI MAIN.PY EST AUSSI COURT ?
+# 
 #  ----------------------------------
 #  Convention universelle Python : main.py = un point d'entrée minimal
 #  qui DÉLÈGUE tout à un module / une classe métier. Avantages :

@@ -222,7 +222,7 @@ class Player:
         self.idle_anim_walk = Animation(frames_marche, img_dur=3, loop=True)
         self.idle_anim_idle = Animation(frames_idle, img_dur=5, loop=True)
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
-        self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=True)
+        self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=False)
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -689,29 +689,29 @@ class Player:
             self.on_ground    = False
             self.coyote_timer = 0
             self.jumps_used   = 1
-
             sound_manager.jouer("saut", volume=0.7)
             return True
 
         # 2. Wall-jump : contre un mur, en l'air.
         if self.against_wall != 0 and not self.on_ground:
             self.vy              = WALL_JUMP_VY
-            # On se propulse dans le sens OPPOSÉ au mur.
             self.vx              = -self.against_wall * WALL_JUMP_VX
             self.direction       = -self.against_wall
             self.wall_lock_timer = WALL_JUMP_LOCK
             self.jumps_used      = 1
             self.wall_sliding    = False
+            sound_manager.jouer("saut", volume=0.7)
             return True
 
         # 3. Double-saut.
         if self.jumps_used < 2:
-            self.vy         = -DOUBLE_JUMP_POWER
-            self.jumps_used = 2
+            self.vy           = -DOUBLE_JUMP_POWER
+            self.jumps_used   = 2
+            self.idle_anim_double_jump.reset()   # frame=0 ET done=False
+            sound_manager.jouer("saut", volume=0.7)
             return True
 
-        # Aucun saut possible.
-        return False
+
 
     def _declencher_dash(self, ax):
         """Démarre un dash dans la direction demandée (ou la dernière connue)."""
@@ -834,58 +834,54 @@ class Player:
     #   - dessin provisoire de l'attaque
 
     def draw(self, surf, camera, show_hitbox=False):
-        # 1. Avance l'animation si on bouge.
-        if self.walking or self.dashing:
+    # Choix de l'animation selon l'état physique
+        if self.dashing:
+            # (pas d'anim dash dans ce fichier, on garde walk en attendant)
             self.idle_anim_walk.update()
             img = self.idle_anim_walk.img()
         elif not self.on_ground:
-            jump = 0
-            if self.jumps_used == 2 and jump<1:
-                self.idle_anim_jump.pause()
+            if self.jumps_used >= 2 and not self.idle_anim_double_jump.done:
+                # Double saut en cours : on joue l'anim une fois
                 self.idle_anim_double_jump.update()
                 img = self.idle_anim_double_jump.img()
-                jump += 1
             else:
-                self.idle_anim_jump.resume()
+                # Saut normal OU double saut terminé (chute) → anim jump
                 self.idle_anim_jump.update()
-                img = self.idle_anim_jump.img() 
-        else :
+                img = self.idle_anim_jump.img()
+        elif self.walking:
+            self.idle_anim_walk.update()
+            img = self.idle_anim_walk.img()
+        else:
             self.idle_anim_idle.update()
             img = self.idle_anim_idle.img()
-            
-        img = pygame.transform.smoothscale(img, (int(img.get_width() * self.scale_factor), int(img.get_height() * self.scale_factor)))
+
+        img = pygame.transform.smoothscale(
+            img,
+            (int(img.get_width()  * self.scale_factor),
+            int(img.get_height() * self.scale_factor))
+        )
 
         img_w = img.get_width()
         img_h = img.get_height()
         sx = self.rect.centerx - img_w // 2
-        sy = self.rect.bottom - img_h
+        sy = self.rect.bottom  - img_h
         sprite_rect = pygame.Rect(sx, sy, img_w, img_h)
 
         if self.direction == 1:
-            # Miroir horizontal (le sprite regarde "à l'envers").
             img = pygame.transform.flip(img, True, False)
 
-        # 4. Dessin du sprite (avec clignotement pendant l'invincibilité).
         if self.invincible:
-            # On clignote à 6 Hz environ (un frame sur deux pendant 0.16 s).
-            # int(t * 12) alterne pair/impair → affiche ou pas.
             if int(self.invincible_timer * 12) % 2 == 0:
                 surf.blit(img, camera.apply(sprite_rect))
         else:
             surf.blit(img, camera.apply(sprite_rect))
 
-        # 5. Hitbox d'attaque (rectangle blanc devant/sous le joueur).
-        #if self.attacking:
-        #    pygame.draw.rect(surf, BLANC, camera.apply(self.attack_rect))
-
-        # 6. Cœurs (dégâts récents OU regard vers le haut).
         if self.show_hp_timer > 0:
             self._draw_hearts(surf, camera)
 
-        # 7. Hitbox de debug (optionnel : touche H dans l'éditeur).
         if show_hitbox:
-            pygame.draw.rect(surf, (0, 255, 0),  camera.apply(self.rect),        1)
-            pygame.draw.rect(surf, (80, 80, 200), camera.apply(sprite_rect),     1)
+            pygame.draw.rect(surf, (0, 255, 0),    camera.apply(self.rect),       1)
+            pygame.draw.rect(surf, (80, 80, 200),  camera.apply(sprite_rect),     1)
 
     def _draw_hearts(self, surf, camera):
         """Dessine une rangée de petits carrés rouges/gris au-dessus du joueur.
