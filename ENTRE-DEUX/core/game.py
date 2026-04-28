@@ -285,6 +285,7 @@ class Game:
         """Charge les fichiers audio (sons du joueur, UI). Appelé 1 fois."""
         from audio import sound_manager
         sound_manager.charger("attaque", "ENTRE-DEUX/assets/sounds/attaque.mp3")
+        sound_manager.charger("attaque_contact", "ENTRE-DEUX/assets/sounds/attaquecontact.mp3")
         sound_manager.charger("pas",     "ENTRE-DEUX/assets/sounds/pas.mp3", trim=True)
         sound_manager.charger("mort",    "ENTRE-DEUX/assets/sounds/mort.mp3")
         sound_manager.charger("degat",   "ENTRE-DEUX/assets/sounds/degat.mp3")
