@@ -66,6 +66,7 @@
 import pygame
 from pygame.locals import *
 import math
+import time
 
 # On importe settings pour les variables runtime (settings.axis_x, etc.)
 import settings
@@ -82,7 +83,7 @@ from settings import (
     DOUBLE_JUMP_POWER, COYOTE_TIME, JUMP_BUFFER,
     WALL_SLIDE_SPEED, WALL_JUMP_VX, WALL_JUMP_VY, WALL_JUMP_LOCK,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
-    BLANC, VOLUME_PAS, FPS
+    BLANC, VOLUME_PAS, FPS, PLAYER_RUN_SPEED
 )
 from utils import find_file
 from entities.animation import Animation
@@ -144,6 +145,12 @@ class Player:
         self.on_ground     = True     # True = pieds au sol
         self.direction     = -1        # 1 = regarde à droite, -1 = à gauche
         self.walking       = False    # True = se déplace horizontalement
+        self.running       = False    # True = se déplace assez vite
+        self.run_duree     = 0.0      # durée écoulée depuis le début du déplacement rapide (pour l'anim de course)
+        self.run_state    = "idle"    # "start", "run" ou "stop" (pour l'anim de course)
+        self._last_d_press_time = 0 # pour double clic 
+        self._last_q_press_time = 0 # pour double clic 
+        self._double_tap_delay = 0.25  # secondes
         self.idle          = (self.vx == 0 and self.vy == 0)     # True = immobile
         self.looking_up    = False    # True = appuie vers le haut
 
@@ -154,6 +161,7 @@ class Player:
         self.gravity        = GRAVITY
         self.puissance_saut = JUMP_POWER
         self.speed          = PLAYER_SPEED
+        self.run_speed      = PLAYER_RUN_SPEED
 
         # ── Combat ──
         self.attack_has_hit   = False                 # True si on a touché un ennemi durant l'attaque actuelle
@@ -203,9 +211,16 @@ class Player:
         self._prev_attack = False
 
         # ── Animation (sprites) ──
+        # 1. On charge les frames de chaque animation dans des listes.
+        # basiques
         frames_marche = self._charger_frames("shewalks_0", 24)
+        frames_run_start = self._charger_frames("sherunsstart_0", 2)
+        frames_run = self._charger_frames("sherun_0", 20)
+        frames_run_stop = self._charger_frames("sherunsstop_0", 15)
+        frames_run_turn = self._charger_frames("sherunsturn_00", 8)
         frames_idle = self._charger_frames("sheidle_00", 10)
 
+        # sauts
         frames_idle_jump = self._charger_frames("shejumps__0", 24)
         duree_saut = (2 * abs(JUMP_POWER)) / GRAVITY
         img_duration_saut = (duree_saut * FPS) / len(frames_idle_jump)
@@ -213,16 +228,26 @@ class Player:
 
         frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
 
+        # 2. Dimensions
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
         self.sprite_h  = frames_marche[0].get_height()
         self.sprite_rescaled = (int(self.sprite_w * self.scale_factor), int(self.sprite_h * self.scale_factor))
         self.sprite_scaled_prop = pygame.transform.smoothscale(frames_marche[0], self.sprite_rescaled)
-        
+
+        # 3. Animation pour chaque animation du joueur
+        # basiques
         self.idle_anim_walk = Animation(frames_marche, img_dur=3, loop=True)
+        self.idle_anim_run_start = Animation(frames_run_start, img_dur=10, loop=False)
+        self.idle_anim_run = Animation(frames_run, img_dur=2, loop=True)
+        self.idle_anim_run_stop = Animation(frames_run_stop, img_dur=3, loop=False)
+        self.idle_anim_run_turn = Animation(frames_run_turn, img_dur=5, loop= False)
         self.idle_anim_idle = Animation(frames_idle, img_dur=5, loop=True)
+
+        # sauts
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
         self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=True)
+
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -291,6 +316,7 @@ class Player:
         self.hp           = self.max_hp
         self.dead         = False
         self.dashing      = False
+        self.running      = False
         self.dash_timer   = 0.0
         self.jumps_used   = 0
         self._idle_timer  = 0.0
@@ -434,6 +460,26 @@ class Player:
                 return True
         return False
 
+    def _input_run(self, keys):
+        """True si la touche de course est enfoncée (ex: Maj gauche)."""
+        now = time.time()
+        d_pressed = keys[K_d] and not getattr(self, "_prev_d", False)
+        q_pressed = keys[K_q] and not getattr(self, "_prev_q", False)
+        self._prev_d = keys[K_d]
+        self._prev_q = keys[K_q]
+
+        if d_pressed or q_pressed:
+            if now - self._last_d_press_time < self._double_tap_delay:
+                self.running = True
+            self._last_d_press_time = now
+            self._last_q_press_time = now
+
+        # stop si plus de touche
+        if not keys[K_d] and not keys[K_q]:
+            self.running = False
+
+        return self.running
+
     # ═════════════════════════════════════════════════════════════════════════
     # 6.  MOUVEMENT PRINCIPAL — appelé CHAQUE FRAME par game.py
     # ═════════════════════════════════════════════════════════════════════════
@@ -468,6 +514,7 @@ class Player:
         jump_held   = self._input_jump(keys)
         attack_held = self._input_attack(keys)
         dash_held   = self._input_dash(keys)
+        run_held = self._input_run(keys)
 
         # Fronts montants : "juste pressé CE frame-ci" (voir __init__ pour
         # l'explication). On met à jour les mémoires _prev_* APRÈS avoir
@@ -475,6 +522,7 @@ class Player:
         jump_pressed   = jump_held   and not self._prev_jump
         attack_pressed = attack_held and not self._prev_attack
         dash_pressed   = dash_held   and not self._prev_dash
+        self.prev_dir = self.direction
         self._prev_jump   = jump_held
         self._prev_attack = attack_held
         self._prev_dash   = dash_held
@@ -493,6 +541,7 @@ class Player:
                 ax = 0
 
         # ── 4. Calcul de la vitesse horizontale ───────────────────────────
+
         if self.dashing:
             # Pendant un dash, la vitesse est fixée (ignore l'input).
             self.vx      = DASH_SPEED * self.dash_dir
@@ -504,6 +553,25 @@ class Player:
             # On ne change la direction "regardée" que si on bouge vraiment.
             if ax != 0:
                 self.direction = ax
+
+        if self.running :
+            if self.run_state == "idle":
+                self.run_state = "start"
+                self.idle_anim_run_start.reset()
+
+            # animation run_turn
+            if ax != 0 and ax != self.prev_dir and self.prev_dir != 0 :
+                self.run_state = "turn"
+                self.idle_anim_run_turn.reset()
+                self.direction = ax
+
+            self.vx = ax * self.run_speed
+            self.run_duree += dt
+        else:
+            if self.run_state in ["run", "start"]:
+                self.run_state = "stop"
+                self.idle_anim_run_stop.reset()
+            self.vx = ax * self.speed
 
         # Si on ne fait rien, on prend l'animation idle
         if not self.walking and not self.dashing:
@@ -835,10 +903,7 @@ class Player:
 
     def draw(self, surf, camera, show_hitbox=False):
         # 1. Avance l'animation si on bouge.
-        if self.walking or self.dashing:
-            self.idle_anim_walk.update()
-            img = self.idle_anim_walk.img()
-        elif not self.on_ground:
+        if not self.on_ground:
             jump = 0
             if self.jumps_used == 2 and jump<1:
                 self.idle_anim_jump.pause()
@@ -848,7 +913,38 @@ class Player:
             else:
                 self.idle_anim_jump.resume()
                 self.idle_anim_jump.update()
-                img = self.idle_anim_jump.img() 
+                img = self.idle_anim_jump.img()
+
+        # debut du run ----------------------------
+
+        elif self.run_state == "turn":
+            self.idle_anim_run_turn.update()
+            img = self.idle_anim_run_turn.img()
+
+            if self.idle_anim_run_turn.done:
+                self.run_state = "run"
+
+        elif self.run_state == "start":
+            if self.idle_anim_run_start.done:
+                self.run_state = "run"
+            self.idle_anim_run_start.update()
+            img = self.idle_anim_run_start.img()
+
+        elif self.run_state == "run":
+            self.idle_anim_run.update()
+            img = self.idle_anim_run.img()
+
+        elif self.run_state == "stop":
+            if self.idle_anim_run_stop.done:
+                self.run_state = "idle"
+            self.idle_anim_run_stop.update()
+            img = self.idle_anim_run_stop.img()
+
+        # fin du run -----------------------------
+
+        elif self.walking or self.dashing:
+            self.idle_anim_walk.update()
+            img = self.idle_anim_walk.img()
         else :
             self.idle_anim_idle.update()
             img = self.idle_anim_idle.img()

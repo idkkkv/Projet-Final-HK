@@ -100,6 +100,8 @@ class Animation:
             if self.frame >= total - 1:
                 self.done = True
 
+            print(self.frame, len(self.images), self.done)
+
     # ─────────────────────────────────────────────────────────────────────────
     #  CONTRÔLES MANUELS (figer / reprendre)
     # ─────────────────────────────────────────────────────────────────────────

@@ -99,6 +99,7 @@ CEILING_Y    = 0              # Y du plafond par défaut
 GRAVITY       = 1500          # accélération verticale (px/s²)
 JUMP_POWER    = 700           # impulsion de saut (px/s, vers le haut)
 PLAYER_SPEED  = 220           # vitesse horizontale de course (px/s)
+PLAYER_RUN_SPEED = 370        # vitesse horizontale courir (px/s)
 
 PLAYER_W      = 90            # largeur de la hitbox du joueur (px)
 PLAYER_H      = 104           # hauteur de la hitbox du joueur (px)
