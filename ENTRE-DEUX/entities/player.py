@@ -82,6 +82,7 @@ from settings import (
     DOUBLE_JUMP_POWER, COYOTE_TIME, JUMP_BUFFER,
     WALL_SLIDE_SPEED, WALL_JUMP_VX, WALL_JUMP_VY, WALL_JUMP_LOCK,
     BACK_DODGE_LOCK, BACK_DODGE_INPUT_WINDOW,
+    BACK_DODGE_DURATION, BACK_DODGE_SPEED, BACK_DODGE_MOVE_FRACTION,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
     BLANC, VOLUME_PAS, FPS
 )
@@ -219,6 +220,12 @@ class Player:
         frames_dash_fwd  = self._charger_frames("sheslide_00",     17)
         frames_dash_back = self._charger_frames("shebackdodge_00", 20)
 
+        # Aerial dash (dash dans les airs) : 12 frames perso + FX visuels au
+        # point de départ (effet de téléportation/après-image).
+        frames_aerial_dash       = self._charger_frames("sheaerialdash_00",         6)
+        frames_aerial_dash_smoke = self._charger_frames("sheaerialdash_smoke_00",   6)
+        frames_aerial_dash_fx    = self._charger_frames("sheaerialdash_fx_00",      5)
+
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
         self.sprite_h  = frames_marche[0].get_height()
@@ -238,10 +245,21 @@ class Player:
 
         # Dash forward / back dodge : on lit DASH_DURATION/FPS pour caler la vitesse
         # de défilement à la durée du dash (sinon l'anim finit avant ou après).
-        img_dur_dash_fwd  = max(1, int((DASH_DURATION * FPS) / len(frames_dash_fwd)))
-        img_dur_dash_back = max(1, int((DASH_DURATION * FPS) / len(frames_dash_back)))
-        self.idle_anim_dash_fwd  = Animation(frames_dash_fwd,  img_dur=img_dur_dash_fwd,  loop=False)
-        self.idle_anim_dash_back = Animation(frames_dash_back, img_dur=img_dur_dash_back, loop=False)
+        img_dur_dash_fwd     = max(1, int((DASH_DURATION       * FPS) / len(frames_dash_fwd)))
+        # Back dodge : on cale sur sa propre durée (1.25s) pour avoir ~5 fm
+        # par image et que les 20 frames soient toutes bien visibles.
+        img_dur_dash_back    = max(1, int((BACK_DODGE_DURATION  * FPS) / len(frames_dash_back)))
+        img_dur_aerial_dash  = max(1, int((DASH_DURATION        * FPS) / len(frames_aerial_dash)))
+        self.idle_anim_dash_fwd     = Animation(frames_dash_fwd,    img_dur=img_dur_dash_fwd,    loop=False)
+        self.idle_anim_dash_back    = Animation(frames_dash_back,   img_dur=img_dur_dash_back,   loop=False)
+        self.idle_anim_aerial_dash  = Animation(frames_aerial_dash, img_dur=img_dur_aerial_dash, loop=False)
+
+        # Effets visuels du dash aérien (rejoués UNE fois au point de départ).
+        self.aerial_smoke_anim = Animation(frames_aerial_dash_smoke, img_dur=5, loop=False)
+        self.aerial_fx_anim    = Animation(frames_aerial_dash_fx,    img_dur=6, loop=False)
+        # Position où dessiner les effets (set au déclenchement, None sinon).
+        self.aerial_smoke_pos = None
+        self.aerial_fx_pos    = None
 
         # Drapeau d'état : True = back dodge en cours, False = dash avant
         self.dash_back = False
@@ -555,7 +573,20 @@ class Player:
         # ── 4. Calcul de la vitesse horizontale ───────────────────────────
         if self.dashing:
             # Pendant un dash, la vitesse est fixée (ignore l'input).
-            self.vx      = DASH_SPEED * self.dash_dir
+            # Back dodge : vitesse réduite + arrêt du mouvement pendant la
+            # phase de récupération (frames 14-20 = perso se relève, ne
+            # doit plus reculer physiquement).
+            if self.dash_back:
+                progress = 1.0 - (self.dash_timer / BACK_DODGE_DURATION)
+                if progress >= BACK_DODGE_MOVE_FRACTION:
+                    # Phase recovery : le perso reste sur place, l'anim
+                    # continue (touche la tête / se relève).
+                    self.vx = 0
+                else:
+                    # Phase recoil : le perso recule.
+                    self.vx = BACK_DODGE_SPEED * self.dash_dir
+            else:
+                self.vx = DASH_SPEED * self.dash_dir
             self.walking = False
             self.idle = False
         else:
@@ -600,6 +631,15 @@ class Player:
                 # Saut réussi → on consomme le buffer.
                 self.jump_buffer = 0.0
                 self.idle_anim_jump.frame = 0
+                # PRIORITÉ DU SAUT SUR LE DASH : si on était en plein dash
+                # (au sol ou aérien) au moment de l'appui Espace, on coupe
+                # le dash net pour laisser le saut prendre effet. Sinon vy
+                # serait écrasé à 0 par l'étape 9 (gravité = 0 pendant dash)
+                # et l'impulsion du saut serait perdue → le perso roulerait
+                # sans monter.
+                if self.dashing:
+                    self.dashing    = False
+                    self.dash_timer = 0.0
 
         # ── 8. Dash ───────────────────────────────────────────────────────
         if dash_pressed and self.dash_cooldown <= 0 and not self.dashing:
@@ -823,10 +863,30 @@ class Player:
             self.dash_dir  = ax if ax != 0 else facing_before
             self.direction = self.dash_dir
             self.idle_anim_dash_fwd.reset()
+            self.idle_anim_aerial_dash.reset()
 
         self.dashing       = True
-        self.dash_timer    = DASH_DURATION
+        # Durée plus longue pour back dodge (anim de 20 frames à voir)
+        self.dash_timer    = BACK_DODGE_DURATION if self.dash_back else DASH_DURATION
         self.dash_cooldown = DASH_COOLDOWN
+
+        # ── Effets visuels du dash AÉRIEN ──────────────────────────────
+        # Quand on dash en l'air (forward), on plante 2 effets au POINT DE
+        # DÉPART qui restent là et se dissipent : effet "téléportation".
+        #   - smoke : nuage de fumée au sol/à hauteur des pieds
+        #   - fx    : silhouette résiduelle (after-image) à hauteur du perso
+        # Le back dodge n'utilise PAS ces FX (sa propre anim contient déjà
+        # les effets de mouvement).
+        if not self.on_ground and not self.dash_back:
+            # Les 2 effets sont CENTRÉS sur le perso (même point que centery).
+            # Comme ça smoke + fx + perso s'alignent parfaitement à la même
+            # hauteur quand le perso s'envole — effet "téléportation propre".
+            center = (self.rect.centerx, self.rect.centery)
+            self.aerial_smoke_pos = center
+            self.aerial_fx_pos    = center
+            self.aerial_smoke_anim.reset()
+            self.aerial_fx_anim.reset()
+
         sound_manager.jouer("saut", volume=0.5)
 
     def _dans_un_trou(self, holes):
@@ -936,13 +996,75 @@ class Player:
     #   - des rectangles de debug si show_hitbox=True
     #   - dessin provisoire de l'attaque
 
+    def _draw_aerial_dash_fx(self, surf, camera):
+        """Dessine la fumée + le FX rémanent au point de départ d'un dash aérien.
+
+        Effet "téléportation" : à l'endroit où le joueur a déclenché le dash,
+        on laisse pendant ~0.4s une silhouette qui se dissipe (fx) et un
+        petit nuage de fumée (smoke). Les deux ne suivent PAS le joueur :
+        ils restent à `self.aerial_smoke_pos` / `self.aerial_fx_pos`.
+
+        Les 2 effets sont :
+          - flippés selon la direction du joueur (sinon ils regardent
+            toujours du même côté, comme un perso bloqué dans son sens),
+          - remontés d'un offset car les sprites natifs ont un peu de marge
+            sous le motif → sans offset le centre visuel paraît trop bas.
+        """
+        # Offset vertical pour caler visuellement les centres (la silhouette
+        # et le rond de fumée ont une marge transparente sous leur "vrai"
+        # centre dans le PNG → on remonte un peu).
+        OFFSET_Y = -18
+
+        # On flippe les FX dans le sens du joueur (idem logique du sprite).
+        flip = (self.direction == 1)
+
+        # Fumée — CENTRÉE sur le point de départ (même niveau que le joueur)
+        if self.aerial_smoke_pos is not None and not self.aerial_smoke_anim.done:
+            self.aerial_smoke_anim.update()
+            sm = self.aerial_smoke_anim.img()
+            sm = pygame.transform.smoothscale(
+                sm,
+                (int(sm.get_width()  * self.scale_factor),
+                 int(sm.get_height() * self.scale_factor))
+            )
+            if flip:
+                sm = pygame.transform.flip(sm, True, False)
+            x = self.aerial_smoke_pos[0] - sm.get_width()  // 2
+            y = self.aerial_smoke_pos[1] - sm.get_height() // 2 + OFFSET_Y
+            surf.blit(sm, camera.apply(pygame.Rect(x, y, sm.get_width(), sm.get_height())))
+
+        # FX rémanent (silhouette translucide, à hauteur du perso)
+        if self.aerial_fx_pos is not None and not self.aerial_fx_anim.done:
+            self.aerial_fx_anim.update()
+            fx = self.aerial_fx_anim.img()
+            fx = pygame.transform.smoothscale(
+                fx,
+                (int(fx.get_width()  * self.scale_factor),
+                 int(fx.get_height() * self.scale_factor))
+            )
+            if flip:
+                fx = pygame.transform.flip(fx, True, False)
+            x = self.aerial_fx_pos[0] - fx.get_width()  // 2
+            y = self.aerial_fx_pos[1] - fx.get_height() // 2 + OFFSET_Y
+            surf.blit(fx, camera.apply(pygame.Rect(x, y, fx.get_width(), fx.get_height())))
+
     def draw(self, surf, camera, show_hitbox=False):
+        # ── Effets visuels du dash AÉRIEN (smoke + fx au point de départ) ──
+        # Dessinés AVANT le perso pour qu'ils soient en arrière-plan.
+        # On les dessine tant qu'ils ne sont pas terminés (one-shot).
+        self._draw_aerial_dash_fx(surf, camera)
+
         if self.dashing:
             # Avant ou arrière selon le drapeau dash_back
             if self.dash_back:
                 self.idle_anim_dash_back.update()
                 img = self.idle_anim_dash_back.img()
+            elif not self.on_ground:
+                # Dash AÉRIEN : anim spécifique (sheaerialdash, 12 frames)
+                self.idle_anim_aerial_dash.update()
+                img = self.idle_anim_aerial_dash.img()
             else:
+                # Dash sol : slide_merged
                 self.idle_anim_dash_fwd.update()
                 img = self.idle_anim_dash_fwd.img()
         elif not self.on_ground:
@@ -984,6 +1106,26 @@ class Player:
         img_h = img.get_height()
         sx = self.rect.centerx - img_w // 2
         sy = self.rect.bottom  - img_h
+
+        # ── Compensation back dodge ──────────────────────────────────────
+        # Le sprite back dodge utilise une toile 142×61 (vs ~46×55 pour
+        # idle/walk). Le corps du perso N'EST PAS au centre de cette toile :
+        # il se balade entre offset +41 (départ) et -18 (peak du recoil)
+        # puis se stabilise à +35 sur les frames 14-20 (pose de fin).
+        # Sans correction, à la fin de l'anim quand idle prend le relais,
+        # le perso "saute" de 35px (il passe d'un point décalé au centre
+        # du rect → effet de téléportation gênant).
+        # → on décale le sprite pour que la POSE FINALE coïncide avec
+        # rect.centerx. Le mouvement de recoil est préservé (juste shifté
+        # uniformément) et la transition vers idle devient fluide.
+        if self.dashing and self.dash_back:
+            sx += 53 * self.direction
+        elif self.dashing and not self.dash_back and self.on_ground:
+            # Slide / dash sol : même problème de toile (144×64, perso à
+            # gauche du canvas). Pose finale offset -34 vs idle -7 → on
+            # shifte de -27px pour que la fin du slide soit alignée idle.
+            sx -= 27 * self.direction
+
         sprite_rect = pygame.Rect(sx, sy, img_w, img_h)
 
         if self.invincible:
