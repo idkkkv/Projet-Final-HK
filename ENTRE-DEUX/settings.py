@@ -115,7 +115,7 @@ jump = 0
 #  créés pendant la durée de l'attaque.
 
 # Attaque face (gauche ou droite)
-ATTACK_DURATION       = 0.15   # durée d'une attaque (s)
+ATTACK_DURATION       = 0.61   # durée d'une attaque (s)
 ATTACK_RECT_W         = 120    # largeur de la hitbox d'attaque (px)
 ATTACK_RECT_H         = 40    # hauteur de la hitbox d'attaque (px)
 

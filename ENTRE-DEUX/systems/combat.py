@@ -67,6 +67,7 @@
 #     - Ajouter un coup chargé       → une nouvelle constante DEGAT_X +
 #                                      une nouvelle fonction qui appelle
 #                                      infliger_degats(..., DEGAT_X, ...)
+#     - Reduire dgt crit             → CRIT_CHANCE_ENNEMI
 #
 #  CONCEPTS (voir docs/DICTIONNAIRE.md) :
 #  --------------------------------------
@@ -91,7 +92,8 @@ from audio import sound_manager
 
 DEGAT_ATTAQUE_JOUEUR = 1   # coup d'épée du joueur → 1 PV à l'ennemi
 DEGAT_CONTACT_ENNEMI = 1   # contact d'un ennemi   → 1 PV (= 1 cœur) au joueur
-
+CRIT_CHANCE_ENNEMI = 0.2   # dgt crit
+CRIT_MULTIPLIER = 2        # 2 coeurs retirés
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  2. PETITES FONCTIONS UTILES (cachent la double convention dead/alive)
