@@ -1796,8 +1796,13 @@ class Game:
 
     def _frame_pause(self, events):
         """Un frame dans l'état PAUSE : le jeu est figé, menu par-dessus."""
-        self._gerer_pause(events)
-        self._dessiner_monde()
+        # Indique au joueur de geler ses anims (sinon les loops continuent).
+        self.joueur.paused = True
+        try:
+            self._gerer_pause(events)
+            self._dessiner_monde()
+        finally:
+            self.joueur.paused = False
         self.menu_pause.draw(self.screen)
         # Écran Paramètres par-dessus la pause si ouvert.
         self.parametres.draw(self.screen)
