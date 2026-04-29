@@ -229,6 +229,17 @@ class Player:
         print(len(frames_idle_jump))
 
         frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
+        frames_idle_double_jump_fwd = self._charger_frames("shejumpsfoward_00", 7)
+
+        # Dash : avant (slide_merged 17 frames) et arrière (back dodge fx 20 frames)
+        frames_dash_fwd  = self._charger_frames("sheslide_00",     17)
+        frames_dash_back = self._charger_frames("shebackdodge_00", 20)
+
+        # Aerial dash (dash dans les airs) : 12 frames perso + FX visuels au
+        # point de départ (effet de téléportation/après-image).
+        frames_aerial_dash       = self._charger_frames("sheaerialdash_00",         6)
+        frames_aerial_dash_smoke = self._charger_frames("sheaerialdash_smoke_00",   6)
+        frames_aerial_dash_fx    = self._charger_frames("sheaerialdash_fx_00",      5)
 
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
@@ -627,32 +638,31 @@ class Player:
             self.walking = False
             self.idle = False
         else:
-            self.vx      = ax * self.speed
+            if self.running :
+                if self.run_state == "idle":
+                    self.run_state = "start"
+                    self.idle_anim_run_start.reset()
+
+                # animation run_turn
+                if ax != 0 and ax != self.prev_dir and self.prev_dir != 0 :
+                    self.run_state = "turn"
+                    self.idle_anim_run_turn.reset()
+                    self.direction = ax
+
+                self.vx = ax * self.run_speed
+                self.run_duree += dt
+            else:
+                if self.run_state in ["run", "start"]:
+                    self.run_state = "stop"
+                    self.idle_anim_run_stop.reset()
+                self.vx = ax * self.speed
+
             self.walking = (ax != 0)
             # On ne change la direction "regardée" que si on bouge vraiment
             # ET que le verrou back-dodge n'est PAS actif. Sinon le perso
             # garde son regard vers l'ennemi pendant la fenêtre d'esquive.
             if ax != 0 and self.back_dodge_lock_timer <= 0:
                 self.direction = ax
-
-        if self.running :
-            if self.run_state == "idle":
-                self.run_state = "start"
-                self.idle_anim_run_start.reset()
-
-            # animation run_turn
-            if ax != 0 and ax != self.prev_dir and self.prev_dir != 0 :
-                self.run_state = "turn"
-                self.idle_anim_run_turn.reset()
-                self.direction = ax
-
-            self.vx = ax * self.run_speed
-            self.run_duree += dt
-        else:
-            if self.run_state in ["run", "start"]:
-                self.run_state = "stop"
-                self.idle_anim_run_stop.reset()
-            self.vx = ax * self.speed
 
         # Si on ne fait rien, on prend l'animation idle
         if not self.walking and not self.dashing:
