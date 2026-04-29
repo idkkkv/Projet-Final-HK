@@ -145,9 +145,25 @@ REGEN_INTERVAL        = 1.0   # intervalle entre deux PV récupérés (s)
 
 # ── Dash (touche Shift / L1) ────────────────────────────────────────────────
 #  Impulsion horizontale rapide, ignore la gravité pendant sa durée.
-DASH_SPEED            = 720   # vitesse pendant le dash (px/s)
-DASH_DURATION         = 0.18  # durée du dash (s)
-DASH_COOLDOWN         = 0.55  # délai avant de pouvoir re-dash (s)
+#  DASH_DURATION calé pour que les 17-20 frames de slide / back dodge aient
+#  le temps de défiler entièrement (sinon la moitié n'est jamais visible).
+DASH_SPEED            = 500   # vitesse pendant le dash (px/s)
+DASH_DURATION         = 0.50  # durée du dash (s) - assez long pour voir l'anim
+DASH_COOLDOWN         = 0.65  # délai avant de pouvoir re-dash (s)
+
+# ── Back dodge ──────────────────────────────────────────────────────────────
+#  Après un back dodge (Shift + direction opposée au regard), on verrouille
+#  la direction face pendant BACK_DODGE_LOCK secondes : le perso continue
+#  de regarder l'ennemi meme si le joueur maintient la touche opposée.
+#  Le joueur doit RELACHER puis ré-appuyer pour vraiment se retourner.
+BACK_DODGE_LOCK       = 1.0   # durée (s) pendant laquelle le regard reste figé
+
+#  Fenêtre de TOLÉRANCE pour déclencher le back dodge :
+#  pas besoin d'appuyer pile en même temps sur "direction opposée" + Shift.
+#  Si tu as appuyé sur la direction opposée dans les BACK_DODGE_INPUT_WINDOW
+#  secondes qui PRÉCÈDENT le Shift, c'est compté comme back dodge.
+#  → augmente la valeur si tu trouves ça encore dur (max conseillé 0.4)
+BACK_DODGE_INPUT_WINDOW = 0.25
 
 # ── Double-saut ─────────────────────────────────────────────────────────────
 #  Un 2e saut autorisé en l'air. Légèrement plus faible que le 1er.

@@ -81,6 +81,7 @@ from settings import (
     DASH_SPEED, DASH_DURATION, DASH_COOLDOWN,
     DOUBLE_JUMP_POWER, COYOTE_TIME, JUMP_BUFFER,
     WALL_SLIDE_SPEED, WALL_JUMP_VX, WALL_JUMP_VY, WALL_JUMP_LOCK,
+    BACK_DODGE_LOCK, BACK_DODGE_INPUT_WINDOW,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
     BLANC, VOLUME_PAS, FPS
 )
@@ -214,17 +215,54 @@ class Player:
         frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
         frames_idle_double_jump_fwd = self._charger_frames("shejumpsfoward_00", 7)
 
+        # Dash : avant (slide_merged 17 frames) et arrière (back dodge fx 20 frames)
+        frames_dash_fwd  = self._charger_frames("sheslide_00",     17)
+        frames_dash_back = self._charger_frames("shebackdodge_00", 20)
+
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
         self.sprite_h  = frames_marche[0].get_height()
         self.sprite_rescaled = (int(self.sprite_w * self.scale_factor), int(self.sprite_h * self.scale_factor))
         self.sprite_scaled_prop = pygame.transform.smoothscale(frames_marche[0], self.sprite_rescaled)
-        
-        self.idle_anim_walk = Animation(frames_marche, img_dur=3, loop=True)
-        self.idle_anim_idle = Animation(frames_idle, img_dur=5, loop=True)
+
+        # ── VITESSE des anims (img_dur = nb de frames moteur par image) ──
+        # Plus le chiffre est GRAND, plus l'anim est LENTE.
+        # Modifie ces 2 valeurs pour ajuster rapidement le rythme :
+        #   idle_anim_walk : 4-6 = naturel, 2 = course rapide
+        #   idle_anim_idle : 8-12 = posé, 4-5 = nerveux
+        self.idle_anim_walk = Animation(frames_marche, img_dur=4,  loop=True)
+        self.idle_anim_idle = Animation(frames_idle,   img_dur=10, loop=True)
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
         self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=False)
         self.idle_anim_double_jump_fwd = Animation(frames_idle_double_jump_fwd, img_dur=5, loop=False)
+
+        # Dash forward / back dodge : on lit DASH_DURATION/FPS pour caler la vitesse
+        # de défilement à la durée du dash (sinon l'anim finit avant ou après).
+        img_dur_dash_fwd  = max(1, int((DASH_DURATION * FPS) / len(frames_dash_fwd)))
+        img_dur_dash_back = max(1, int((DASH_DURATION * FPS) / len(frames_dash_back)))
+        self.idle_anim_dash_fwd  = Animation(frames_dash_fwd,  img_dur=img_dur_dash_fwd,  loop=False)
+        self.idle_anim_dash_back = Animation(frames_dash_back, img_dur=img_dur_dash_back, loop=False)
+
+        # Drapeau d'état : True = back dodge en cours, False = dash avant
+        self.dash_back = False
+
+        # Verrou de direction après un back dodge.
+        # > 0 → on BLOQUE le retournement du regard. Le perso continue de
+        # regarder l'ennemi (vers l'avant) même si le joueur maintient la
+        # touche opposée. À 0, comportement normal reprend.
+        # → décrémenté dans _tick_state_timers, armé dans _declencher_dash
+        #   quand on déclenche un back dodge.
+        self.back_dodge_lock_timer = 0.0
+
+        # Fenêtre de tolérance pour déclencher un back dodge.
+        # > 0 → si Shift est pressé maintenant, c'est un back dodge même si
+        # le joueur n'appuie plus sur la direction opposée. Armé chaque fois
+        # que le joueur appuie sur direction opposée à son regard.
+        self._back_dodge_buffer = 0.0
+        # Direction face à conserver si le back dodge se déclenche pendant
+        # le buffer (mémorisée juste avant le retournement).
+        self._pre_back_dodge_facing = self.direction
+
         self.step_timer = STEP_INTERVAL
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
@@ -464,6 +502,12 @@ class Player:
     # Les collisions avec les plateformes sont gérées APRÈS par collision.py.
 
     def mouvement(self, dt, keys, holes=None):
+        # On mémorise la direction du regard AVANT de lire les inputs.
+        # Sert pour distinguer dash AVANT (input dans le sens du regard ou
+        # rien) vs BACK DODGE (input opposé au regard) — sinon, étape 4
+        # remplace self.direction par ax et on ne saurait plus.
+        facing_before = self.direction
+
         # ── 1. Lecture des entrées ────────────────────────────────────────
         ax = self._input_axis_x(keys)          # -1, 0, +1
         ay = self._input_axis_y(keys)
@@ -480,6 +524,20 @@ class Player:
         self._prev_jump   = jump_held
         self._prev_attack = attack_held
         self._prev_dash   = dash_held
+
+        # ── 1b. Détection back dodge (buffer de tolérance) ────────────────
+        # Si le joueur appuie sur la direction opposée à son regard, on
+        # arme un buffer : pendant BACK_DODGE_INPUT_WINDOW secondes, un
+        # appui Shift sera traité comme back dodge même si le joueur a
+        # déjà commencé à se retourner. Évite d'avoir à presser pile au
+        # même frame Shift+direction-opposée.
+        if ax != 0 and ax != facing_before:
+            # 1er frame de l'input opposé → on mémorise le regard d'avant.
+            # Sinon (déjà dans le buffer), on garde la mémoire et on
+            # rafraîchit juste le timer.
+            if self._back_dodge_buffer <= 0:
+                self._pre_back_dodge_facing = facing_before
+            self._back_dodge_buffer = BACK_DODGE_INPUT_WINDOW
 
         # ── 2. Décrémentation des timers d'état ───────────────────────────
         self._tick_state_timers(dt)
@@ -503,8 +561,10 @@ class Player:
         else:
             self.vx      = ax * self.speed
             self.walking = (ax != 0)
-            # On ne change la direction "regardée" que si on bouge vraiment.
-            if ax != 0:
+            # On ne change la direction "regardée" que si on bouge vraiment
+            # ET que le verrou back-dodge n'est PAS actif. Sinon le perso
+            # garde son regard vers l'ennemi pendant la fenêtre d'esquive.
+            if ax != 0 and self.back_dodge_lock_timer <= 0:
                 self.direction = ax
 
         # Si on ne fait rien, on prend l'animation idle
@@ -543,7 +603,7 @@ class Player:
 
         # ── 8. Dash ───────────────────────────────────────────────────────
         if dash_pressed and self.dash_cooldown <= 0 and not self.dashing:
-            self._declencher_dash(ax)
+            self._declencher_dash(ax, facing_before)
 
         # ── 9. Gravité ────────────────────────────────────────────────────
         if not self.dashing:
@@ -655,6 +715,14 @@ class Player:
         if self.wall_lock_timer > 0:
             self.wall_lock_timer -= dt
 
+        # Lock du regard après un back dodge.
+        if self.back_dodge_lock_timer > 0:
+            self.back_dodge_lock_timer -= dt
+
+        # Buffer de tolérance pour déclencher un back dodge.
+        if self._back_dodge_buffer > 0:
+            self._back_dodge_buffer -= dt
+
         # Durée du dash en cours.
         if self.dashing:
             self.dash_timer -= dt
@@ -720,18 +788,46 @@ class Player:
 
 
 
-    def _declencher_dash(self, ax):
-        """Démarre un dash dans la direction demandée (ou la dernière connue)."""
-        # Si le joueur tient une direction, on dash dedans. Sinon on dash
-        # dans la direction qu'il regarde.
-        if ax != 0:
-            self.dash_dir = ax
+    def _declencher_dash(self, ax, facing_before):
+        """Démarre un dash. Choisit AVANT (slide) ou ARRIÈRE (back dodge).
+
+        Règle :
+          - Buffer back dodge actif (joueur a appuyé sur direction opposée
+            dans les BACK_DODGE_INPUT_WINDOW dernières secondes) → BACK DODGE
+          - ax opposé au regard ACTUEL                            → BACK DODGE
+          - sinon (ax == 0 ou ax == regard)                       → DASH AVANT
+
+        Le buffer permet de NE PAS avoir à presser pile en même temps
+        Shift + direction-opposée : on tolère un décalage de 250 ms.
+        """
+        # Détection back dodge : soit buffer actif, soit input opposé MAINTENANT.
+        in_buffer = self._back_dodge_buffer > 0
+        opposite_now = (ax != 0 and ax != facing_before)
+
+        if in_buffer or opposite_now:
+            # BACK DODGE
+            # Le regard à conserver = celui mémorisé au début du buffer
+            # (sinon on prend facing_before qui peut déjà avoir tourné).
+            original_facing = self._pre_back_dodge_facing if in_buffer else facing_before
+            self.dash_back = True
+            # Direction du dash : la touche pressée maintenant si dispo,
+            # sinon l'inverse de l'ancien regard (recule par défaut).
+            self.dash_dir  = ax if ax != 0 else -original_facing
+            self.direction = original_facing            # garde le regard avant
+            self.back_dodge_lock_timer = BACK_DODGE_LOCK
+            self._back_dodge_buffer    = 0.0            # consomme le buffer
+            self.idle_anim_dash_back.reset()
         else:
-            self.dash_dir = self.direction
-        self.direction     = self.dash_dir
+            # DASH AVANT
+            self.dash_back = False
+            self.dash_dir  = ax if ax != 0 else facing_before
+            self.direction = self.dash_dir
+            self.idle_anim_dash_fwd.reset()
+
         self.dashing       = True
         self.dash_timer    = DASH_DURATION
         self.dash_cooldown = DASH_COOLDOWN
+        sound_manager.jouer("saut", volume=0.5)
 
     def _dans_un_trou(self, holes):
         """Renvoie True si la hitbox chevauche l'un des trous passés."""
@@ -842,8 +938,13 @@ class Player:
 
     def draw(self, surf, camera, show_hitbox=False):
         if self.dashing:
-            self.idle_anim_walk.update()
-            img = self.idle_anim_walk.img()
+            # Avant ou arrière selon le drapeau dash_back
+            if self.dash_back:
+                self.idle_anim_dash_back.update()
+                img = self.idle_anim_dash_back.img()
+            else:
+                self.idle_anim_dash_fwd.update()
+                img = self.idle_anim_dash_fwd.img()
         elif not self.on_ground:
             # Double saut en cours ?
             if self.jumps_used >= 2:
