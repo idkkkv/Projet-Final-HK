@@ -151,9 +151,11 @@ class Player:
         self.running       = False    # True = se déplace assez vite
         self.run_duree     = 0.0      # durée écoulée depuis le début du déplacement rapide (pour l'anim de course)
         self.run_state    = "idle"    # "start", "run" ou "stop" (pour l'anim de course)
+
         self._last_d_press_time = 0 # pour double clic 
         self._last_q_press_time = 0 # pour double clic 
         self._double_tap_delay = 0.25  # secondes
+
         self.idle          = (self.vx == 0 and self.vy == 0)     # True = immobile
         self.looking_up    = False    # True = appuie vers le haut
 
@@ -176,6 +178,11 @@ class Player:
         self._attack_buffered = False
         self.attack_ground = False                    # True si l'attaque a été déclenchée vers le sol
 
+        self._last_f_press_time = 0
+        self.combo_step = 0
+        self.combo_timer = 0
+        self.combo_max_delay = 1.0 # secondes
+
         # ── Vie & dégâts ──
         self.max_hp           = PLAYER_MAX_HP
         self.hp               = self.max_hp
@@ -185,6 +192,7 @@ class Player:
         self.show_hp_timer    = 0.0      # secondes restantes d'affichage des cœurs
         self.hitted_normal    = False
         self.hitted_hard      = False
+        self.healing          = False
 
         # ── Régénération passive ──
         # Le joueur récupère 1 PV s'il reste TOTALEMENT immobile au sol
@@ -250,6 +258,15 @@ class Player:
         frames_dash_fwd  = self._charger_frames("sheslide_00",     17)
         frames_dash_back = self._charger_frames("shebackdodge_00", 20)
 
+        # atk ------------------------------
+        frames_atk_x1 = self._charger_frames("1xatkmerged_0", 17)
+        frames_atk_x2_long = self._charger_frames("2xatkmerged_long_0", 25)
+        frames_atk_x2_short = self._charger_frames("2xatkmerged_short_0", 25)
+        frames_atk_x3 = self._charger_frames("3xatkmerged_0", 34)
+
+        # heal -----------------------------
+        frames_heal_merged = self._charger_frames("shehealsmerged_0", 18)
+
         # Aerial dash (dash dans les airs) : 12 frames perso + FX visuels au
         # point de départ (effet de téléportation/après-image).
         frames_aerial_dash       = self._charger_frames("sheaerialdash_00",         6)
@@ -288,6 +305,12 @@ class Player:
         self.idle_anim_double_jump_fwd = Animation(frames_idle_double_jump_fwd, img_dur=5, loop=False)
 
         # attaques 
+        self.idle_anim_1xatk = Animation(frames_atk_x1, img_dur=3, loop=False)
+        self.idle_anim_2xatk_long = Animation(frames_atk_x2_long, img_dur=5, loop=False)
+        self.idle_anim_2xatk_short = Animation(frames_atk_x2_short, img_dur=3, loop=False)
+        self.idle_anim_3xatk = Animation(frames_atk_x3, img_dur=3, loop=False)
+
+        self.idle_anim_heal = Animation(frames_heal_merged, img_dur=5, loop=False)
         self.idle_anim_hurt_normal = Animation(frames_hurt_normal, img_dur=5, loop=False)
         self.idle_anim_hurt_hard = Animation(frames_hurt_hard, img_dur=5, loop=False)
 
@@ -583,7 +606,7 @@ class Player:
 
     def _input_attack(self, keys):
         """True si F est enfoncée OU si Carré l'est."""
-        if keys[K_f]:
+        if keys[K_BACKSPACE]:
             return True
         if settings.manette and settings.manette.get_button(BTN_CARRE):
             return True
@@ -767,6 +790,14 @@ class Player:
                     and self.back_dodge_lock_timer <= 0
                     and self.wall_jump_windup_timer <= 0):
                 self.direction = ax
+
+        if self.attacking and not self.dashing:
+            if self.combo_step == 1:
+                self.vx = self.direction * 80
+            elif self.combo_step == 2:
+                self.vx = self.direction * 200
+            else:  # x3
+                self.vx = self.direction * 160
 
         # Si on ne fait rien, on prend l'animation idle
         if not self.walking and not self.dashing:
@@ -974,7 +1005,6 @@ class Player:
         if self.attacking:
             self.attack_timer -= dt
             if self.attack_timer <= 0:
-                self.attacking        = False
                 self._attack_buffered = False
 
     def _tenter_saut(self):
@@ -1124,18 +1154,45 @@ class Player:
         - attack_dir = "down" si on appuie vers le bas ET qu'on est en l'air,
                        "side" sinon (attaque devant)
         """
-        # Déclenchement.
-        if attack_pressed and not self.attacking:
-            self.attacking        = True
-            self.attack_has_hit   = False 
-            self.attack_timer     = ATTACK_DURATION
-            self._attack_buffered = True
-            # Attaque vers le bas possible UNIQUEMENT en l'air (comme dans HK).
-            if ay > 0 and not self.on_ground:
-                self.attack_dir = "down"
+        now = time.time()
+
+        if attack_pressed:
+            self._last_f_press_time = now
+            if self.attacking and self.combo_step < 3:
+                self._combo_queued = True
+
+        # fin atk
+        if self.attacking and self.attack_timer <= 0:
+            if self._combo_queued and (now - self._last_f_press_time < self.combo_max_delay):
+                self.combo_step = min(self.combo_step + 1, 3)
+                self._combo_queued = False
+                self.attack_has_hit = False
+                self.attack_timer = ATTACK_DURATION 
+                if self.combo_step == 2:
+                    self.idle_anim_2xatk_short.reset()
+                else:
+                    self.idle_anim_3xatk.reset()
+                sound_manager.jouer("attaque")
             else:
-                self.attack_dir = "side"
+                # fin combo
+                self.attacking = False
+                self.combo_step = 0
+                self._combo_queued = False
+
+        # pas combo, new atk
+        if attack_pressed and not self.attacking:
+            self.combo_step = 1
+            self._combo_queued = False
+            self.attacking = True
+            self.attack_has_hit = False
+            self.attack_timer = ATTACK_DURATION
+            self.attack_dir = "down" if (ay > 0 and not self.on_ground) else "side"
+            self.idle_anim_1xatk.reset()
             sound_manager.jouer("attaque")
+
+        # inactif trop longtemps, reset combo
+        if not self.attacking and now - self._last_f_press_time > self.combo_max_delay:
+            self.combo_step = 0
 
         # Repositionnement de la hitbox (doit suivre le joueur chaque frame).
         if self.attack_dir == "down":
@@ -1198,6 +1255,8 @@ class Player:
         # du timer (ainsi le 2e PV arrive pile 1 seconde après le 1er).
         if self._idle_timer >= REGEN_DELAY:
             self.hp            = min(self.max_hp, self.hp + 1)
+            self.healing = True
+            self.idle_anim_heal.reset()
             self.show_hp_timer = HP_DISPLAY_DURATION
             self._idle_timer  -= REGEN_INTERVAL
             sound_manager.jouer("ui_select", volume=0.25)   # petit "tic" doux
@@ -1283,6 +1342,28 @@ class Player:
             img = self.idle_anim_hurt_normal.img()
             if self.idle_anim_hurt_normal.done:
                 self.hitted_normal = False
+
+        # heal -----------------------------
+        elif self.healing:
+            self.idle_anim_heal.update()
+            img = self.idle_anim_heal.img()
+            if self.idle_anim_heal.done:
+                self.healing = False
+
+        # atk ------------------------------
+        elif self.attacking:
+            if self.combo_step == 1:
+                anim = self.idle_anim_1xatk
+                self.idle_anim_1xatk.update()
+                img = self.idle_anim_1xatk.img()
+            elif self.combo_step == 2:
+                anim = self.idle_anim_2xatk_short
+                self.idle_anim_2xatk_short.update()
+                img = self.idle_anim_2xatk_short.img()
+            else:
+                anim = self.idle_anim_3xatk
+                self.idle_anim_3xatk.update()
+                img = self.idle_anim_3xatk.img()
 
         # dash -----------------------------
 
@@ -1383,6 +1464,15 @@ class Player:
         img_h = img.get_height()
         sx = self.rect.centerx - img_w // 2
         sy = self.rect.bottom  - img_h
+
+        # ── Compensation attaques ────────────────────────────────────────
+        if self.attacking and self.attack_dir == "side":
+            if self.combo_step == 1:
+                sx += 55 * self.direction
+            elif self.combo_step == 2:
+                sx += 39 * self.direction
+            else:  # x3
+                sx += 80 * self.direction
 
         # ── Compensation back dodge ──────────────────────────────────────
         # Le sprite back dodge utilise une toile 142×61 (vs ~46×55 pour
