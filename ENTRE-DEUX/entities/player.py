@@ -82,6 +82,7 @@ from settings import (
     DASH_SPEED, DASH_DURATION, DASH_COOLDOWN,
     DOUBLE_JUMP_POWER, COYOTE_TIME, JUMP_BUFFER,
     WALL_SLIDE_SPEED, WALL_JUMP_VX, WALL_JUMP_VY, WALL_JUMP_LOCK,
+    WALL_JUMP_PUSH, WALL_JUMP_WINDUP,
     BACK_DODGE_LOCK, BACK_DODGE_INPUT_WINDOW,
     BACK_DODGE_DURATION, BACK_DODGE_SPEED, BACK_DODGE_MOVE_FRACTION,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
@@ -203,6 +204,14 @@ class Player:
         self.against_wall     = 0        # 0=rien, -1=mur à gauche, +1=mur à droite
         self.wall_lock_timer  = 0.0      # ignore l'input opposé après un wall-jump
         self.wall_sliding     = False    # True = glisse contre un mur
+        # Phase de push du wall jump : tant que > 0, vx est FORCÉ dans la
+        # direction wall_jump_dir (l'input ne peut pas annuler la poussée).
+        self.wall_jump_timer  = 0.0
+        self.wall_jump_dir    = 0        # +1 ou -1 (direction du push)
+        # Phase de "wind-up" AVANT le décollage : le perso est collé au mur
+        # pendant que l'anim de prep joue. À la fin, la physique du saut
+        # est appliquée d'un coup (vx + vy).
+        self.wall_jump_windup_timer = 0.0
 
         # ── Détection des appuis ("fronts montants") ──
         # On veut détecter le moment où on APPUIE sur une touche (pas quand on
@@ -246,6 +255,11 @@ class Player:
         frames_aerial_dash       = self._charger_frames("sheaerialdash_00",         6)
         frames_aerial_dash_smoke = self._charger_frames("sheaerialdash_smoke_00",   6)
         frames_aerial_dash_fx    = self._charger_frames("sheaerialdash_fx_00",      5)
+
+        # Wall slide (glisse contre un mur, looped) + Wall jump (anim courte
+        # de propulsion). 3 frames chacun.
+        frames_wall_slide = self._charger_frames("shewallslide_00", 3)
+        frames_wall_jump  = self._charger_frames("shewalljump_00",  3)
 
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
@@ -295,6 +309,14 @@ class Player:
         self.aerial_smoke_pos = None
         self.aerial_fx_pos    = None
 
+        # Wall slide (boucle, le perso glisse) + Wall jump (one-shot court,
+        # le perso se ramasse puis se propulse). 3 frames chacun.
+        # img_dur du wall jump calé sur WALL_JUMP_PUSH (0.25s) : l'anim de
+        # propulsion joue pendant la phase de push horizontal forcé.
+        img_dur_wjump = max(1, int((WALL_JUMP_PUSH * FPS) / len(frames_wall_jump)))
+        self.idle_anim_wall_slide = Animation(frames_wall_slide, img_dur=6, loop=True)
+        self.idle_anim_wall_jump  = Animation(frames_wall_jump,  img_dur=img_dur_wjump, loop=False)
+
         # Drapeau d'état : True = back dodge en cours, False = dash avant
         self.dash_back = False
 
@@ -339,26 +361,76 @@ class Player:
     # Si même ce fichier manque, on crée un rectangle rose vif pour que le
     # jeu puisse au moins démarrer (et qu'on voie tout de suite le problème).
 
-    def _charger_frames(self, file, x, start = 1):
-        """Charge les x frames, avec repli si des fichiers manquent."""
+    def _charger_frames(self, file, x, start=1):
+        """Charge x frames PNG numérotées séquentiellement.
+
+        USAGE :
+            frames = self._charger_frames("shewalks_0", 24)
+            # → cherche shewalks_01.png ... shewalks_024.png
+            #   (concatenation littérale de "shewalks_0" + i)
+
+        ─── À PROPOS DE convert_alpha() ───────────────────────────────────
+        On appelle .convert_alpha() sur CHAQUE image juste après load().
+        C'est CRUCIAL pour les performances. Voilà pourquoi.
+
+        QUAND tu fais `pygame.image.load("foo.png")`, l'image est en
+        mémoire dans son format PNG natif (RGBA 32 bits, ordre des octets
+        défini par la spec PNG). Mais l'écran de jeu (la display surface)
+        est dans le format optimal de la carte graphique — qui peut être
+        différent (ex : BGRA, ou 24 bits, etc.).
+
+        À chaque fois que tu fais `surf.blit(image, ...)`, pygame doit
+        CONVERTIR pixel par pixel le format de l'image vers celui de
+        l'écran. C'est lent, et c'est répété 60 fois par seconde par image
+        affichée. Avec 30+ animations × ~10 frames × 60 fps × N joueurs,
+        ça devient un goulet de performance.
+
+        .convert_alpha() effectue cette conversion UNE SEULE FOIS au
+        chargement, et stocke l'image dans le format optimal. Tous les
+        blits suivants sont alors instantanés (juste une copie mémoire,
+        pas de conversion).
+
+        QUAND L'UTILISER :
+            - TOUJOURS sur les sprites avec transparence (PNG avec alpha)
+            - .convert() suffit si l'image est opaque (JPG, BMP sans alpha)
+            - À appeler APRÈS pygame.display.set_mode() (sinon erreur :
+              "cannot convert without pygame.display initialized")
+
+        EXEMPLE TYPE :
+            img = pygame.image.load("sprite.png").convert_alpha()
+            #     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^
+            #     1) charge depuis le disque    2) optimise pour blit
+
+        SI TU OUBLIES :
+            Le jeu fonctionne quand même, mais le framerate chutera dès
+            que beaucoup de sprites sont à l'écran. Symptôme : "ça lague
+            quand y'a plusieurs ennemis", alors que l'image est petite.
+
+        ─── REPLIS EN CAS D'ERREUR ────────────────────────────────────────
+        Cas 1 : au moins une frame trouvée → on garde celles qu'on a
+        Cas 2 : aucune frame → on essaie player_idle.png comme fallback
+        Cas 3 : même ça manque → un carré rose visible (debug)
+        """
         frames = []
-        for i in range(start, x+1):
+        for i in range(start, x + 1):
             try:
-                frames.append(pygame.image.load(find_file(f"{file}{i}.png")))
+                # .convert_alpha() = optimisation perf cruciale (cf. docstring)
+                surf = pygame.image.load(find_file(f"{file}{i}.png")).convert_alpha()
+                frames.append(surf)
             except FileNotFoundError:
                 print(f"Frame manquante : {file}{i}.png")
                 # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
                 break
 
-        # Cas 1 : on a trouvé au moins une frame → on la/les utilise.
+        # Cas 1 : au moins une frame → on l'utilise.
         if frames:
             return frames
 
-        # Cas 2 : aucune frame → on essaie player_idle.png.
+        # Cas 2 : aucune frame → fallback sur player_idle.png.
         try:
-            return [pygame.image.load(find_file("player_idle.png"))]
+            return [pygame.image.load(find_file("player_idle.png")).convert_alpha()]
         except FileNotFoundError:
-            # Cas 3 : même ça manque → carré rose (sprite de secours).
+            # Cas 3 : tout manque → carré rose visible (debug "rose flash").
             placeholder = pygame.Surface((PLAYER_W, PLAYER_H))
             placeholder.fill((255, 0, 200))
             return [placeholder]
@@ -667,11 +739,33 @@ class Player:
                     self.idle_anim_run_stop.reset()
                 self.vx = ax * self.speed
 
+            # ── Override wall-jump push ──────────────────────────────────
+            # Pendant la phase de push (juste après un wall jump), on FORCE
+            # le vx à WALL_JUMP_VX dans la direction opposée au mur. Ça
+            # garantit que le perso s'éloigne franchement du mur même si
+            # le joueur ne presse rien — sinon vx serait à 0 (idle) ou à
+            # ax*speed (réduit) et la poussée serait perdue.
+            if self.wall_jump_timer > 0:
+                self.vx = self.wall_jump_dir * WALL_JUMP_VX
+
+            # ── Override wall-jump WIND-UP ───────────────────────────────
+            # Pendant la phase de prep, le perso est figé contre le mur :
+            # vx=0 et l'anim de wind-up joue. La physique du saut sera
+            # appliquée à la fin du wind-up (cf. _appliquer_wall_jump_physics).
+            if self.wall_jump_windup_timer > 0:
+                self.vx = 0
+                self.walking = False
+
             self.walking = (ax != 0)
             # On ne change la direction "regardée" que si on bouge vraiment
-            # ET que le verrou back-dodge n'est PAS actif. Sinon le perso
-            # garde son regard vers l'ennemi pendant la fenêtre d'esquive.
-            if ax != 0 and self.back_dodge_lock_timer <= 0:
+            # ET que les verrous (back dodge, wall jump windup) sont
+            # inactifs. Sinon le perso garde sa direction face — sinon la
+            # 1ère frame de wall jump apparaissait dans le mauvais sens
+            # parce que step 4 réécrasait direction à chaque frame du
+            # windup avec ax (qui pointait toujours vers le mur).
+            if (ax != 0
+                    and self.back_dodge_lock_timer <= 0
+                    and self.wall_jump_windup_timer <= 0):
                 self.direction = ax
 
         # Si on ne fait rien, on prend l'animation idle
@@ -722,11 +816,20 @@ class Player:
             self._declencher_dash(ax, facing_before)
 
         # ── 9. Gravité ────────────────────────────────────────────────────
-        if not self.dashing:
-            self.vy += self.gravity * dt
-            # Wall-slide → on plafonne la vitesse de chute.
-            if self.wall_sliding and self.vy > WALL_SLIDE_SPEED:
+        if self.wall_jump_windup_timer > 0:
+            # Phase de prep avant décollage : le perso est COLLÉ au mur,
+            # ni gravité ni mouvement vertical (immobile pendant l'anim).
+            self.vy = 0
+        elif not self.dashing:
+            if self.wall_sliding:
+                # Chute UNIFORME et CONTINUE pendant le wall slide :
+                # vy figé à WALL_SLIDE_SPEED sans accumulation gravitaire.
+                # Évite que le perso "remonte un peu / redescend" si vy
+                # avait une composante upward résiduelle (juste après un
+                # saut contre le mur par exemple).
                 self.vy = WALL_SLIDE_SPEED
+            else:
+                self.vy += self.gravity * dt
         else:
             # Pendant un dash, on flotte à la même hauteur (pas de gravité).
             self.vy = 0
@@ -740,6 +843,7 @@ class Player:
             not self.on_ground
             and self.against_wall != 0
             and ax == self.against_wall
+            and self.wall_jump_windup_timer <= 0   # désactive pendant wind-up
         )
 
         # ── 11. Application du déplacement ────────────────────────────────
@@ -831,6 +935,18 @@ class Player:
         if self.wall_lock_timer > 0:
             self.wall_lock_timer -= dt
 
+        # Phase de push horizontal du wall-jump (force vx pendant la durée).
+        if self.wall_jump_timer > 0:
+            self.wall_jump_timer -= dt
+
+        # Phase de wind-up du wall-jump : le perso reste collé au mur
+        # pendant que l'anim de prep joue. À expiration, on applique la
+        # physique du saut d'un coup (le perso décolle).
+        if self.wall_jump_windup_timer > 0:
+            self.wall_jump_windup_timer -= dt
+            if self.wall_jump_windup_timer <= 0:
+                self._appliquer_wall_jump_physics()
+
         # Lock du regard après un back dodge.
         if self.back_dodge_lock_timer > 0:
             self.back_dodge_lock_timer -= dt
@@ -879,13 +995,19 @@ class Player:
             return True
 
         # 2. Wall-jump : contre un mur, en l'air.
+        # On NE DÉCOLLE PAS tout de suite : on entre en phase de wind-up
+        # (l'anim de prep joue, le perso reste collé au mur), puis à la fin
+        # on applique la physique du saut (cf. _appliquer_wall_jump_physics).
         if self.against_wall != 0 and not self.on_ground:
-            self.vy              = WALL_JUMP_VY
-            self.vx              = -self.against_wall * WALL_JUMP_VX
-            self.direction       = -self.against_wall
-            self.wall_lock_timer = WALL_JUMP_LOCK
-            self.jumps_used      = 1
-            self.wall_sliding    = False
+            self.wall_jump_dir          = -self.against_wall   # mémorise dir
+            # Direction face = OPPOSÉ au mur (la jump direction). Le sprite
+            # natif du wall jump est dessiné dans cette convention : le perso
+            # est sur le côté du mur, prêt à pousser dans la direction
+            # opposée (= jump direction).
+            self.direction              = -self.against_wall
+            self.wall_jump_windup_timer = WALL_JUMP_WINDUP
+            self.wall_sliding           = False
+            self.idle_anim_wall_jump.reset()
             sound_manager.jouer("saut", volume=0.7)
             return True
 
@@ -904,6 +1026,21 @@ class Player:
 
 
 
+    def _appliquer_wall_jump_physics(self):
+        """Applique la physique du saut à la fin du wind-up.
+
+        Pendant WALL_JUMP_WINDUP, le perso est collé au mur (vx=vy=0) et
+        l'anim de prep joue. Ensuite, on lance vraiment le saut : on met
+        vx (push horizontal) et vy (impulsion verticale), et on entre en
+        phase WALL_JUMP_PUSH où le vx est forcé pour ne pas être écrasé.
+        """
+        self.vy              = WALL_JUMP_VY
+        self.vx              = self.wall_jump_dir * WALL_JUMP_VX
+        self.direction       = self.wall_jump_dir
+        self.wall_lock_timer = WALL_JUMP_LOCK
+        self.wall_jump_timer = WALL_JUMP_PUSH
+        self.jumps_used      = 1
+
     def _declencher_dash(self, ax, facing_before):
         """Démarre un dash. Choisit AVANT (slide) ou ARRIÈRE (back dodge).
 
@@ -919,8 +1056,12 @@ class Player:
         # Détection back dodge : soit buffer actif, soit input opposé MAINTENANT.
         in_buffer = self._back_dodge_buffer > 0
         opposite_now = (ax != 0 and ax != facing_before)
+        # Back dodge UNIQUEMENT au sol : l'anim montre le perso qui s'appuie
+        # sur le sol pour se propulser en arrière, ça n'a pas de sens en
+        # l'air. En l'air → on force le dash avant (anim aerial dash).
+        can_back_dodge = self.on_ground
 
-        if in_buffer or opposite_now:
+        if can_back_dodge and (in_buffer or opposite_now):
             # BACK DODGE
             # Le regard à conserver = celui mémorisé au début du buffer
             # (sinon on prend facing_before qui peut déjà avoir tourné).
@@ -1159,6 +1300,20 @@ class Player:
                 self.idle_anim_dash_fwd.update()
                 img = self.idle_anim_dash_fwd.img()
 
+        # slide ---------------------------
+
+        elif self.wall_sliding:
+            # Glisse contre un mur (looped, 3 frames)
+            self.idle_anim_wall_slide.update()
+            img = self.idle_anim_wall_slide.img()
+        elif self.wall_jump_windup_timer > 0:
+            # Phase de prep : le perso est collé au mur, l'anim joue
+            # (3 frames qui se ramassent puis poussent). À la fin du
+            # wind-up, la physique du saut est appliquée et on entre en
+            # phase push (cf. branche suivante).
+            self.idle_anim_wall_jump.update()
+            img = self.idle_anim_wall_jump.img()
+
         # jump ---------------------------
 
         elif not self.on_ground:
@@ -1248,6 +1403,22 @@ class Player:
             # shifte de -27px pour que la fin du slide soit alignée idle.
             sx -= 27 * self.direction
 
+        # ── Compensation Y wall slide ────────────────────────────────────
+        # Le sprite wall slide a 3 frames où le corps descend dans le canvas
+        # (body bottom = 61, 66, 72 px sur 73 px de hauteur). Comme le rect
+        # avance déjà uniformément en Y avec vy, cette descente intra-sprite
+        # SE CUMULE et donne un effet saccadé (descend vite, remonte un
+        # peu en bouclant frame 3 → frame 1, redescend...).
+        # → On verrouille la base du corps sur rect.bottom en compensant
+        # la position Y selon la frame courante. Résultat : descente
+        # parfaitement uniforme pilotée uniquement par vy.
+        if self.wall_sliding:
+            # Ratios body_bottom_y / canvas_h pour chaque frame de slide.
+            BODY_RATIOS = (61/73, 66/73, 72/73)
+            f = self.idle_anim_wall_slide.index()
+            if 0 <= f < len(BODY_RATIOS):
+                sy += int(img_h * (1 - BODY_RATIOS[f]))
+
         sprite_rect = pygame.Rect(sx, sy, img_w, img_h)
 
         if self.invincible:
@@ -1294,6 +1465,15 @@ class Player:
             pygame.draw.rect(surf, (200, 200, 200), (x, y, heart_size, heart_size), 1)
 
     def draw_slash(self, surface, camera):
+        # ── DÉSACTIVÉ ────────────────────────────────────────────────────
+        # L'arc blanc/bleu était une "slash" générée à la volée pour donner
+        # un visuel d'attaque. Maintenant que les anims du pack contiennent
+        # déjà leurs propres effets (atk_1x/2x/3x avec FX intégrés), on
+        # n'en a plus besoin et il polluait le rendu (notamment au moment
+        # du dash). On garde la fonction au cas où, mais on sort tout de
+        # suite — décommenter le bloc en dessous pour le réactiver.
+        return
+
         if not self.attacking:
             return
 
