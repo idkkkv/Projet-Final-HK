@@ -352,6 +352,19 @@ RAYON_JOUEUR          = 140   # rayon du halo autour du joueur (px)
 
 VOLUME_MUSIQUE        = 0.7
 VOLUME_PAS            = 0.3
+
+#  Cadence des bruits de pas — temps entre 2 sons (en secondes).
+#  Plus PETIT = pas plus rapprochés (plus fréquents).
+#  Doit COLLER au rythme visuel de l'animation correspondante :
+#    - STEP_INTERVAL_WALK : marche (anim shewalks à img_dur=4 → cycle ~1.2s
+#      pour 24 frames → 1 pas tous les ~0.6s grossièrement)
+#    - STEP_INTERVAL_RUN  : course (anim sherun à img_dur=2 → ~2× plus
+#      rapide → cadence des pas ~2× plus rapide aussi)
+#  Si tu trouves que les pas sonnent en décalage avec les pieds qui touchent
+#  le sol dans l'animation, ajuste ces 2 valeurs.
+STEP_INTERVAL_WALK    = 0.60  # marche normale
+STEP_INTERVAL_RUN     = 0.22  # course (plus rapide)
+
 FADEIN_MUSIQUE_MS     = 2000  # fondu entrant au démarrage d'une musique
 FADEOUT_MENU_MS       = 600   # fondu sortant à la sortie d'un menu
 

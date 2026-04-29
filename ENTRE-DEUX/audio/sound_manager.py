@@ -111,28 +111,47 @@ _sons = {}
 #  1. NETTOYAGE DU SILENCE INITIAL (pour les sons de pas)
 # ═════════════════════════════════════════════════════════════════════════════
 
-def _trim_silence(son, seuil=400):
-    """Supprime le blanc au début d'un son.
+def _trim_silence(son, seuil=400, max_duree=0.25):
+    """Supprime le blanc au début d'un son ET le tronque à `max_duree`.
 
-    Pourquoi ? Certains .wav ont 50-100 ms de silence avant le son utile.
-    Pour un son de pas joué à la cadence de la marche, ce délai se voit
-    (pied qui touche le sol AVANT qu'on entende le bruit). On scanne
-    le buffer brut et on coupe au premier sample dont l'amplitude
-    dépasse `seuil`.
+    DEUX nettoyages :
+      1) DÉBUT : certains .wav ont 50-100 ms de silence avant le son utile.
+         Pour un son de pas joué à la cadence de la marche, ce délai se
+         voit (pied qui touche le sol AVANT qu'on entende le bruit). On
+         scanne le buffer brut et on coupe au 1er sample > seuil.
+      2) FIN : on tronque à `max_duree` secondes (par défaut 250 ms).
+         CRUCIAL pour les sons de pas : si le fichier source contient
+         plusieurs pas en boucle (ex : pas.mp3 = 10 s), la cadence des
+         pas est dictée par le FICHIER (et non par STEP_INTERVAL_WALK
+         qu'on règle dans settings.py). En tronquant à 1 seul pas, le
+         contrôle de cadence repasse à STEP_INTERVAL_*.
 
     Format pygame standard : stéréo 16-bit → 4 octets par sample stéréo
     (2 octets gauche + 2 octets droite). On ne lit que le canal gauche,
     largement suffisant pour détecter "le son a commencé".
     """
     raw = son.get_raw()
+
+    # 1) Trim début (silence)
+    start = 0
     for i in range(0, len(raw) - 4, 4):
-        # Décode 2 octets en int16 (signé, little-endian) → amplitude du sample.
         left = struct.unpack_from("<h", raw, i)[0]
         if abs(left) > seuil:
-            # On a trouvé le 1er sample audible → on garde tout à partir d'ici.
-            trimmed = raw[i:]
-            return pygame.mixer.Sound(buffer=bytes(trimmed))
-    return son                                 # silence partout → on ne touche pas
+            start = i
+            break
+
+    # 2) Trim fin (max_duree secondes)
+    # Récupère les paramètres du mixer (Hz + bits + channels)
+    freq, bits, channels = pygame.mixer.get_init()
+    bytes_per_sample = abs(bits) // 8 * channels  # ex: 16-bit stereo = 4
+    max_bytes = int(max_duree * freq * bytes_per_sample)
+
+    end = min(start + max_bytes, len(raw))
+    trimmed = raw[start:end]
+
+    if len(trimmed) < 4:
+        return son                             # rien d'utile → on garde l'original
+    return pygame.mixer.Sound(buffer=bytes(trimmed))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -174,13 +193,15 @@ def charger_ou_synth(nom, chemin, freq, duree, volume=0.3, forme="sin"):
 def jouer(nom, volume=1.0):
     """Joue le son `nom` à `volume` (entre 0.0 et 1.0).
 
-    CAS SPÉCIAL : "pas" — si une instance est déjà en train de jouer,
-    on saute l'appel pour éviter la bouillie audio (cf. header).
+    CAS SPÉCIAL : "pas" — si une instance est déjà en train de jouer, on
+    la COUPE avant de lancer la nouvelle. Comme ça la cadence des pas
+    est pilotée 100% par STEP_INTERVAL_WALK / STEP_INTERVAL_RUN dans
+    settings.py (au lieu d'être bloquée par la durée du fichier audio).
     """
     son = _sons.get(nom)
     if son:
         if nom == "pas" and son.get_num_channels() > 0:
-            return                             # déjà en train → on saute
+            son.stop()                         # coupe le précédent
         son.set_volume(max(0.0, min(1.0, volume)))   # clamp [0, 1]
         son.play()
 

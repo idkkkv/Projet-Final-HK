@@ -86,7 +86,7 @@ from settings import (
     BACK_DODGE_LOCK, BACK_DODGE_INPUT_WINDOW,
     BACK_DODGE_DURATION, BACK_DODGE_SPEED, BACK_DODGE_MOVE_FRACTION,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
-    BLANC, VOLUME_PAS, FPS, PLAYER_RUN_SPEED
+    BLANC, VOLUME_PAS, STEP_INTERVAL_WALK, STEP_INTERVAL_RUN, FPS, PLAYER_RUN_SPEED
 )
 from utils import find_file
 from entities.animation import Animation
@@ -95,9 +95,7 @@ from systems.hitbox_config import get_player_hitbox
 
 
 # ─── Constantes locales à ce fichier ─────────────────────────────────────────
-# Cadence des pas : un son "pas" toutes les STEP_INTERVAL secondes en marche.
-# Trop petit → piétinement désagréable. Trop grand → on entend à peine les pas.
-STEP_INTERVAL = 0.35
+# (Les cadences de pas sont dans settings.py : STEP_INTERVAL_WALK / _RUN)
 
 
 class Player:
@@ -327,7 +325,7 @@ class Player:
         # le buffer (mémorisée juste avant le retournement).
         self._pre_back_dodge_facing = self.direction
 
-        self.step_timer = STEP_INTERVAL
+        self.step_timer = STEP_INTERVAL_WALK
 
         # ── Cache de la police (créée à la 1re utilisation dans _draw_hearts) ──
         self._heart_font = None
@@ -990,11 +988,12 @@ class Player:
         # on applique la physique du saut (cf. _appliquer_wall_jump_physics).
         if self.against_wall != 0 and not self.on_ground:
             self.wall_jump_dir          = -self.against_wall   # mémorise dir
-            # Direction face = OPPOSÉ au mur (la jump direction). Le sprite
-            # natif du wall jump est dessiné dans cette convention : le perso
-            # est sur le côté du mur, prêt à pousser dans la direction
-            # opposée (= jump direction).
-            self.direction              = -self.against_wall
+            # Pendant le windup le perso FACE LE MUR (à dos de la jump dir).
+            # Le sprite natif est dessiné dans cette convention.
+            # Le verrou wall_jump_windup_timer dans step 4 empêche que cette
+            # direction soit ré-écrasée par l'input (sinon l'écrasement
+            # frame-par-frame faisait disparaître le bon sens des sprites).
+            self.direction              = self.against_wall
             self.wall_jump_windup_timer = WALL_JUMP_WINDUP
             self.wall_sliding           = False
             self.idle_anim_wall_jump.reset()
@@ -1141,14 +1140,21 @@ class Player:
                 self.attack_rect.topright = (self.rect.left,  self.rect.y + 20)
 
     def _gerer_son_pas(self, dt):
-        """Joue un son "pas" à intervalles réguliers quand on marche au sol."""
-        # On veut un son uniquement si on bouge vraiment (|vx| > 10) et qu'on
-        # est au sol. abs(...) donne la valeur absolue.
+        """Joue un son "pas" à intervalles réguliers quand on marche au sol.
+
+        Cadence ajustée selon que le joueur MARCHE ou COURT :
+          - marche → STEP_INTERVAL_WALK (lent)
+          - course → STEP_INTERVAL_RUN  (rapide)
+        Les 2 valeurs sont dans settings.py pour ajustement facile.
+        """
         if self.on_ground and abs(self.vx) > 10 and not self.dashing:
             self.step_timer -= dt
             if self.step_timer <= 0:
                 sound_manager.jouer("pas", volume=VOLUME_PAS)
-                self.step_timer = STEP_INTERVAL
+                # Choix de la cadence selon l'état (marche / course).
+                self.step_timer = (STEP_INTERVAL_RUN
+                                   if self.running
+                                   else STEP_INTERVAL_WALK)
         else:
             # Arrête tout son de pas en cours (ex. passage en saut).
             self.step_timer = 0.2
@@ -1434,15 +1440,6 @@ class Player:
             pygame.draw.rect(surf, (200, 200, 200), (x, y, heart_size, heart_size), 1)
 
     def draw_slash(self, surface, camera):
-        # ── DÉSACTIVÉ ────────────────────────────────────────────────────
-        # L'arc blanc/bleu était une "slash" générée à la volée pour donner
-        # un visuel d'attaque. Maintenant que les anims du pack contiennent
-        # déjà leurs propres effets (atk_1x/2x/3x avec FX intégrés), on
-        # n'en a plus besoin et il polluait le rendu (notamment au moment
-        # du dash). On garde la fonction au cas où, mais on sort tout de
-        # suite — décommenter le bloc en dessous pour le réactiver.
-        return
-
         if not self.attacking:
             return
 
