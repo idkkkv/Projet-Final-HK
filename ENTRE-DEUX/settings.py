@@ -198,9 +198,32 @@ JUMP_BUFFER           = 0.12  # tolérance avant l'atterrissage (s)       [D23]
 #  Quand le joueur est collé à un mur en l'air : il glisse lentement.
 #  Un saut à ce moment le propulse dans l'autre sens.
 WALL_SLIDE_SPEED      = 120   # vitesse de chute max contre un mur (px/s)
-WALL_JUMP_VX          = 380   # impulsion horizontale au wall-jump
-WALL_JUMP_VY          = -560  # impulsion verticale au wall-jump
-WALL_JUMP_LOCK        = 0.18  # durée pendant laquelle l'input opposé est ignoré
+
+#  WALL JUMP — physique type Hollow Knight
+#  Le perso bondit du mur avec la PUISSANCE d'un saut normal (VY=-700 =
+#  JUMP_POWER) et un push horizontal qui donne un angle de ~34° depuis la
+#  verticale (atan(480/700) ≈ 34°). Ça l'éloigne franchement du mur tout
+#  en lui faisant gagner de la hauteur.
+WALL_JUMP_VX          = 480   # impulsion horizontale au wall-jump (push)
+WALL_JUMP_VY          = -780  # impulsion verticale au wall-jump (légèrement
+                              # > JUMP_POWER pour un peu plus de hauteur :
+                              # peak ~0.52s, max height 203px vs 163 saut normal)
+WALL_JUMP_LOCK        = 0.18  # durée pendant laquelle l'input vers le mur est ignoré
+
+#  WALL_JUMP_PUSH : durée pendant laquelle on PRÉSERVE le vx du wall jump
+#  (sinon l'étape 4 le remplace immédiatement par ax*speed et la poussée
+#  est perdue → le perso reste collé au mur). Pendant cette fenêtre, vx
+#  est forcé à WALL_JUMP_VX dans la direction opposée au mur, peu importe
+#  l'input du joueur.
+WALL_JUMP_PUSH        = 0.25  # durée (s) de la phase de push horizontal
+
+#  WALL_JUMP_WINDUP : phase de "préparation" avant le décollage.
+#  L'anim wall jump (3 frames) montre le perso qui se ramasse / s'appuie
+#  contre le mur AVANT de bondir. Pendant cette durée, la physique du
+#  saut N'EST PAS encore appliquée — le perso reste collé au mur, immobile.
+#  À la fin du wind-up, on applique vx + vy + on entre en phase WALL_JUMP_PUSH.
+#  → calé sur la durée de l'anim (3 frames × img_dur=6 / 80 fps = 0.225s)
+WALL_JUMP_WINDUP      = 0.225
 
 
 # ═════════════════════════════════════════════════════════════════════════════

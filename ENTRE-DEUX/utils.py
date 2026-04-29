@@ -80,8 +80,29 @@ def _get_font(name, size):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  RECHERCHE DE FICHIER
+#  RECHERCHE DE FICHIER (avec cache pour gros gains de perf)
 # ═════════════════════════════════════════════════════════════════════════════
+
+# Cache : {nom_fichier: chemin_complet}. Construit à la 1ʳᵉ recherche en
+# faisant UN SEUL os.walk de tout le dossier assets/. Les recherches
+# suivantes deviennent O(1) au lieu de re-walker à chaque appel.
+# IMPORTANT : ça évitait avant que le chargement du joueur (200+ frames)
+# fasse 200+ os.walk de tout le dossier → temps de démarrage très long.
+_file_cache_per_dir = {}   # {search_dir: {filename: full_path}}
+
+
+def _build_file_cache(search_dir):
+    """Construit le cache des fichiers de search_dir en UN seul os.walk."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    search_path = os.path.join(base, search_dir)
+    cache = {}
+    for root, dirs, files in os.walk(search_path):
+        for f in files:
+            # 1ʳᵉ occurrence gagne (comme l'ancien comportement).
+            if f not in cache:
+                cache[f] = os.path.join(root, f)
+    return cache
+
 
 def find_file(filename, search_dir="assets"):
     """Trouve `filename` quelque part sous le dossier `search_dir`.
@@ -90,14 +111,25 @@ def find_file(filename, search_dir="assets"):
     se soucier de savoir s'il est dans assets/sprites/ennemis/ ou
     assets/persos/. La 1ʳᵉ correspondance trouvée gagne.
 
+    Le résultat est CACHÉ : le 1er appel walk tout `search_dir` (lent),
+    les suivants sont en O(1) via dict (instantanés).
+
     Lève FileNotFoundError si rien trouvé (cf. encart du header).
     """
-    base = os.path.dirname(os.path.abspath(__file__))
-    search_path = os.path.join(base, search_dir)
-    for root, dirs, files in os.walk(search_path):
-        if filename in files:
-            return os.path.join(root, filename)
-    raise FileNotFoundError(f"Fichier '{filename}' introuvable dans '{search_dir}'")
+    cache = _file_cache_per_dir.get(search_dir)
+    if cache is None:
+        cache = _build_file_cache(search_dir)
+        _file_cache_per_dir[search_dir] = cache
+
+    path = cache.get(filename)
+    if path is None:
+        raise FileNotFoundError(f"Fichier '{filename}' introuvable dans '{search_dir}'")
+    return path
+
+
+def reset_file_cache():
+    """Invalide le cache (utile si on ajoute des fichiers à chaud)."""
+    _file_cache_per_dir.clear()
 
 
 # ═════════════════════════════════════════════════════════════════════════════
