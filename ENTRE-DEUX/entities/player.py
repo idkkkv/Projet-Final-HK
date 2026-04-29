@@ -181,6 +181,8 @@ class Player:
         self.invincible       = False
         self.invincible_timer = 0.0      # secondes restantes d'invincibilité
         self.show_hp_timer    = 0.0      # secondes restantes d'affichage des cœurs
+        self.hitted_normal    = False
+        self.hitted_hard      = False
 
         # ── Régénération passive ──
         # Le joueur récupère 1 PV s'il reste TOTALEMENT immobile au sol
@@ -221,7 +223,11 @@ class Player:
 
         # ── Animation (sprites) ──
         # 1. On charge les frames de chaque animation dans des listes.
-        # basiques
+        # hurt -----------------------------
+        frames_hurt_normal = self._charger_frames("shehurtsnormal_0", 22)
+        frames_hurt_hard = self._charger_frames("shehurtshard_0", 34)
+
+        # basics ----------------------------
         frames_marche = self._charger_frames("shewalks_0", 24)
         frames_run_start = self._charger_frames("sherunsstart_0", 2)
         frames_run = self._charger_frames("sherun_0", 20)
@@ -229,16 +235,16 @@ class Player:
         frames_run_turn = self._charger_frames("sherunsturn_00", 8)
         frames_idle = self._charger_frames("sheidle_00", 10)
 
-        # sauts
+        # jump -----------------------------
         frames_idle_jump = self._charger_frames("shejumps__0", 24)
         duree_saut = (2 * abs(JUMP_POWER)) / GRAVITY
         img_duration_saut = (duree_saut * FPS) / len(frames_idle_jump)
-        print(len(frames_idle_jump))
 
         frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
         frames_idle_double_jump_fwd = self._charger_frames("shejumpsfoward_00", 7)
 
-        # Dash : avant (slide_merged 17 frames) et arrière (back dodge fx 20 frames)
+        # dash -----------------------------
+        # avant (slide_merged 17 frames) et arrière (back dodge fx 20 frames)
         frames_dash_fwd  = self._charger_frames("sheslide_00",     17)
         frames_dash_back = self._charger_frames("shebackdodge_00", 20)
 
@@ -278,6 +284,10 @@ class Player:
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
         self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=False)
         self.idle_anim_double_jump_fwd = Animation(frames_idle_double_jump_fwd, img_dur=5, loop=False)
+
+        # attaques 
+        self.idle_anim_hurt_normal = Animation(frames_hurt_normal, img_dur=5, loop=False)
+        self.idle_anim_hurt_hard = Animation(frames_hurt_hard, img_dur=5, loop=False)
 
         # Dash forward / back dodge : on lit DASH_DURATION/FPS pour caler la vitesse
         # de défilement à la durée du dash (sinon l'anim finit avant ou après).
@@ -1267,7 +1277,22 @@ class Player:
         # On les dessine tant qu'ils ne sont pas terminés (one-shot).
         self._draw_aerial_dash_fx(surf, camera)
 
-        if self.dashing:
+        # hurt -----------------------------
+        if self.hitted_hard:
+            print("outch D:<")
+            self.idle_anim_hurt_hard.update()
+            img = self.idle_anim_hurt_hard.img()
+            if self.idle_anim_hurt_hard.done:
+                self.hitted_hard = False
+        elif self.hitted_normal:
+            self.idle_anim_hurt_normal.update()
+            img = self.idle_anim_hurt_normal.img()
+            if self.idle_anim_hurt_normal.done:
+                self.hitted_normal = False
+
+        # dash -----------------------------
+
+        elif self.dashing:
             # Avant ou arrière selon le drapeau dash_back
             if self.dash_back:
                 self.idle_anim_dash_back.update()
@@ -1280,6 +1305,9 @@ class Player:
                 # Dash sol : slide_merged
                 self.idle_anim_dash_fwd.update()
                 img = self.idle_anim_dash_fwd.img()
+
+        # slide ---------------------------
+
         elif self.wall_sliding:
             # Glisse contre un mur (looped, 3 frames)
             self.idle_anim_wall_slide.update()
@@ -1291,6 +1319,9 @@ class Player:
             # phase push (cf. branche suivante).
             self.idle_anim_wall_jump.update()
             img = self.idle_anim_wall_jump.img()
+
+        # jump ---------------------------
+
         elif not self.on_ground:
             # Double saut en cours ?
             if self.jumps_used >= 2:
@@ -1311,7 +1342,7 @@ class Player:
                 self.idle_anim_jump.update()
                 img = self.idle_anim_jump.img()
 
-        # debut du run ----------------------------
+        # run ----------------------------
 
         elif self.run_state == "turn":
             self.idle_anim_run_turn.update()
@@ -1336,7 +1367,7 @@ class Player:
             self.idle_anim_run_stop.update()
             img = self.idle_anim_run_stop.img()
 
-        # fin du run -----------------------------
+        # walk and idle -------------------------
         
         elif self.walking:
             self.idle_anim_walk.update()
