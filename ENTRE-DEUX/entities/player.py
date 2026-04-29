@@ -231,6 +231,10 @@ class Player:
 
         # ── Animation (sprites) ──
         # 1. On charge les frames de chaque animation dans des listes.
+        # hurt -----------------------------
+        frames_hurt_normal = self._charger_frames("shehurtsnormal_0", 22)
+        frames_hurt_hard = self._charger_frames("shehurtshard_0", 34)
+
         # basiques
         frames_marche = self._charger_frames("shewalks_0", 24)
         frames_run_start = self._charger_frames("sherunsstart_0", 2)
@@ -1394,7 +1398,6 @@ class Player:
         # dash -----------------------------
 
         elif self.dashing:
-        if self.dashing:
             # Avant ou arrière selon le drapeau dash_back
             if self.dash_back:
                 self.idle_anim_dash_back.update()
@@ -1608,11 +1611,11 @@ class Player:
         epaisseur = 8 if has_hit else 5
         
         # L'arc principal
-        pygame.draw.arc(surf_slash, couleur, (0, 0, vis_rect.width, vis_rect.height), 
-                        start_angle, end_angle, epaisseur)
+        #pygame.draw.arc(surf_slash, couleur, (0, 0, vis_rect.width, vis_rect.height), 
+                        #start_angle, end_angle, epaisseur)
         
         # Un deuxième arc plus fin et plus clair pour l'éclat
-        pygame.draw.arc(surf_slash, (200, 240, 255, alpha), (2, 2, vis_rect.width-4, vis_rect.height-4), 
-                        start_angle, end_angle, 2)
+        #pygame.draw.arc(surf_slash, (200, 240, 255, alpha), (2, 2, vis_rect.width-4, vis_rect.height-4), 
+                        #start_angle, end_angle, 2)
 
-        surface.blit(surf_slash, rect_ecran.topleft)
+        #surface.blit(surf_slash, rect_ecran.topleft)
