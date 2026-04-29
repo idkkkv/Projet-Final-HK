@@ -82,6 +82,8 @@ from settings import (
     DASH_SPEED, DASH_DURATION, DASH_COOLDOWN,
     DOUBLE_JUMP_POWER, COYOTE_TIME, JUMP_BUFFER,
     WALL_SLIDE_SPEED, WALL_JUMP_VX, WALL_JUMP_VY, WALL_JUMP_LOCK,
+    BACK_DODGE_LOCK, BACK_DODGE_INPUT_WINDOW,
+    BACK_DODGE_DURATION, BACK_DODGE_SPEED, BACK_DODGE_MOVE_FRACTION,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
     BLANC, VOLUME_PAS, FPS, PLAYER_RUN_SPEED
 )
@@ -228,25 +230,69 @@ class Player:
 
         frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
 
-        # 2. Dimensions
         self.scale_factor = 1.5
         self.sprite_w  = frames_marche[0].get_width()
         self.sprite_h  = frames_marche[0].get_height()
         self.sprite_rescaled = (int(self.sprite_w * self.scale_factor), int(self.sprite_h * self.scale_factor))
         self.sprite_scaled_prop = pygame.transform.smoothscale(frames_marche[0], self.sprite_rescaled)
 
+        # ── VITESSE des anims (img_dur = nb de frames moteur par image) ──
+        # Plus le chiffre est GRAND, plus l'anim est LENTE.
+        # Modifie ces 2 valeurs pour ajuster rapidement le rythme :
+        #   idle_anim_walk : 4-6 = naturel, 2 = course rapide
+        #   idle_anim_idle : 8-12 = posé, 4-5 = nerveux
+
         # 3. Animation pour chaque animation du joueur
         # basiques
-        self.idle_anim_walk = Animation(frames_marche, img_dur=3, loop=True)
+        self.idle_anim_walk = Animation(frames_marche, img_dur=4, loop=True)
         self.idle_anim_run_start = Animation(frames_run_start, img_dur=10, loop=False)
         self.idle_anim_run = Animation(frames_run, img_dur=2, loop=True)
         self.idle_anim_run_stop = Animation(frames_run_stop, img_dur=3, loop=False)
         self.idle_anim_run_turn = Animation(frames_run_turn, img_dur=5, loop= False)
-        self.idle_anim_idle = Animation(frames_idle, img_dur=5, loop=True)
+        self.idle_anim_idle = Animation(frames_idle, img_dur=10, loop=True)
 
         # sauts
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
-        self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=True)
+        self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=False)
+        self.idle_anim_double_jump_fwd = Animation(frames_idle_double_jump_fwd, img_dur=5, loop=False)
+
+        # Dash forward / back dodge : on lit DASH_DURATION/FPS pour caler la vitesse
+        # de défilement à la durée du dash (sinon l'anim finit avant ou après).
+        img_dur_dash_fwd     = max(1, int((DASH_DURATION       * FPS) / len(frames_dash_fwd)))
+        # Back dodge : on cale sur sa propre durée (1.25s) pour avoir ~5 fm
+        # par image et que les 20 frames soient toutes bien visibles.
+        img_dur_dash_back    = max(1, int((BACK_DODGE_DURATION  * FPS) / len(frames_dash_back)))
+        img_dur_aerial_dash  = max(1, int((DASH_DURATION        * FPS) / len(frames_aerial_dash)))
+        self.idle_anim_dash_fwd     = Animation(frames_dash_fwd,    img_dur=img_dur_dash_fwd,    loop=False)
+        self.idle_anim_dash_back    = Animation(frames_dash_back,   img_dur=img_dur_dash_back,   loop=False)
+        self.idle_anim_aerial_dash  = Animation(frames_aerial_dash, img_dur=img_dur_aerial_dash, loop=False)
+
+        # Effets visuels du dash aérien (rejoués UNE fois au point de départ).
+        self.aerial_smoke_anim = Animation(frames_aerial_dash_smoke, img_dur=5, loop=False)
+        self.aerial_fx_anim    = Animation(frames_aerial_dash_fx,    img_dur=6, loop=False)
+        # Position où dessiner les effets (set au déclenchement, None sinon).
+        self.aerial_smoke_pos = None
+        self.aerial_fx_pos    = None
+
+        # Drapeau d'état : True = back dodge en cours, False = dash avant
+        self.dash_back = False
+
+        # Verrou de direction après un back dodge.
+        # > 0 → on BLOQUE le retournement du regard. Le perso continue de
+        # regarder l'ennemi (vers l'avant) même si le joueur maintient la
+        # touche opposée. À 0, comportement normal reprend.
+        # → décrémenté dans _tick_state_timers, armé dans _declencher_dash
+        #   quand on déclenche un back dodge.
+        self.back_dodge_lock_timer = 0.0
+
+        # Fenêtre de tolérance pour déclencher un back dodge.
+        # > 0 → si Shift est pressé maintenant, c'est un back dodge même si
+        # le joueur n'appuie plus sur la direction opposée. Armé chaque fois
+        # que le joueur appuie sur direction opposée à son regard.
+        self._back_dodge_buffer = 0.0
+        # Direction face à conserver si le back dodge se déclenche pendant
+        # le buffer (mémorisée juste avant le retournement).
+        self._pre_back_dodge_facing = self.direction
 
         self.step_timer = STEP_INTERVAL
 
@@ -508,6 +554,12 @@ class Player:
     # Les collisions avec les plateformes sont gérées APRÈS par collision.py.
 
     def mouvement(self, dt, keys, holes=None):
+        # On mémorise la direction du regard AVANT de lire les inputs.
+        # Sert pour distinguer dash AVANT (input dans le sens du regard ou
+        # rien) vs BACK DODGE (input opposé au regard) — sinon, étape 4
+        # remplace self.direction par ax et on ne saurait plus.
+        facing_before = self.direction
+
         # ── 1. Lecture des entrées ────────────────────────────────────────
         ax = self._input_axis_x(keys)          # -1, 0, +1
         ay = self._input_axis_y(keys)
@@ -527,6 +579,20 @@ class Player:
         self._prev_attack = attack_held
         self._prev_dash   = dash_held
 
+        # ── 1b. Détection back dodge (buffer de tolérance) ────────────────
+        # Si le joueur appuie sur la direction opposée à son regard, on
+        # arme un buffer : pendant BACK_DODGE_INPUT_WINDOW secondes, un
+        # appui Shift sera traité comme back dodge même si le joueur a
+        # déjà commencé à se retourner. Évite d'avoir à presser pile au
+        # même frame Shift+direction-opposée.
+        if ax != 0 and ax != facing_before:
+            # 1er frame de l'input opposé → on mémorise le regard d'avant.
+            # Sinon (déjà dans le buffer), on garde la mémoire et on
+            # rafraîchit juste le timer.
+            if self._back_dodge_buffer <= 0:
+                self._pre_back_dodge_facing = facing_before
+            self._back_dodge_buffer = BACK_DODGE_INPUT_WINDOW
+
         # ── 2. Décrémentation des timers d'état ───────────────────────────
         self._tick_state_timers(dt)
 
@@ -544,14 +610,29 @@ class Player:
 
         if self.dashing:
             # Pendant un dash, la vitesse est fixée (ignore l'input).
-            self.vx      = DASH_SPEED * self.dash_dir
+            # Back dodge : vitesse réduite + arrêt du mouvement pendant la
+            # phase de récupération (frames 14-20 = perso se relève, ne
+            # doit plus reculer physiquement).
+            if self.dash_back:
+                progress = 1.0 - (self.dash_timer / BACK_DODGE_DURATION)
+                if progress >= BACK_DODGE_MOVE_FRACTION:
+                    # Phase recovery : le perso reste sur place, l'anim
+                    # continue (touche la tête / se relève).
+                    self.vx = 0
+                else:
+                    # Phase recoil : le perso recule.
+                    self.vx = BACK_DODGE_SPEED * self.dash_dir
+            else:
+                self.vx = DASH_SPEED * self.dash_dir
             self.walking = False
             self.idle = False
         else:
             self.vx      = ax * self.speed
             self.walking = (ax != 0)
-            # On ne change la direction "regardée" que si on bouge vraiment.
-            if ax != 0:
+            # On ne change la direction "regardée" que si on bouge vraiment
+            # ET que le verrou back-dodge n'est PAS actif. Sinon le perso
+            # garde son regard vers l'ennemi pendant la fenêtre d'esquive.
+            if ax != 0 and self.back_dodge_lock_timer <= 0:
                 self.direction = ax
 
         if self.running :
@@ -606,10 +687,19 @@ class Player:
                 # Saut réussi → on consomme le buffer.
                 self.jump_buffer = 0.0
                 self.idle_anim_jump.frame = 0
+                # PRIORITÉ DU SAUT SUR LE DASH : si on était en plein dash
+                # (au sol ou aérien) au moment de l'appui Espace, on coupe
+                # le dash net pour laisser le saut prendre effet. Sinon vy
+                # serait écrasé à 0 par l'étape 9 (gravité = 0 pendant dash)
+                # et l'impulsion du saut serait perdue → le perso roulerait
+                # sans monter.
+                if self.dashing:
+                    self.dashing    = False
+                    self.dash_timer = 0.0
 
         # ── 8. Dash ───────────────────────────────────────────────────────
         if dash_pressed and self.dash_cooldown <= 0 and not self.dashing:
-            self._declencher_dash(ax)
+            self._declencher_dash(ax, facing_before)
 
         # ── 9. Gravité ────────────────────────────────────────────────────
         if not self.dashing:
@@ -721,6 +811,14 @@ class Player:
         if self.wall_lock_timer > 0:
             self.wall_lock_timer -= dt
 
+        # Lock du regard après un back dodge.
+        if self.back_dodge_lock_timer > 0:
+            self.back_dodge_lock_timer -= dt
+
+        # Buffer de tolérance pour déclencher un back dodge.
+        if self._back_dodge_buffer > 0:
+            self._back_dodge_buffer -= dt
+
         # Durée du dash en cours.
         if self.dashing:
             self.dash_timer -= dt
@@ -757,42 +855,95 @@ class Player:
             self.on_ground    = False
             self.coyote_timer = 0
             self.jumps_used   = 1
-
             sound_manager.jouer("saut", volume=0.7)
             return True
 
         # 2. Wall-jump : contre un mur, en l'air.
         if self.against_wall != 0 and not self.on_ground:
             self.vy              = WALL_JUMP_VY
-            # On se propulse dans le sens OPPOSÉ au mur.
             self.vx              = -self.against_wall * WALL_JUMP_VX
             self.direction       = -self.against_wall
             self.wall_lock_timer = WALL_JUMP_LOCK
             self.jumps_used      = 1
             self.wall_sliding    = False
+            sound_manager.jouer("saut", volume=0.7)
             return True
 
         # 3. Double-saut.
         if self.jumps_used < 2:
             self.vy         = -DOUBLE_JUMP_POWER
             self.jumps_used = 2
+            # On retient si le joueur tenait une direction (Q ou D / stick)
+            self.double_jump_forward = (self.vx != 0)
+            if self.double_jump_forward:
+                self.idle_anim_double_jump_fwd.reset()
+            else:
+                self.idle_anim_double_jump.reset()
+            sound_manager.jouer("saut", volume=0.7)
             return True
 
-        # Aucun saut possible.
-        return False
 
-    def _declencher_dash(self, ax):
-        """Démarre un dash dans la direction demandée (ou la dernière connue)."""
-        # Si le joueur tient une direction, on dash dedans. Sinon on dash
-        # dans la direction qu'il regarde.
-        if ax != 0:
-            self.dash_dir = ax
+
+    def _declencher_dash(self, ax, facing_before):
+        """Démarre un dash. Choisit AVANT (slide) ou ARRIÈRE (back dodge).
+
+        Règle :
+          - Buffer back dodge actif (joueur a appuyé sur direction opposée
+            dans les BACK_DODGE_INPUT_WINDOW dernières secondes) → BACK DODGE
+          - ax opposé au regard ACTUEL                            → BACK DODGE
+          - sinon (ax == 0 ou ax == regard)                       → DASH AVANT
+
+        Le buffer permet de NE PAS avoir à presser pile en même temps
+        Shift + direction-opposée : on tolère un décalage de 250 ms.
+        """
+        # Détection back dodge : soit buffer actif, soit input opposé MAINTENANT.
+        in_buffer = self._back_dodge_buffer > 0
+        opposite_now = (ax != 0 and ax != facing_before)
+
+        if in_buffer or opposite_now:
+            # BACK DODGE
+            # Le regard à conserver = celui mémorisé au début du buffer
+            # (sinon on prend facing_before qui peut déjà avoir tourné).
+            original_facing = self._pre_back_dodge_facing if in_buffer else facing_before
+            self.dash_back = True
+            # Direction du dash : la touche pressée maintenant si dispo,
+            # sinon l'inverse de l'ancien regard (recule par défaut).
+            self.dash_dir  = ax if ax != 0 else -original_facing
+            self.direction = original_facing            # garde le regard avant
+            self.back_dodge_lock_timer = BACK_DODGE_LOCK
+            self._back_dodge_buffer    = 0.0            # consomme le buffer
+            self.idle_anim_dash_back.reset()
         else:
-            self.dash_dir = self.direction
-        self.direction     = self.dash_dir
+            # DASH AVANT
+            self.dash_back = False
+            self.dash_dir  = ax if ax != 0 else facing_before
+            self.direction = self.dash_dir
+            self.idle_anim_dash_fwd.reset()
+            self.idle_anim_aerial_dash.reset()
+
         self.dashing       = True
-        self.dash_timer    = DASH_DURATION
+        # Durée plus longue pour back dodge (anim de 20 frames à voir)
+        self.dash_timer    = BACK_DODGE_DURATION if self.dash_back else DASH_DURATION
         self.dash_cooldown = DASH_COOLDOWN
+
+        # ── Effets visuels du dash AÉRIEN ──────────────────────────────
+        # Quand on dash en l'air (forward), on plante 2 effets au POINT DE
+        # DÉPART qui restent là et se dissipent : effet "téléportation".
+        #   - smoke : nuage de fumée au sol/à hauteur des pieds
+        #   - fx    : silhouette résiduelle (after-image) à hauteur du perso
+        # Le back dodge n'utilise PAS ces FX (sa propre anim contient déjà
+        # les effets de mouvement).
+        if not self.on_ground and not self.dash_back:
+            # Les 2 effets sont CENTRÉS sur le perso (même point que centery).
+            # Comme ça smoke + fx + perso s'alignent parfaitement à la même
+            # hauteur quand le perso s'envole — effet "téléportation propre".
+            center = (self.rect.centerx, self.rect.centery)
+            self.aerial_smoke_pos = center
+            self.aerial_fx_pos    = center
+            self.aerial_smoke_anim.reset()
+            self.aerial_fx_anim.reset()
+
+        sound_manager.jouer("saut", volume=0.5)
 
     def _dans_un_trou(self, holes):
         """Renvoie True si la hitbox chevauche l'un des trous passés."""
@@ -901,17 +1052,94 @@ class Player:
     #   - des rectangles de debug si show_hitbox=True
     #   - dessin provisoire de l'attaque
 
+    def _draw_aerial_dash_fx(self, surf, camera):
+        """Dessine la fumée + le FX rémanent au point de départ d'un dash aérien.
+
+        Effet "téléportation" : à l'endroit où le joueur a déclenché le dash,
+        on laisse pendant ~0.4s une silhouette qui se dissipe (fx) et un
+        petit nuage de fumée (smoke). Les deux ne suivent PAS le joueur :
+        ils restent à `self.aerial_smoke_pos` / `self.aerial_fx_pos`.
+
+        Les 2 effets sont :
+          - flippés selon la direction du joueur (sinon ils regardent
+            toujours du même côté, comme un perso bloqué dans son sens),
+          - remontés d'un offset car les sprites natifs ont un peu de marge
+            sous le motif → sans offset le centre visuel paraît trop bas.
+        """
+        # Offset vertical pour caler visuellement les centres (la silhouette
+        # et le rond de fumée ont une marge transparente sous leur "vrai"
+        # centre dans le PNG → on remonte un peu).
+        OFFSET_Y = -18
+
+        # On flippe les FX dans le sens du joueur (idem logique du sprite).
+        flip = (self.direction == 1)
+
+        # Fumée — CENTRÉE sur le point de départ (même niveau que le joueur)
+        if self.aerial_smoke_pos is not None and not self.aerial_smoke_anim.done:
+            self.aerial_smoke_anim.update()
+            sm = self.aerial_smoke_anim.img()
+            sm = pygame.transform.smoothscale(
+                sm,
+                (int(sm.get_width()  * self.scale_factor),
+                 int(sm.get_height() * self.scale_factor))
+            )
+            if flip:
+                sm = pygame.transform.flip(sm, True, False)
+            x = self.aerial_smoke_pos[0] - sm.get_width()  // 2
+            y = self.aerial_smoke_pos[1] - sm.get_height() // 2 + OFFSET_Y
+            surf.blit(sm, camera.apply(pygame.Rect(x, y, sm.get_width(), sm.get_height())))
+
+        # FX rémanent (silhouette translucide, à hauteur du perso)
+        if self.aerial_fx_pos is not None and not self.aerial_fx_anim.done:
+            self.aerial_fx_anim.update()
+            fx = self.aerial_fx_anim.img()
+            fx = pygame.transform.smoothscale(
+                fx,
+                (int(fx.get_width()  * self.scale_factor),
+                 int(fx.get_height() * self.scale_factor))
+            )
+            if flip:
+                fx = pygame.transform.flip(fx, True, False)
+            x = self.aerial_fx_pos[0] - fx.get_width()  // 2
+            y = self.aerial_fx_pos[1] - fx.get_height() // 2 + OFFSET_Y
+            surf.blit(fx, camera.apply(pygame.Rect(x, y, fx.get_width(), fx.get_height())))
+
     def draw(self, surf, camera, show_hitbox=False):
-        # 1. Avance l'animation si on bouge.
-        if not self.on_ground:
-            jump = 0
-            if self.jumps_used == 2 and jump<1:
-                self.idle_anim_jump.pause()
-                self.idle_anim_double_jump.update()
-                img = self.idle_anim_double_jump.img()
-                jump += 1
+        # ── Effets visuels du dash AÉRIEN (smoke + fx au point de départ) ──
+        # Dessinés AVANT le perso pour qu'ils soient en arrière-plan.
+        # On les dessine tant qu'ils ne sont pas terminés (one-shot).
+        self._draw_aerial_dash_fx(surf, camera)
+
+        if self.dashing:
+            # Avant ou arrière selon le drapeau dash_back
+            if self.dash_back:
+                self.idle_anim_dash_back.update()
+                img = self.idle_anim_dash_back.img()
+            elif not self.on_ground:
+                # Dash AÉRIEN : anim spécifique (sheaerialdash, 12 frames)
+                self.idle_anim_aerial_dash.update()
+                img = self.idle_anim_aerial_dash.img()
             else:
-                self.idle_anim_jump.resume()
+                # Dash sol : slide_merged
+                self.idle_anim_dash_fwd.update()
+                img = self.idle_anim_dash_fwd.img()
+        elif not self.on_ground:
+            # Double saut en cours ?
+            if self.jumps_used >= 2:
+                # Forward (touche maintenue) ou vertical (statique) ?
+                if self.double_jump_forward:
+                    anim = self.idle_anim_double_jump_fwd
+                else:
+                    anim = self.idle_anim_double_jump
+                if not anim.done:
+                    anim.update()
+                    img = anim.img()
+                else:
+                    # Anim terminée → on bascule sur jump (chute)
+                    self.idle_anim_jump.update()
+                    img = self.idle_anim_jump.img()
+            else:
+                # Saut normal
                 self.idle_anim_jump.update()
                 img = self.idle_anim_jump.img()
 
@@ -941,47 +1169,61 @@ class Player:
             img = self.idle_anim_run_stop.img()
 
         # fin du run -----------------------------
-
-        elif self.walking or self.dashing:
+        
+        elif self.walking:
             self.idle_anim_walk.update()
             img = self.idle_anim_walk.img()
-        else :
+        else:
             self.idle_anim_idle.update()
             img = self.idle_anim_idle.img()
-            
-        img = pygame.transform.smoothscale(img, (int(img.get_width() * self.scale_factor), int(img.get_height() * self.scale_factor)))
+
+        img = pygame.transform.smoothscale(
+            img,
+            (int(img.get_width()  * self.scale_factor),
+            int(img.get_height() * self.scale_factor))
+        )
+
+        if self.direction == 1:
+            img = pygame.transform.flip(img, True, False)
 
         img_w = img.get_width()
         img_h = img.get_height()
         sx = self.rect.centerx - img_w // 2
-        sy = self.rect.bottom - img_h
+        sy = self.rect.bottom  - img_h
+
+        # ── Compensation back dodge ──────────────────────────────────────
+        # Le sprite back dodge utilise une toile 142×61 (vs ~46×55 pour
+        # idle/walk). Le corps du perso N'EST PAS au centre de cette toile :
+        # il se balade entre offset +41 (départ) et -18 (peak du recoil)
+        # puis se stabilise à +35 sur les frames 14-20 (pose de fin).
+        # Sans correction, à la fin de l'anim quand idle prend le relais,
+        # le perso "saute" de 35px (il passe d'un point décalé au centre
+        # du rect → effet de téléportation gênant).
+        # → on décale le sprite pour que la POSE FINALE coïncide avec
+        # rect.centerx. Le mouvement de recoil est préservé (juste shifté
+        # uniformément) et la transition vers idle devient fluide.
+        if self.dashing and self.dash_back:
+            sx += 53 * self.direction
+        elif self.dashing and not self.dash_back and self.on_ground:
+            # Slide / dash sol : même problème de toile (144×64, perso à
+            # gauche du canvas). Pose finale offset -34 vs idle -7 → on
+            # shifte de -27px pour que la fin du slide soit alignée idle.
+            sx -= 27 * self.direction
+
         sprite_rect = pygame.Rect(sx, sy, img_w, img_h)
 
-        if self.direction == 1:
-            # Miroir horizontal (le sprite regarde "à l'envers").
-            img = pygame.transform.flip(img, True, False)
-
-        # 4. Dessin du sprite (avec clignotement pendant l'invincibilité).
         if self.invincible:
-            # On clignote à 6 Hz environ (un frame sur deux pendant 0.16 s).
-            # int(t * 12) alterne pair/impair → affiche ou pas.
             if int(self.invincible_timer * 12) % 2 == 0:
                 surf.blit(img, camera.apply(sprite_rect))
         else:
             surf.blit(img, camera.apply(sprite_rect))
 
-        # 5. Hitbox d'attaque (rectangle blanc devant/sous le joueur).
-        #if self.attacking:
-        #    pygame.draw.rect(surf, BLANC, camera.apply(self.attack_rect))
-
-        # 6. Cœurs (dégâts récents OU regard vers le haut).
         if self.show_hp_timer > 0:
             self._draw_hearts(surf, camera)
 
-        # 7. Hitbox de debug (optionnel : touche H dans l'éditeur).
         if show_hitbox:
-            pygame.draw.rect(surf, (0, 255, 0),  camera.apply(self.rect),        1)
-            pygame.draw.rect(surf, (80, 80, 200), camera.apply(sprite_rect),     1)
+            pygame.draw.rect(surf, (0, 255, 0),    camera.apply(self.rect),       1)
+            pygame.draw.rect(surf, (80, 80, 200),  camera.apply(sprite_rect),     1)
 
     def _draw_hearts(self, surf, camera):
         """Dessine une rangée de petits carrés rouges/gris au-dessus du joueur.

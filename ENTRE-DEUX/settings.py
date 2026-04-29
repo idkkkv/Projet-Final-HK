@@ -104,7 +104,7 @@ PLAYER_RUN_SPEED = 370        # vitesse horizontale courir (px/s)
 PLAYER_W      = 90            # largeur de la hitbox du joueur (px)
 PLAYER_H      = 104           # hauteur de la hitbox du joueur (px)
 PLAYER_SPAWN  = (100, 400)    # position (x, y) de spawn par défaut
-
+jump = 0
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 5. COMBAT
@@ -146,9 +146,47 @@ REGEN_INTERVAL        = 1.0   # intervalle entre deux PV récupérés (s)
 
 # ── Dash (touche Shift / L1) ────────────────────────────────────────────────
 #  Impulsion horizontale rapide, ignore la gravité pendant sa durée.
-DASH_SPEED            = 720   # vitesse pendant le dash (px/s)
-DASH_DURATION         = 0.18  # durée du dash (s)
-DASH_COOLDOWN         = 0.55  # délai avant de pouvoir re-dash (s)
+#  DASH_DURATION calé pour que les 17-20 frames de slide / back dodge aient
+#  le temps de défiler entièrement (sinon la moitié n'est jamais visible).
+DASH_SPEED            = 500   # vitesse pendant le dash (px/s)
+DASH_DURATION         = 0.50  # durée du dash (s) - assez long pour voir l'anim
+DASH_COOLDOWN         = 0.65  # délai avant de pouvoir re-dash (s)
+
+# ── Back dodge ──────────────────────────────────────────────────────────────
+#  Après un back dodge (Shift + direction opposée au regard), on verrouille
+#  la direction face pendant BACK_DODGE_LOCK secondes : le perso continue
+#  de regarder l'ennemi meme si le joueur maintient la touche opposée.
+#  Le joueur doit RELACHER puis ré-appuyer pour vraiment se retourner.
+#  IMPORTANT : pendant le dash lui-même, la direction ne change déjà jamais
+#  (vx imposé). Donc le lock UTILE = BACK_DODGE_LOCK - DASH_DURATION.
+#  Avec 0.55s on a juste ~50 ms de grâce après la fin du dash : le temps
+#  de relâcher la touche, sans voir le perso "marcher en arrière".
+BACK_DODGE_LOCK       = 0.55  # durée (s) pendant laquelle le regard reste figé
+
+#  Fenêtre de TOLÉRANCE pour déclencher le back dodge :
+#  pas besoin d'appuyer pile en même temps sur "direction opposée" + Shift.
+#  Si tu as appuyé sur la direction opposée dans les BACK_DODGE_INPUT_WINDOW
+#  secondes qui PRÉCÈDENT le Shift, c'est compté comme back dodge.
+#  → augmente la valeur si tu trouves ça encore dur (max conseillé 0.4)
+BACK_DODGE_INPUT_WINDOW = 0.25
+
+#  Durée + vitesse PROPRE au back dodge (≠ dash avant).
+#  L'anim de back dodge a 20 frames (recoil + touche la tête + se relève).
+#  À DASH_DURATION=0.5s on ne voyait que la moitié de l'anim.
+#  → On la rallonge à 1.25s pour 5 frames moteur par image (≈ aerial dash).
+#  Le perso recule moins vite (BACK_DODGE_SPEED réduit) pour que la
+#  distance totale parcourue reste comparable à un dash avant.
+BACK_DODGE_DURATION   = 0.75  # durée totale (anim complète)
+BACK_DODGE_SPEED      = 220   # vitesse pendant le recul (px/s)
+
+#  Phase de mouvement vs phase de récupération.
+#  Le sprite de back dodge a 20 frames :
+#    - frames 1→13 : recoil (le perso recule réellement)
+#    - frames 14→20 : recovery (la perso se relève / touche la tête, IMMOBILE)
+#  Pendant la phase de récupération, on ANNULE la vitesse physique : le
+#  rect ne bouge plus, seul le sprite continue à animer la pose finale.
+#  → 13/20 = 0.65
+BACK_DODGE_MOVE_FRACTION = 0.65
 
 # ── Double-saut ─────────────────────────────────────────────────────────────
 #  Un 2e saut autorisé en l'air. Légèrement plus faible que le 1er.
