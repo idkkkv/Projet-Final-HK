@@ -1,0 +1,279 @@
+{
+  "ground_y": 2980,
+  "ceiling_y": 0,
+  "scene_width": 4500,
+  "scene_left": 0,
+  "camera_y_offset": -70,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 2176,
+    "y": 1524
+  },
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 1372,
+      "y": 3183,
+      "w": 104,
+      "h": 669
+    },
+    {
+      "x": 1478,
+      "y": 3763,
+      "w": 535,
+      "h": 87
+    },
+    {
+      "x": 1971,
+      "y": 1837,
+      "w": 2509,
+      "h": 1926
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 2980,
+      "w": 4500,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 4500,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 4580
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 4500,
+      "y": -800,
+      "w": 800,
+      "h": 4580
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 2575,
+      "y": 2009,
+      "radius": 78,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2933,
+      "y": 2007,
+      "radius": 50,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3294,
+      "y": 2006,
+      "radius": 59,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3651,
+      "y": 2009,
+      "radius": 63,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2575,
+      "y": 2189,
+      "radius": 77,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2937,
+      "y": 2186,
+      "radius": 49,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3294,
+      "y": 2182,
+      "radius": 51,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3649,
+      "y": 2189,
+      "radius": 50,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 4007,
+      "y": 2189,
+      "radius": 49,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 4367,
+      "y": 2192,
+      "radius": 46,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2933,
+      "y": 2363,
+      "radius": 54,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2576,
+      "y": 2363,
+      "radius": 46,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2575,
+      "y": 2546,
+      "radius": 51,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2939,
+      "y": 2546,
+      "radius": 51,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3293,
+      "y": 2546,
+      "radius": 51,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3291,
+      "y": 2365,
+      "radius": 50,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3654,
+      "y": 2369,
+      "radius": 42,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 3649,
+      "y": 2546,
+      "radius": 48,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2284,
+      "y": 1705,
+      "radius": 110,
+      "type": "torch",
+      "flicker": true,
+      "flicker_speed": 2
+    }
+  ],
+  "portals": [],
+  "decors": [
+    {
+      "x": -498,
+      "y": 724,
+      "sprite": "tiled_1maps_bg_end_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1341,
+      "y": 42,
+      "sprite": "tiled_1maps_bg_3_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1052,
+      "y": -85,
+      "sprite": "tiled_1maps_bg_2_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 679,
+      "y": 9,
+      "sprite": "tiled_1maps_bg_1_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1792,
+      "y": 1389,
+      "sprite": "tiled_1maps_d_cor_1_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1971,
+      "y": 1613,
+      "sprite": "tiled_1maps_d_cor_2_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": []
+}

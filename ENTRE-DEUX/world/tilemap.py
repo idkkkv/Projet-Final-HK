@@ -117,8 +117,26 @@ class Platform:
         resoudre_collision(entite, self.rect, mode_mur=False)
 
     def draw(self, surf, camera):
+        """Dessine la plateforme à l'écran.
+
+        Convention importante du projet :
+          • color = None  → plateforme TOTALEMENT INVISIBLE en jeu.
+            Utile pour les collisions Tiled : le visuel vient du calque
+            de décor (image de fond), et la Platform ne sert qu'à la
+            physique. Sans ce skip, on verrait un rectangle blanc
+            par-dessus le joli fond.
+          • color = (R,G,B) → plateforme peinte avec cette couleur
+            (debug, prototypage, plateformes "nues").
+
+        L'éditeur ajoute un contour GRIS discret (dans core/game.py) pour
+        qu'on puisse quand même voir et sélectionner les plateformes
+        invisibles pendant l'édition.
+        """
+        if self.color is None:
+            return
         # camera.apply(rect) → convertit les coords MONDE en coords ÉCRAN.
         pygame.draw.rect(surf, self.color, camera.apply(self.rect))
+
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -159,14 +177,36 @@ class Decor:
     """
 
     def __init__(self, x, y, chemin_image, nom_sprite, collision=False,
-                 echelle=1.0, collision_box=None):
+                 echelle=1.0, collision_box=None,
+                 parallax_x=1.0, parallax_y=1.0, foreground=False):
         self.nom_sprite = nom_sprite
         self.collision  = collision
         self.echelle    = echelle
+        self.parallax_x = parallax_x
+        self.parallax_y = parallax_y
+        self.foreground = foreground
 
-        # ── Chargement avec cache (cf. encart en haut du fichier) ────────────
+        # ── Chargement avec cache + conversion au format écran ───────────
+        # Pourquoi convert / convert_alpha ? Sans ça pygame convertit le format
+        # de pixel à CHAQUE blit → ~3-5× plus lent sur les grandes images.
+        #
+        # OPTIMISATION FPS (crucial pour les fonds Tiled) : convert_alpha() est
+        # jusqu'à 6× PLUS LENT que convert() pour les images SANS transparence.
+        # Les PNG de backgrounds (fond, bg_end, sky…) sont généralement opaques
+        # et doivent utiliser convert() pour ne pas tuer les FPS. Pygame indique
+        # la présence d'alpha via le flag SRCALPHA sur la surface chargée.
         if chemin_image not in _cache_images:
-            _cache_images[chemin_image] = pygame.image.load(chemin_image)
+            img = pygame.image.load(chemin_image)
+            try:
+                if img.get_flags() & pygame.SRCALPHA:
+                    img = img.convert_alpha()      # transparence → chemin alpha
+                else:
+                    img = img.convert()            # opaque → chemin rapide
+            except pygame.error:
+                # Display mode pas encore actif (rare) : on laisse tel quel,
+                # pygame re-convertira à la volée au 1er blit.
+                pass
+            _cache_images[chemin_image] = img
         base = _cache_images[chemin_image]
 
         # ── Mise à l'échelle si demandée ─────────────────────────────────────
@@ -198,7 +238,14 @@ class Decor:
             resoudre_collision(entite, self.collision_rect, mode_mur=False)
 
     def draw(self, surf, camera):
-        surf.blit(self.image, camera.apply(self.rect))
+        # Parallax : plus parallax_x/y est petit, moins le décor bouge
+        # quand la caméra se déplace → effet de profondeur.
+        if self.parallax_x == 1.0 and self.parallax_y == 1.0:
+            surf.blit(self.image, camera.apply(self.rect))
+            return
+        sx = int(self.rect.x - camera.offset_x * self.parallax_x)
+        sy = int(self.rect.y - camera.offset_y * self.parallax_y)
+        surf.blit(self.image, (sx, sy))
 
     # ─────────────────────────────────────────────────────────────────────────
     #  SÉRIALISATION (pour la sauvegarde JSON via world/editor.py)
@@ -220,4 +267,9 @@ class Decor:
         }
         if self.collision_box:
             d["collision_box"] = list(self.collision_box)
+        if self.parallax_x != 1.0 or self.parallax_y != 1.0:
+            d["parallax"] = [self.parallax_x, self.parallax_y]
+        if self.foreground:
+            d["foreground"] = True
+
         return d

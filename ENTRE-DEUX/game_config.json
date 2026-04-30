@@ -17,13 +17,11 @@
     {
       "nom": "&",
       "maps": [
-        "map1",
-        "maps",
-        "nymbus"
+        "map22"
       ]
     }
   ],
-  "carte_debut": "map1",
+  "carte_debut": "map22",
   "hud_mode": "permanent",
   "nb_compagnons": 3
 }

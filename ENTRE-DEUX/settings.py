@@ -56,6 +56,30 @@ TITLE       = "LIMINAL"       # texte dans la barre de titre de la fenêtre
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# 1b. CHEMINS DES DOSSIERS (répertoires d'assets)
+# ═════════════════════════════════════════════════════════════════════════════
+#
+#  On calcule les chemins depuis l'emplacement de CE fichier (settings.py
+#  est à la racine du projet). Comme ça le jeu marche peu importe d'où on
+#  le lance (depuis VS Code, depuis le terminal, depuis un .bat…).
+#
+#  Règle : tous les autres fichiers utilisent ces constantes. Pas de
+#  chemin "assets/images/..." écrit en dur ailleurs → si on réorganise,
+#  on change UNE ligne ici.
+
+import os as _os
+_BASE_DIR = _os.path.dirname(_os.path.abspath(__file__))
+
+# Dossier unique pour tous les décors (sprites manuels comme
+# buisson-1.png ET PNG générés par l'import Tiled comme tiled_*.png).
+# Avant, il y avait 2 dossiers (decor/ et decors/) ce qui provoquait des
+# "décors disparaissent au reload" à cause de la confusion.
+DECORS_DIR  = _os.path.join(_BASE_DIR, "assets", "images", "decor")
+MAPS_DIR    = _os.path.join(_BASE_DIR, "maps")
+TILED_DIR   = _os.path.join(_BASE_DIR, "tiled")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # 2. COULEURS
 # ═════════════════════════════════════════════════════════════════════════════
 #
@@ -104,6 +128,10 @@ PLAYER_RUN_SPEED = 370        # vitesse horizontale courir (px/s)
 PLAYER_W      = 90            # largeur de la hitbox du joueur (px)
 PLAYER_H      = 104           # hauteur de la hitbox du joueur (px)
 PLAYER_SPAWN  = (100, 400)    # position (x, y) de spawn par défaut
+# Échelle du joueur (hitbox + sprite). 1.0 = taille de base ; 0.5 = deux
+# fois plus petit ; 2.0 = deux fois plus grand. Modifiable par carte via
+# [Ctrl+U] dans l'éditeur, et sauvegardé dans le JSON de la map.
+PLAYER_SCALE  = 1.0
 jump = 0
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -340,7 +368,12 @@ CAMERA_PAN_STEP       = 60    # pas de la molette en mode caméra libre (éditeu
 #  autour du joueur pour créer un halo de lumière.
 
 FOND_ALPHA            = 40    # opacité du voile (0=aucun, 255=noir total)
-RAYON_JOUEUR          = 140   # rayon du halo autour du joueur (px)
+
+# Rayon du halo de lumière autour du joueur (en pixels).
+# → plus petit = halo plus serré autour du perso (plus sombre, plus stressant)
+# → plus grand = halo plus généreux (plus visible, moins oppressant)
+# Valeur typique : 80-180. Règle-la à l'œil selon la taille du joueur.
+RAYON_JOUEUR          = 90
 
 
 # ═════════════════════════════════════════════════════════════════════════════

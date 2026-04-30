@@ -119,8 +119,16 @@ class Game:
         pygame.init()
         pygame.mixer.init()
 
-        # Fenêtre redimensionnable (pygame.RESIZABLE) à la résolution choisie.
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+        # Fenêtre redimensionnable + SCALED (accélération GPU).
+        # pygame.SCALED : pygame rend à la résolution logique (WIDTH×HEIGHT)
+        #   puis laisse le GPU (SDL2 Renderer) scaler à la taille de la fenêtre.
+        #   → les blits SRCALPHA passent de ~100 Mpx/s (CPU) à plusieurs
+        #     Gpx/s (GPU). C'est LA clé pour tenir 60+ fps sur les grandes
+        #     maps Tiled avec scale≥2 (fonds 2000×2000+ blittés/frame).
+        # pygame.RESIZABLE garde le redimensionnement fenêtre (combiné avec
+        #   SCALED, la zone de jeu reste nette).
+        self.screen = pygame.display.set_mode(
+            (WIDTH, HEIGHT), pygame.SCALED | pygame.RESIZABLE)
         pygame.display.set_caption(TITLE)
 
         # ── 1.2 Horloge et variables de frame ──
@@ -1423,6 +1431,22 @@ class Game:
     #    22. Fondu enchaîné
 
     def _dessiner_monde(self):
+        # ── ZOOM CAMÉRA ────────────────────────────────────────────────────
+        # Si camera.zoom != 1.0, on rend le monde sur une surface buffer
+        # de taille écran/zoom, puis on scale ce buffer sur l'écran réel
+        # à la fin. zoom > 1 = rapproche (perso plus gros, vue plus serrée).
+        # zoom < 1 = dézoome (perso plus petit, vue plus large).
+        _real_screen = self.screen
+        _zoom = getattr(self.camera, "zoom", 1.0) or 1.0
+        if _zoom != 1.0 and _zoom > 0:
+            rw, rh = _real_screen.get_size()
+            bw = max(1, int(rw / _zoom))
+            bh = max(1, int(rh / _zoom))
+            buf = getattr(self, "_zoom_buffer", None)
+            if buf is None or buf.get_size() != (bw, bh):
+                self._zoom_buffer = pygame.Surface((bw, bh))
+            self.screen = self._zoom_buffer
+
         # 1. Fond : noir partout, puis couleur d'éditeur seulement DANS la zone
         # jouable (entre SCENE_LEFT et SCENE_WIDTH). Du coup les marges hors
         # monde apparaissent en noir → on voit nettement les bords de la map
@@ -1463,6 +1487,14 @@ class Game:
         for plateforme in self.platforms:
             if self.camera.is_visible(plateforme.rect):
                 plateforme.draw(self.screen, self.camera)
+                # En mode éditeur, on dessine un contour discret même quand
+                # la plateforme est color=None (invisible en jeu). Sans ça,
+                # impossible de voir/éditer les collisions des maps Tiled.
+                if self.editeur.active:
+                    couleur = (255, 255, 255) if self.editeur.show_hitboxes \
+                              else (180, 180, 180)
+                    pygame.draw.rect(self.screen, couleur,
+                                     self.camera.apply(plateforme.rect), 1)
 
         # 5. Décors.
         for decor in self.editeur.decors:
@@ -1568,6 +1600,21 @@ class Game:
 
         # 22. Fondu enchaîné (par-dessus absolument tout).
         self._dessiner_fondu()
+
+        # ── FIN DU ZOOM CAMÉRA ────────────────────────────────────────────
+        # Si on a rendu sur un buffer (zoom != 1.0), on scale ce buffer
+        # vers l'écran réel et on restaure self.screen pour que le code
+        # APRÈS _dessiner_monde (HUD, menus, voiles de transition) puisse
+        # dessiner à la résolution native.
+        if _real_screen is not self.screen:
+            try:
+                pygame.transform.scale(
+                    self.screen, _real_screen.get_size(), _real_screen)
+            except (ValueError, pygame.error):
+                _real_screen.blit(
+                    pygame.transform.scale(self.screen, _real_screen.get_size()),
+                    (0, 0))
+            self.screen = _real_screen
 
     def _dessiner_hint_skip_cinematique(self):
         """Petit hint discret 'Echap = passer' pendant une cinématique.

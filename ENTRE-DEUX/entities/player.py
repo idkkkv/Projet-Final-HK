@@ -124,10 +124,11 @@ class Player:
         # d'avoir un sprite plus grand que la hitbox (le personnage déborde
         # visuellement sans qu'on prenne des coups "dans le vide").
         hb = get_player_hitbox()
-        self.hitbox_w  = hb.get("w",  PLAYER_W)
-        self.hitbox_h  = hb.get("h",  PLAYER_H)
-        self.hitbox_ox = hb.get("ox", 0)
-        self.hitbox_oy = hb.get("oy", 0)
+        _scale = getattr(settings, "PLAYER_SCALE", 1.0) or 1.0
+        self.hitbox_w  = max(1, int(hb.get("w",  PLAYER_W) * _scale))
+        self.hitbox_h  = max(1, int(hb.get("h",  PLAYER_H) * _scale))
+        self.hitbox_ox = int(hb.get("ox", 0) * _scale)
+        self.hitbox_oy = int(hb.get("oy", 0) * _scale)
 
         # Le Rect est l'outil pygame qu'on utilisera pour toutes les
         # collisions (sol, murs, ennemis). Voir [D4].
@@ -499,10 +500,11 @@ class Player:
         cx     = self.rect.centerx
         bottom = self.rect.bottom
         hb = get_player_hitbox()
-        self.hitbox_w  = hb.get("w",  PLAYER_W)
-        self.hitbox_h  = hb.get("h",  PLAYER_H)
-        self.hitbox_ox = hb.get("ox", 0)
-        self.hitbox_oy = hb.get("oy", 0)
+        _scale = getattr(settings, "PLAYER_SCALE", 1.0) or 1.0
+        self.hitbox_w  = max(1, int(hb.get("w",  PLAYER_W) * _scale))
+        self.hitbox_h  = max(1, int(hb.get("h",  PLAYER_H) * _scale))
+        self.hitbox_ox = int(hb.get("ox", 0) * _scale)
+        self.hitbox_oy = int(hb.get("oy", 0) * _scale)
         self.rect.size      = (self.hitbox_w, self.hitbox_h)
         self.rect.midbottom = (cx, bottom)
 
@@ -1534,6 +1536,24 @@ class Player:
                 sy += int(img_h * (1 - BODY_RATIOS[f]))
 
         sprite_rect = pygame.Rect(sx, sy, img_w, img_h)
+
+        # ── Application de PLAYER_SCALE au sprite ────────────────────────
+        # La hitbox est déjà scalée dans __init__/reload_hitbox. Ici on
+        # scale l'IMAGE pour que le visuel corresponde. On recentre pour
+        # garder les pieds au bas de la hitbox (sinon le sprite flotte).
+        _ps = getattr(settings, "PLAYER_SCALE", 1.0) or 1.0
+        if _ps != 1.0:
+            new_w = max(1, int(img_w * _ps))
+            new_h = max(1, int(img_h * _ps))
+            try:
+                img = pygame.transform.smoothscale(img, (new_w, new_h))
+            except (ValueError, pygame.error):
+                img = pygame.transform.scale(img, (new_w, new_h))
+            sprite_rect = pygame.Rect(
+                sx - (new_w - img_w) // 2,
+                sy - (new_h - img_h),
+                new_w, new_h,
+            )
 
         if self.invincible:
             if int(self.invincible_timer * 12) % 2 == 0:

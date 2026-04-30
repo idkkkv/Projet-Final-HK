@@ -175,13 +175,13 @@ from utils                   import find_file
 # Chaque type est un préréglage d'éclairage dans systems/lighting.py.
 LIGHT_TYPES = ["player", "torch", "large", "cool", "dim", "background"]
 
-# Dossiers du projet, calculés une seule fois à partir de l'emplacement
-# de ce fichier. __file__ = world/editor.py, donc deux dirname = racine.
-_BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAPS_DIR    = os.path.join(_BASE_DIR, "maps")
+# Dossiers : on réutilise les constantes centralisées dans settings.py
+# (DECORS_DIR, MAPS_DIR). Avant, elles étaient recalculées ici ET dans
+# world/tiled_importer.py avec des orthographes différentes ("decor" vs
+# "decors") ce qui causait la disparition des décors au reload.
 RESTORE_DIR = os.path.join(MAPS_DIR, "_restore")           # points de restauration
-DECORS_DIR  = os.path.join(_BASE_DIR, "assets", "images", "decor")
 # Sprites du joueur (player_idle.png, etc.) pour le mode hitbox (mode 7).
+_BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLAYER_DIR  = os.path.join(_BASE_DIR, "assets", "images", "joueur")
 
 # Couleurs "nommées" acceptées par la commande [N] (nouvelle map).
@@ -197,7 +197,19 @@ _NAMED_COLORS = {
 # ═════════════════════════════════════════════════════════════════════════════
 #  Helpers de module (hors classe)
 # ═════════════════════════════════════════════════════════════════════════════
-
+def _parse_hex_color(s):
+    """Parse une couleur hex Tiled "#rrggbb" ou "#aarrggbb" → tuple (r,g,b)."""
+    if not s:
+        return None
+    s = s.strip().lstrip("#")
+    try:
+        if len(s) == 8:        # aarrggbb (format Tiled avec alpha)
+            return (int(s[2:4], 16), int(s[4:6], 16), int(s[6:8], 16))
+        if len(s) == 6:        # rrggbb
+            return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+    except ValueError:
+        pass
+    return None
 def _lister_decors():
     """Liste les décors disponibles dans `assets/images/decor/`.
 
@@ -894,6 +906,17 @@ class Editor:
             self._undo()
             return "undo"
 
+        # Ctrl+U : régler "taille joueur" + "zoom caméra" (propre à la carte).
+        if key == pygame.K_u and (mods & pygame.KMOD_CTRL):
+            cur_ps = getattr(settings, "PLAYER_SCALE", 1.0)
+            cur_cz = getattr(self.camera, "zoom", 1.0)
+            self._ask_text(
+                "scale_zoom",
+                f"Taille joueur + zoom caméra (ex: '0.5 1.2') "
+                f"— actuel: {cur_ps:.2f} {cur_cz:.2f} :",
+            )
+            return "text_input"
+
         # Ctrl+R : restaurer (2 appuis en 5 s pour confirmer).
         if key == pygame.K_r and (mods & pygame.KMOD_CTRL):
             restores = self._list_restore_points()
@@ -937,7 +960,8 @@ class Editor:
         elif key == pygame.K_i and not (mods & pygame.KMOD_CTRL):
             tiled_files = self._list_tiled_files()
             hint = f"  ({', '.join(tiled_files)})" if tiled_files else "  (aucun fichier dans tiled/)"
-            self._ask_text("import_tiled", f"Importer Tiled (.tmj) :{hint}")
+            self._ask_text("import_tiled",
+                           f"Importer Tiled — 'nom' / 'nom X Y' / 'nom X Y SCALE' :{hint}")
             return "text_input"
         elif key == pygame.K_F2:
             # Si on est sur une zone trigger, on ouvre la cinématique liée ;
@@ -1304,6 +1328,7 @@ class Editor:
 
             if   mode == "save":       self.save(name)
             elif mode == "load":       self.load(name)
+            elif mode == "scale_zoom": self._appliquer_scale_zoom(name)
             elif mode == "portal_name" and self._pending_portal_rect:
                 r = self._pending_portal_rect
                 self.portals.append(Portal(r[0], r[1], r[2], r[3], name))
@@ -1391,9 +1416,25 @@ class Editor:
                 if len(char) == 1 and (char.isalnum() or char in ",.#"):
                     self._text_input += char
                 elif char == "space":
-                    self._text_input += "_"
+                    # Modes qui ont besoin du VRAI espace (multi-valeurs
+                    # sur une même ligne). Pour les autres modes (noms de
+                    # fichiers de save, etc.), on convertit en "_".
+                    if self._text_mode in ("import_tiled", "scale_zoom"):
+                        self._text_input += " "
+                    else:
+                        self._text_input += "_"
                 elif char == "-":
                     self._text_input += "-"
+                elif char in ("period", "[.]", "kp_period", "kp_decimal"):
+                    # pygame renvoie "period" pour la touche . du clavier
+                    # principal, "kp_period"/"kp_decimal" pour le pavé num.
+                    # Indispensable pour les décimales (ex: "0.5").
+                    self._text_input += "."
+                elif char in ("comma", "kp_comma"):
+                    # Beaucoup de claviers FR utilisent la virgule comme
+                    # séparateur décimal — on l'accepte aussi.
+                    self._text_input += ","
+
 
         return "typing"
 
@@ -1410,15 +1451,71 @@ class Editor:
                       if f.endswith(".json") and not f.startswith("_"))
 
     def _list_tiled_files(self):
-        """Liste les fichiers .tmj dans le dossier tiled/."""
+        """Liste les fichiers .tmj et .tmx dans le dossier tiled/."""
         from world.tiled_importer import TILED_DIR
         if not os.path.isdir(TILED_DIR):
             return []
-        return sorted(f[:-4] for f in os.listdir(TILED_DIR) if f.endswith(".tmj"))
+        noms = set()
+        for f in os.listdir(TILED_DIR):
+            if f.endswith(".tmj") or f.endswith(".tmx"):
+                noms.add(f[:-4])
+        return sorted(noms)
+    def _appliquer_scale_zoom(self, saisie):
+        """Applique 'taille joueur' + 'zoom caméra' à partir d'une saisie
+        type "0.5" (joueur uniquement) ou "0.5 1.2" (joueur + zoom)."""
+        parts = (saisie or "").strip().replace(",", ".").split()
+        if not parts:
+            self._show_msg("Aucune valeur saisie")
+            return
+        try:
+            new_ps = float(parts[0])
+            new_cz = float(parts[1]) if len(parts) >= 2 else getattr(self.camera, "zoom", 1.0)
+        except ValueError:
+            self._show_msg("Saisie invalide (utiliser des nombres)")
+            return
+        # Bornage raisonnable pour éviter de tout faire crasher.
+        new_ps = max(0.1, min(5.0, new_ps))
+        new_cz = max(0.1, min(8.0, new_cz))
 
-    def _appliquer_import_tiled(self, nom):
-        """Importe nom.tmj (depuis tiled/) et injecte les données dans la carte."""
-        resultat = importer_tiled(nom)
+        self._snapshot()
+
+        # Applique au joueur (resize hitbox + sprite via PLAYER_SCALE).
+        settings.PLAYER_SCALE = new_ps
+        if hasattr(self.player, "reload_hitbox"):
+            self.player.reload_hitbox()
+
+        # Applique à la caméra.
+        self.camera.zoom = new_cz
+
+        self._show_msg(
+            f"Taille joueur = {new_ps:.2f}  |  Zoom caméra = {new_cz:.2f}"
+        )
+    def _appliquer_import_tiled(self, saisie):
+        """Importe une carte Tiled. La saisie peut être :
+            - "nom"            → offset (0, 0), scale 1.0
+            - "nom X"          → offset (X, 0), scale 1.0
+            - "nom X Y"        → offset (X, Y), scale 1.0
+            - "nom X Y SCALE"  → offset (X, Y), scale SCALE
+                                 (1.0 = taille native ; 2.0 = 2x plus grand ;
+                                  0.5 = 2x plus petit)
+        Les valeurs X et Y sont en PIXELS dans le monde.
+        """
+        # Parse la saisie : nom + offset éventuel + scale éventuel
+        parts = (saisie or "").strip().replace(",", ".").split()
+        if not parts:
+            self._show_msg("Tiled : nom de fichier vide")
+            return
+        nom = parts[0]
+        try:
+            offset_x = int(float(parts[1])) if len(parts) >= 2 else 0
+            offset_y = int(float(parts[2])) if len(parts) >= 3 else 0
+            scale    = float(parts[3])     if len(parts) >= 4 else 1.0
+        except ValueError:
+            self._show_msg("Tiled : valeur invalide (utiliser des nombres)")
+            return
+
+        resultat = importer_tiled(nom, offset_x=offset_x,
+                                  offset_y=offset_y, scale=scale)
         if resultat["erreur"]:
             self._show_msg(f"Tiled: {resultat['erreur']}")
             return
@@ -1428,28 +1525,58 @@ class Editor:
         # Ajoute les platforms de collision à celles existantes.
         self.platforms.extend(resultat["platforms"])
 
-        # Ajoute le décor fond (calque visuel boulonné).
-        self.decors.extend(resultat["decors"])
+        # Ajoute les décors importés. On les insère TRIÉS PAR PARALLAX (les
+        # plus lointains d'abord) pour que le rendu de game.py (qui parcourt
+        # self.decors dans l'ordre) affiche les fonds éloignés en premier.
+        nouveaux_decors = list(resultat["decors"])
+        # On fusionne avec l'existant et on retrie tout par parallax.
+        tous_decors = self.decors + nouveaux_decors
+        tous_decors.sort(key=lambda d: (
+            # Foreground tout à la fin (sera filtré par game.py de toute façon)
+            1 if d.foreground else 0,
+            d.parallax_x,
+            d.parallax_y,
+        ))
+        self.decors[:] = tous_decors
 
-        # Adapte la taille du monde si la carte Tiled est plus grande.
+        # Adapte la taille du monde si la carte Tiled (offset compris) est
+        # plus grande que la scène actuelle. On NE rétrécit JAMAIS.
         world_w = resultat["world_w"]
         world_h = resultat["world_h"]
         if world_w > 0:
             import settings as _s
             if world_w > _s.SCENE_WIDTH:
-                _s.SCENE_WIDTH           = world_w
-                self.camera.scene_width  = world_w
-            if world_h > 0:
-                # Le sol correspond au bas de la map Tiled.
+                _s.SCENE_WIDTH          = world_w
+                self.camera.scene_width = world_w
+            # GROUND_Y = bas du monde. On ne descend que si nécessaire pour
+            # contenir la carte importée (pas avant, sinon le joueur tombe
+            # dans le vide quand la carte importée est plus grande que
+            # l'ancienne map).
+            if world_h > 0 and world_h > _s.GROUND_Y:
                 _s.GROUND_Y = world_h
 
-        nb_p = len(resultat["platforms"])
-        nb_d = len(resultat["decors"])
-        self._show_msg(
-            f"Tiled '{nom}' importé : {nb_p} platform(s)"
-            + (f", {nb_d} décor(s)" if nb_d else "")
-        )
+        # Applique la couleur de fond de Tiled (si définie dans la map)
+        bg_tiled = resultat.get("bg_color")
+        if bg_tiled:
+            couleur = _parse_hex_color(bg_tiled)
+            if couleur:
+                self.bg_color = list(couleur)
 
+        # Message récapitulatif (avec avertissement si tilesets manquants)
+        nb_p = len(resultat["platforms"])
+        nb_d = len(nouveaux_decors)
+        ko   = resultat.get("tilesets_ko") or []
+        msg  = f"Tiled '{nom}' : {nb_p} platform(s), {nb_d} décor(s)"
+        if offset_x or offset_y:
+            msg += f"  @({offset_x},{offset_y})"
+        if scale != 1.0:
+            msg += f"  ×{scale:g}"
+        if ko:
+            apercu = ", ".join(os.path.basename(k) for k in ko[:3])
+            if len(ko) > 3:
+                apercu += f" +{len(ko)-3}"
+            msg += f"  ⚠ tilesets introuvables : {apercu}"
+        self._show_msg(msg)
     # ═════════════════════════════════════════════════════════════════════════
     # 8.  SOURIS : molette, clic droit, clic gauche
     # ═════════════════════════════════════════════════════════════════════════
@@ -1566,7 +1693,9 @@ class Editor:
         self._snapshot()
 
         if kind == "platform":
-            self.platforms.append(Platform(x, y, w, h, BLANC))
+            # color=None → invisible en jeu (le visuel vient du décor).
+            # L'éditeur affiche un contour gris tant qu'il est actif.
+            self.platforms.append(Platform(x, y, w, h, None))
         elif kind == "wall":
             self.custom_walls.append(Wall(x, y, w, h, visible=True))
         elif kind == "portal":
@@ -1709,7 +1838,7 @@ class Editor:
             return
         self._snapshot()
         for rel in self._clipboard_platforms:
-            self.platforms.append(Platform(wx + rel.x, wy + rel.y, rel.w, rel.h, BLANC))
+            self.platforms.append(Platform(wx + rel.x, wy + rel.y, rel.w, rel.h, None))
         for rel in self._clipboard_walls:
             self.custom_walls.append(Wall(wx + rel.x, wy + rel.y, rel.w, rel.h, visible=True))
 
@@ -2780,6 +2909,8 @@ class Editor:
             "scene_width":     settings.SCENE_WIDTH,
             "scene_left":      settings.SCENE_LEFT,
             "camera_y_offset": self.camera.y_offset,
+            "camera_zoom":     getattr(self.camera, "zoom", 1.0),
+            "player_scale":    getattr(settings, "PLAYER_SCALE", 1.0),
             "spawn":           {"x": self.spawn_x, "y": self.spawn_y},
             "bg_color":        self.bg_color,
             "wall_color":      self.wall_color,
@@ -2849,6 +2980,13 @@ class Editor:
             self.camera.scene_width = data["scene_width"]
         if "camera_y_offset" in data:
             self.camera.y_offset = data["camera_y_offset"]
+        # Zoom caméra et échelle joueur (par carte).
+        if "camera_zoom" in data:
+            self.camera.zoom = float(data["camera_zoom"])
+        if "player_scale" in data:
+            settings.PLAYER_SCALE = float(data["player_scale"])
+            if hasattr(self.player, "reload_hitbox"):
+                self.player.reload_hitbox()
         if "spawn" in data:
             self.spawn_x = data["spawn"]["x"]
             self.spawn_y = data["spawn"]["y"]
@@ -2858,9 +2996,12 @@ class Editor:
         if "wall_color" in data: self.wall_color = data["wall_color"]
 
         # Plateformes et murs custom.
+        # color=None → collision invisible en jeu (le visuel vient du
+        # décor Tiled par-dessus). Un contour gris sera dessiné dans
+        # game.py quand l'éditeur active le mode [H]itbox (toggle).
         self.platforms.clear()
         for p in data.get("platforms", []):
-            self.platforms.append(Platform(p["x"], p["y"], p["w"], p["h"], BLANC))
+            self.platforms.append(Platform(p["x"], p["y"], p["w"], p["h"], None))
         self.custom_walls.clear()
         for w in data.get("custom_walls", []):
             self.custom_walls.append(Wall(w["x"], w["y"], w["w"], w["h"], visible=True))
@@ -2937,15 +3078,55 @@ class Editor:
         # Décors.
         self.decors.clear()
         for d in data.get("decors", []):
-            chemin = os.path.join(DECORS_DIR, d["sprite"])
-            if os.path.exists(chemin):
-                cb = tuple(d["collision_box"]) if "collision_box" in d else None
-                self.decors.append(Decor(
-                    d["x"], d["y"], chemin, d["sprite"],
+            # DECORS_DIR (défini dans settings.py) regroupe à la fois les
+            # sprites manuels (buisson-1.png…) et les PNG générés par
+            # l'import Tiled (tiled_*.png). Un seul dossier → pas de
+            # confusion, pas de décor qui disparaît au reload.
+            sprite = d["sprite"]
+            chemin = os.path.join(DECORS_DIR, sprite)
+            if not os.path.exists(chemin):
+                print(f"[Load] Decor introuvable : {sprite}")
+                continue
+
+            cb = tuple(d["collision_box"]) if "collision_box" in d else None
+
+            # Parallax et foreground : sauvés par to_dict() mais n'étaient
+            # pas relus ici → les décors d'arrière-plan (bg2, sky…) se
+            # rechargeaient avec parallax 1.0 et les foregrounds passaient
+            # derrière le joueur. On les restaure.
+            parallax = d.get("parallax", [1.0, 1.0])
+            try:
+                px = float(parallax[0]); py = float(parallax[1])
+            except (TypeError, IndexError, ValueError):
+                px, py = 1.0, 1.0
+            fg = bool(d.get("foreground", False))
+
+            try:
+                decor = Decor(
+                    d["x"], d["y"], chemin, sprite,
                     d.get("collision", False),
                     d.get("echelle", 1.0),
                     collision_box=cb,
-                ))
+                    parallax_x=px, parallax_y=py, foreground=fg,
+                )
+            except TypeError:
+                # Ancien Decor sans params parallax — fallback défensif.
+                decor = Decor(
+                    d["x"], d["y"], chemin, sprite,
+                    d.get("collision", False),
+                    d.get("echelle", 1.0),
+                    collision_box=cb,
+                )
+                decor.parallax_x = px
+                decor.parallax_y = py
+                decor.foreground = fg
+            self.decors.append(decor)
+
+        # Re-tri par parallax (fonds d'abord) pour cohérence d'affichage.
+        self.decors.sort(key=lambda d: (
+            1 if d.foreground else 0,
+            d.parallax_x, d.parallax_y,
+        ))
 
         # PNJs.
         self.pnjs.clear()
