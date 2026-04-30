@@ -155,7 +155,7 @@ import settings
 from settings import *   # noqa: F401,F403  (BLANC, VIOLET, GROUND_Y, …)
 
 from entities.enemy          import Enemy, list_enemy_sprites
-from entities.npc            import PNJ, list_pnj_sprites
+from entities.npc            import PNJ, list_pnj_sprites, creer_sprite_invisible
 from systems.hitbox_config   import (get_hitbox, set_hitbox,
                                       PLAYER_KEY,
                                       get_player_hitbox, set_player_hitbox)
@@ -393,6 +393,11 @@ class Editor:
         self._pnj_sprites      = list_pnj_sprites()
         self._pnj_sprite_index = 0
         self._pnj_edit_target  = None          # PNJ en cours d'édition
+        # Mode "objet parlant" : si défini (= tuple (largeur, hauteur)), le
+        # prochain clic en mode 10 pose un PNJ invisible de cette taille.
+        # Activé par la touche [X] qui demande la dimension à l'utilisateur.
+        # Remis à None après le placement (1 clic = 1 objet).
+        self._pnj_invisible_taille = None
 
         # Registre PNJ : personnages réutilisables (stockés dans game_config.json).
         self._pnj_registry  = []       # [{"nom": str, "sprite_name": str}, …]
@@ -1212,6 +1217,14 @@ class Editor:
                 labels = {"boucle_dernier": "Boucle dernière phrase",
                           "restart":        "Recommence tout"}
                 self._show_msg(f"{pnj.nom} : {labels[pnj.dialogue_mode]}")
+        elif key == pygame.K_x and self.mode == 10:
+            # Mode "objet parlant" : crée un PNJ INVISIBLE (sprite 100%
+            # transparent) au prochain clic. Pratique pour des panneaux,
+            # voix off, journaux au sol, etc. Le joueur déclenche le
+            # dialogue avec [E] comme un PNJ classique.
+            self._ask_text("pnj_invisible_taille",
+                           "Taille de l'objet (LxH ou L H, ex: 64 96) :")
+            return "text_input"
 
         # ── Mode 11 : Blocs (auto-tiling) ──────────────────────────────────
         elif key == pygame.K_t and self.mode == 11:
@@ -1323,6 +1336,25 @@ class Editor:
                 self._pnj_edit_target = None
                 return "done"
 
+            if mode == "pnj_invisible_taille":
+                # Parse "LxH" ou "L H" ou "L,H" → (largeur, hauteur).
+                # Si vide ou invalide → on annule, on ne pose rien.
+                txt = (name or "").lower().replace("x", " ").replace(",", " ")
+                parts = txt.split()
+                if len(parts) >= 2:
+                    try:
+                        w = int(float(parts[0]))
+                        h = int(float(parts[1]))
+                        self._pnj_invisible_taille = (w, h)
+                        self._show_msg(
+                            f"Objet parlant {w}x{h} : clic pour le poser, "
+                            "puis [D] pour ajouter un dialogue.")
+                    except ValueError:
+                        self._show_msg("Taille invalide (ex: 64 96)")
+                else:
+                    self._show_msg("Tape la taille (ex: 64 96)")
+                return "done"
+
             if not name:
                 return "done"
 
@@ -1419,7 +1451,8 @@ class Editor:
                     # Modes qui ont besoin du VRAI espace (multi-valeurs
                     # sur une même ligne). Pour les autres modes (noms de
                     # fichiers de save, etc.), on convertit en "_".
-                    if self._text_mode in ("import_tiled", "scale_zoom"):
+                    if self._text_mode in ("import_tiled", "scale_zoom",
+                                           "pnj_invisible_taille"):
                         self._text_input += " "
                     else:
                         self._text_input += "_"
@@ -1959,8 +1992,32 @@ class Editor:
             self._decor_hb_mode   = False
 
     def _click_pnj(self, wx, wy):
-        """Mode 10 : place un PNJ (depuis le registre ou en crée un nouveau)."""
+        """Mode 10 : place un PNJ (depuis le registre ou en crée un nouveau).
+
+        Cas spécial "objet parlant" : si l'utilisateur a appuyé sur [X] juste
+        avant et tapé une taille, le prochain clic pose un PNJ avec un sprite
+        100% TRANSPARENT à cette dimension. Reste un PNJ normal côté code →
+        on parle avec [E], on lui ajoute un dialogue avec [D], il se sauve
+        dans le JSON comme tous les autres.
+        """
         self._snapshot()
+
+        # Branche "objet parlant" (PNJ invisible). Prioritaire sur le registre.
+        if self._pnj_invisible_taille is not None:
+            w, h = self._pnj_invisible_taille
+            sprite = creer_sprite_invisible(w, h)
+            # Refresh la liste de sprites du registre pour inclure le nouveau
+            # PNG transparent (sinon il manque dans le cycle [P] de l'éditeur).
+            self._pnj_sprites = list_pnj_sprites()
+            nom = f"objet_{len(self.pnjs) + 1}"
+            self.pnjs.append(PNJ(wx, wy, nom, [], sprite_name=sprite,
+                                 has_gravity=False))
+            self._pnj_edit_target = self.pnjs[-1]
+            self._pnj_invisible_taille = None  # consommé : 1 clic = 1 objet
+            self._ask_text("pnj_dialogue",
+                           f"Dialogue de l'objet parlant (ligne1|ligne2|...) :")
+            return
+
         reg = self._pnj_reg_courant()
         if reg:
             # Placer un personnage existant du registre.

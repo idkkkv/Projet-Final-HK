@@ -11,6 +11,14 @@
     {
       "nom": "nymbus",
       "sprite_name": null
+    },
+    {
+      "nom": "Ne cherche pas \u00e0 avancer. Ce n'est pas par l\u00e0 que commence le chemin.|Regarde plut\u00f4t ce que tu \u00e9vite.",
+      "sprite_name": "objet_parlant_64x96.png"
+    },
+    {
+      "nom": "54 45",
+      "sprite_name": "objet_parlant_64x96.png"
     }
   ],
   "histoire": [

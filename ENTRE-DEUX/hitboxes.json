@@ -16,5 +16,23 @@
     "h": 53,
     "ox": 0,
     "oy": 0
+  },
+  "objet_parlant_64x96.png": {
+    "w": 64,
+    "h": 96,
+    "ox": 0,
+    "oy": 0
+  },
+  "objet_parlant_43x43.png": {
+    "w": 43,
+    "h": 43,
+    "ox": 0,
+    "oy": 0
+  },
+  "objet_parlant_40x40.png": {
+    "w": 40,
+    "h": 40,
+    "ox": 0,
+    "oy": 0
   }
 }

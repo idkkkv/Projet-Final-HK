@@ -1512,6 +1512,13 @@ class Game:
         for pnj in self.editeur.pnjs:
             if self.camera.is_visible(pnj.rect):
                 pnj.draw(self.screen, self.camera, self.joueur.rect)
+                # Objets parlants (PNJ avec sprite invisible) : on dessine
+                # un contour pointillé violet en mode éditeur pour qu'on
+                # puisse les retrouver. Invisibles en jeu, of course.
+                if (self.editeur.active and pnj.sprite_name
+                        and pnj.sprite_name.startswith("objet_parlant_")):
+                    pygame.draw.rect(self.screen, (180, 100, 220),
+                                     self.camera.apply(pnj.rect), 1)
 
         # 7a. Lucioles "derrière" (z < 0) : dessinées AVANT le joueur,
         #     donc le joueur les masque si elles passent pile derrière lui.

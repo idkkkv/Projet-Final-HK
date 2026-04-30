@@ -93,6 +93,55 @@ def list_pnj_sprites():
     return sprites
 
 
+# ─────────────────────────────────────────────────────────────────────────
+#  OBJET PARLANT (PNJ invisible avec un sprite 100% transparent)
+# ─────────────────────────────────────────────────────────────────────────
+#
+# Usage : poser dans le monde un "objet" qui déclenche un dialogue quand
+# le joueur appuie sur [E] à proximité, MAIS sans sprite visible (panneau
+# invisible, voix off, journal au sol qu'on entend penser, etc.).
+#
+# Concrètement c'est juste un PNJ classique avec un PNG totalement
+# transparent comme sprite. La fonction ci-dessous génère ce PNG à la
+# bonne dimension à la demande (et le met en cache disque pour ne pas
+# recréer le même fichier 50 fois).
+
+def creer_sprite_invisible(largeur, hauteur):
+    """Crée (si besoin) un PNG transparent de la taille demandée et
+    renvoie son nom de fichier (à utiliser comme sprite_name de PNJ).
+
+    Le PNG est sauvé dans assets/images/pnj/ avec un nom qui contient
+    sa dimension : objet_parlant_<L>x<H>.png. Si une autre map a déjà
+    demandé la même taille, on réutilise le fichier — pas de doublon.
+
+    On enregistre AUSSI la hitbox du sprite dans hitboxes.json pour que
+    le PNJ ait un rect aux dimensions du PNG (sinon il prend la taille
+    par défaut 36×40 et la zone d'interaction [E] est mal placée).
+
+    Les dimensions sont bornées (1..512) pour éviter qu'une faute de
+    frappe crée un PNG énorme.
+    """
+    largeur = max(1, min(512, int(largeur)))
+    hauteur = max(1, min(512, int(hauteur)))
+    nom = f"objet_parlant_{largeur}x{hauteur}.png"
+    chemin = os.path.join(PNJ_DIR, nom)
+    if not os.path.exists(chemin):
+        os.makedirs(PNJ_DIR, exist_ok=True)
+        # SRCALPHA + remplissage (0,0,0,0) = surface 100% transparente.
+        surf = pygame.Surface((largeur, hauteur), pygame.SRCALPHA)
+        surf.fill((0, 0, 0, 0))
+        pygame.image.save(surf, chemin)
+        # Hitbox = exactement le PNG. Sans ça PNJ tombe sur DEFAULT_HITBOX
+        # 36×40 → la zone d'interaction ne couvre pas tout l'objet.
+        try:
+            from systems.hitbox_config import set_hitbox
+            set_hitbox(nom, largeur, hauteur, 0, 0)
+        except ImportError:
+            # En cas d'utilisation hors-jeu (tests unitaires) on s'en passe.
+            pass
+    return nom
+
+
 def _charger_frames_dossier(chemin_dossier):
     """Charge toutes les images d'un dossier, triées par numéro extrait du nom.
 

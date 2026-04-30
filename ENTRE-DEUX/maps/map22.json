@@ -284,6 +284,42 @@
       "echelle": 1.0
     }
   ],
-  "pnjs": [],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 1907,
+      "y": 2884,
+      "nom": "Ne cherche pas \u00e0 avancer. Ce n'est pas par l\u00e0 que commence le chemin.|Regarde plut\u00f4t ce que tu \u00e9vite.",
+      "sprite_name": "objet_parlant_64x96.png",
+      "dialogues": [],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true
+    },
+    {
+      "type": "pnj",
+      "x": 2331,
+      "y": 1800,
+      "nom": "Pancarte",
+      "sprite_name": "objet_parlant_40x40.png",
+      "dialogues": [
+        [
+          [
+            "Ne cherhce pas \u00e0 avancer.",
+            "Pancarte"
+          ],
+          [
+            "Ce n'est pas par l\u00e0 que commence le chemin.",
+            "Pancarte"
+          ],
+          [
+            "Regarde plut\u00f4t ce que tu \u00e9vites.",
+            "Pancarte"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": false
+    }
+  ],
   "trigger_zones": []
 }
