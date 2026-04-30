@@ -11,8 +11,8 @@
             "scale": 0.33,
             "selectedLayer": 4,
             "viewCenter": {
-                "x": 1822.727272727273,
-                "y": 857.5757575757575
+                "x": 974.2424242424242,
+                "y": 1199.9999999999998
             }
         },
         "Basic Tiles Only.tsx": {
@@ -38,8 +38,8 @@
             "scale": 3,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": -192.16666666666666,
-                "y": 65
+                "x": 208.33333333333331,
+                "y": -47.33333333333333
             }
         },
         "villag.tmx#Basic Tiles Only": {
