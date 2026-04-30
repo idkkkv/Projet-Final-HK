@@ -6,15 +6,18 @@
     "fileStates": {
         "1maps.tmx": {
             "scale": 0.33,
-            "selectedLayer": 0,
+            "selectedLayer": 4,
             "viewCenter": {
-                "x": 736.3636363636364,
-                "y": 1357.5757575757575
+                "x": 1822.727272727273,
+                "y": 857.5757575757575
             }
         },
         "Basic Tiles Only.tsx": {
             "scaleInDock": 5.5,
             "scaleInEditor": 1
+        },
+        "C:/../../TX Village Props.tsx": {
+            "scaleInDock": 1
         },
         "map1 sol + déco.tsx": {
             "scaleInDock": 0.75,
@@ -23,8 +26,41 @@
         "plants.tsx": {
             "scaleInDock": 4,
             "scaleInEditor": 1
+        },
+        "villag.tmx": {
+            "scale": 0.75,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 204.66666666666674,
+                "y": 246.66666666666669
+            }
+        },
+        "villag.tmx#Basic Tiles Only": {
+            "scaleInDock": 8
+        },
+        "villag.tmx#House (Outside And Inside) Tileset": {
+            "scaleInDock": 1
+        },
+        "villag.tmx#House (Outside) Tileset": {
+            "scaleInDock": 1
+        },
+        "villag.tmx#Pixel Forest-Bilder_ Stock-Fotos & -Videos_": {
+            "scaleInDock": 1
+        },
+        "villag.tmx#Props": {
+            "scaleInDock": 1
+        },
+        "villag.tmx#TX Tileset Ground": {
+            "scaleInDock": 1
+        },
+        "villag.tmx#Unity Asset Store": {
+            "scaleInDock": 1
+        },
+        "villag.tmx#télécharger (3)": {
+            "scaleInDock": 1
         }
     },
+    "last.externalTilesetPath": "C:/Users/Utilisateur/Projet-Final-HK/ENTRE-DEUX/tiled",
     "last.imagePath": "C:/Users/Utilisateur/Projet-Final-HK/ENTRE-DEUX/tiled",
     "map.lastUsedFormat": "tmx",
     "map.tileHeight": 16,

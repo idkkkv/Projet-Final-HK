@@ -1,0 +1,276 @@
+{
+  "ground_y": 430,
+  "ceiling_y": -180,
+  "scene_width": 2760,
+  "scene_left": -1400,
+  "camera_y_offset": -270,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": -1023,
+    "y": 303
+  },
+  "bg_color": [
+    38,
+    19,
+    46
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": -1392,
+      "y": 418,
+      "w": 4176,
+      "h": 93
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": -1400,
+      "y": 430,
+      "w": 4160,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": -1400,
+      "y": -980,
+      "w": 4160,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -2200,
+      "y": -980,
+      "w": 800,
+      "h": 2210
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2760,
+      "y": -980,
+      "w": 800,
+      "h": 2210
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 300,
+      "y": 113,
+      "radius": 61,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1971,
+      "y": 344,
+      "radius": 44,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -255,
+      "y": 349,
+      "radius": 41,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2504,
+      "y": 160,
+      "radius": 73,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": -1378,
+      "y": 329,
+      "w": 144,
+      "h": 82,
+      "target_map": "map22",
+      "target_x": -1,
+      "target_y": -1
+    }
+  ],
+  "decors": [
+    {
+      "x": -1411,
+      "y": -626,
+      "sprite": "tiled_villag_bg_end_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 677,
+      "y": -626,
+      "sprite": "tiled_villag_Calque_d_Images_2_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -1346,
+      "y": -46,
+      "sprite": "tiled_villag_d_cor_24_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -789,
+      "y": 278,
+      "sprite": "tiled_villag_d_cor_23_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 557,
+      "y": 371,
+      "sprite": "tiled_villag_d_cor_22_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -835,
+      "y": 371,
+      "sprite": "tiled_villag_d_cor_21_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -603,
+      "y": 278,
+      "sprite": "tiled_villag_d_cor_20_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -325,
+      "y": 46,
+      "sprite": "tiled_villag_d_cor_17_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -371,
+      "y": -46,
+      "sprite": "tiled_villag_d_cor_16_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1949,
+      "y": -46,
+      "sprite": "tiled_villag_d_cor_15_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -1392,
+      "y": 139,
+      "sprite": "tiled_villag_d_cor_14_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -278,
+      "y": 325,
+      "sprite": "tiled_villag_d_cor_13_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 928,
+      "y": 93,
+      "sprite": "tiled_villag_d_cor_12_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -1392,
+      "y": -696,
+      "sprite": "tiled_villag_d_cor_11_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -371,
+      "y": 278,
+      "sprite": "tiled_villag_d_cor_10_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -186,
+      "y": 278,
+      "sprite": "tiled_villag_d_cor_9_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": -1160,
+      "y": 232,
+      "sprite": "tiled_villag_d_cor_8_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1578,
+      "y": 139,
+      "sprite": "tiled_villag_d_cor_7_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1624,
+      "y": 139,
+      "sprite": "tiled_villag_d_cor_6_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1624,
+      "y": 325,
+      "sprite": "tiled_villag_d_cor_5_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 325,
+      "y": 325,
+      "sprite": "tiled_villag_d_cor_4_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 1531,
+      "y": 186,
+      "sprite": "tiled_villag_d_cor_3_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 278,
+      "y": 46,
+      "sprite": "tiled_villag_d_cor_2_x2p90.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": []
+}

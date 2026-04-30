@@ -229,7 +229,17 @@
       "flicker_speed": 2
     }
   ],
-  "portals": [],
+  "portals": [
+    {
+      "x": 1475,
+      "y": 2865,
+      "w": 498,
+      "h": 180,
+      "target_map": "villag",
+      "target_x": -1,
+      "target_y": -1
+    }
+  ],
   "decors": [
     {
       "x": -498,
