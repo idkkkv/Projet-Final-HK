@@ -1,5 +1,5 @@
 {
-    "activeFile": "villag.tmx",
+    "activeFile": "1maps.tmx",
     "expandedProjectPaths": [
         "."
     ],
@@ -8,11 +8,19 @@
             "scaleInEditor": 1
         },
         "1maps.tmx": {
-            "scale": 0.33,
+            "scale": 1.5,
             "selectedLayer": 4,
             "viewCenter": {
-                "x": 974.2424242424242,
-                "y": 1199.9999999999998
+                "x": 962,
+                "y": 1200
+            }
+        },
+        "2maps.tmx": {
+            "scale": 0.5640625,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 383.8227146814405,
+                "y": 0
             }
         },
         "Basic Tiles Only.tsx": {
@@ -82,12 +90,12 @@
     ],
     "project": "sans titre.tiled-project",
     "recentFiles": [
-        "1maps.tmx",
-        "map1 sol + déco.tsx",
-        "plants.tsx",
-        "Basic Tiles Only.tsx",
         "TX Village Props.tsx",
-        "villag.tmx"
+        "villag.tmx",
+        "Basic Tiles Only.tsx",
+        "plants.tsx",
+        "map1 sol + déco.tsx",
+        "1maps.tmx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {
