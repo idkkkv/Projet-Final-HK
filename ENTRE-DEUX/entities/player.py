@@ -215,6 +215,7 @@ class Player:
         self.hitted_hard      = False
         self.healing          = False
         self.just_fallen      = False #pour pas faire 2 atk
+        self.attack_type = None #sol ou air
 
         # ── Régénération passive ──
         # Le joueur récupère 1 PV s'il reste TOTALEMENT immobile au sol
@@ -988,6 +989,7 @@ class Player:
 
         # ── 13. Au contact du sol → reset des sauts ───────────────────────
         if self.on_ground:
+            self.just_fallen = False
             self.jumps_used   = 0
             self.coyote_timer = COYOTE_TIME
             self.against_wall = 0
@@ -1464,8 +1466,7 @@ class Player:
         # Dessinés AVANT le perso pour qu'ils soient en arrière-plan.
         # On les dessine tant qu'ils ne sont pas terminés (one-shot).
         self._draw_aerial_dash_fx(surf, camera)
-        img = self.idle_anim_idle.img()
-        anim = self.idle_anim_idle
+
 
         # hurt -----------------------------
         if self.hitted_hard:
@@ -1521,11 +1522,9 @@ class Player:
                 # Forward (touche maintenue) ou vertical (statique) ?
                 if self.attacking and not self.on_ground:
                     if self.combo_step == 1:
-                        print("X1")
                         self.idle_anim_1xjumpatk.update()
                         img = self.idle_anim_1xjumpatk.img()
-                    elif self.combo_step == 2:
-                        print("X2")
+                    else:
                         self.idle_anim_2xjumpatk.update()
                         img = self.idle_anim_2xjumpatk.img()
                     self.just_fallen = True
@@ -1550,10 +1549,11 @@ class Player:
                         anim = self.idle_anim_1xjumpatk
                         self.idle_anim_1xjumpatk.update()
                         img = self.idle_anim_1xjumpatk.img()
-                    elif self.combo_step == 2:
+                    else:
                         anim = self.idle_anim_2xjumpatk
                         self.idle_anim_2xjumpatk.update()
                         img = self.idle_anim_2xjumpatk.img()
+
                     self.just_fallen = True
                 else:
                     self.idle_anim_jump.update()
@@ -1624,13 +1624,16 @@ class Player:
 
         # ── Compensation attaques ────────────────────────────────────────
         if self.attacking and self.attack_dir == "side" :
-            if self.on_ground :
+            if not self.just_fallen :
                 if self.combo_step == 1 :
                     sx += 85 * self.direction
                 elif self.combo_step == 2 :
                     sx += 65 * self.direction
                 else:  # x3
                     sx += 107 * self.direction
+            else :
+                if self.combo_step == 1 :
+                    sx += 65 * self.direction
 
         # ── Compensation back dodge ──────────────────────────────────────
         # Le sprite back dodge utilise une toile 142×61 (vs ~46×55 pour
