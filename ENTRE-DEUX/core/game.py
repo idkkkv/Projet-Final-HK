@@ -1285,10 +1285,22 @@ class Game:
         hp_avant            = self.joueur.hp
         ennemis_alive_avant = [e for e in self.ennemis if e.alive]
 
-        # ── Mise à jour des ennemis ──
-        for ennemi in self.ennemis:
-            ennemi.update(phys_dt, self.platforms, murs, self.joueur.rect,
-                          holes=trous)
+        # ── Mise à jour des entités (Ennemis et Boss) ──
+        for entite in self.ennemis:
+            # On vérifie si l'entité est un Boss Miroir ou un Veilleur
+            # car ils ont besoin du joueur complet pour copier ses mouvements
+            if hasattr(entite, 'capturer_etat_joueur') or hasattr(entite, 'liste_zones_danger'):
+                # C'est un boss, on lui passe tout l'objet joueur
+                entite.update(phys_dt, self.joueur)
+            else:
+                # C'est un ennemi normal, on lui passe juste la hitbox du joueur
+                entite.update(phys_dt, self.platforms, murs, self.joueur.rect, holes=trous)
+
+            # Vérification de collision entre le joueur et l'ennemi/boss
+            if self.joueur.rect.colliderect(entite.rect):
+                if hasattr(entite, 'est_en_attaque') and entite.est_en_attaque:
+                    # Si le boss attaque et touche le joueur
+                    self.joueur.recevoir_degats(1) 
 
         # ── Combat : attaques du joueur sur les ennemis ──
         resoudre_attaques_joueur(self.joueur, self.ennemis)

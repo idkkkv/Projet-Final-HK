@@ -190,6 +190,13 @@ class BossMiroir(Boss):
         # on n'utilise pas le update de Enemy car on veut un mouvement spécial
         # super().update(dt) 
         
+        # Le *args et **kwargs permettent d'ignorer les arguments
+        # supplémentaires envoyés par game.py (murs, plateformes, etc.)
+        if joueur is not None:
+            self.capturer_etat_joueur(joueur)
+            self.appliquer_comportement_miroir(SCREEN_WIDTH // 2)
+            self.actualiser_hitbox_attaque()
+
         if joueur is not None:
             # 1. on enregistre le présent
             self.capturer_etat_joueur(joueur)
