@@ -208,6 +208,14 @@ class Game:
         # On branche le menu Paramètres MAINTENANT (après joueur créé).
         self.parametres.bind_compagnons(self.compagnons, self.joueur)
 
+        # On crée une liste d'ennemis qui contiendra aussi nos Boss
+        # On les instancie ici pour qu'ils soient chargés en mémoire dès le début
+        self.ennemis = [
+            Enemy(500, 530 - 60),
+            BossMiroir(800, 400),       # Ajout du premier boss
+            BossTempete(1200, 400),    # Ajout du deuxième boss
+        ]
+
         # Zones-déclencheurs (téléportation, cinématiques) — vide au boot,
         # rempli par les cartes / l'éditeur. cf. world/triggers.py [D02]
         self.triggers = TriggerZoneGroup()
@@ -280,6 +288,9 @@ class Game:
         self._etait_au_sol = True                       # pour détecter l'atterrissage
         self._etait_dash   = False                      # pour détecter le début de dash
         self.carte_actuelle = ""                        # nom de la map chargée
+
+        self.boss_miroir_actif = False # Variable pour suivre si le boss miroir est actif
+        self.tempete_active    = False # Variable pour suivre si la tempête est active
 
         # ── 1.14 Menus (titre, pause, fin) ──
         self._creer_menus()
@@ -1285,10 +1296,40 @@ class Game:
         hp_avant            = self.joueur.hp
         ennemis_alive_avant = [e for e in self.ennemis if e.alive]
 
-        # ── Mise à jour des ennemis ──
-        for ennemi in self.ennemis:
-            ennemi.update(phys_dt, self.platforms, murs, self.joueur.rect,
-                          holes=trous)
+        # ── Mise à jour des entités (Ennemis et Boss) ──
+        for entite in self.ennemis:
+            # 1. On vérifie si c'est un boss spécial (qui a besoin du joueur entier)
+            # hasattr vérifie si l'objet possède la variable ou la méthode indiquée
+            if hasattr(entite, 'liste_souvenirs') or hasattr(entite, 'capturer_etat_joueur'):
+                # Logique BOSS : On lui passe le joueur et le temps (dt)
+                entite.update(phys_dt, self.joueur)
+            else:
+                # Logique ennemi simple 
+                entite.update(phys_dt, self.platforms, murs, self.joueur.rect, holes=trous)
+
+            # 2. Gestion des collisions (Dégâts reçus par le joueur)
+            if self.joueur.rect.colliderect(entite.rect):
+                # On utilise ta fonction de recul/dégâts
+                self.joueur.hit_by_enemy(entite.rect)
+                
+            # 3. Cas spécial pour le Boss Tempête 
+            if hasattr(entite, 'liste_souvenirs'):
+                # On vérifie si le joueur touche un des souvenirs dans la liste du boss
+                for s in entite.liste_souvenirs:
+                    if s["actif"] and self.joueur.rect.colliderect(s["rect"]):
+                        if s["est_bon"]:
+                            entite.souvenirs_clairs_collectes += 1
+                            s["actif"] = False
+                        else:
+                            self.joueur.hit_by_enemy(s["rect"])
+                            s["actif"] = False
+            
+            # 3. cas spécial pour le Boss Explosion : on vérifie si une zone de danger est active et si le joueur y est dedans
+            if hasattr(entite, 'liste_zones_danger'):
+                for zone in entite.liste_zones_danger:
+                    if zone["explosion_faite"]:
+                        if self.joueur.rect.colliderect(zone["rect"]):
+                            self.joueur.hit_by_enemy(entite.rect)
 
         # ── Combat : attaques du joueur sur les ennemis ──
         resoudre_attaques_joueur(self.joueur, self.ennemis)
