@@ -53,7 +53,9 @@
 import pygame
 from settings import *
 from entities.enemy import Enemy
-
+import random
+import time
+import math
 
 class Boss(Enemy):
     """Squelette générique de boss. À overrider par boss spécifique."""
@@ -183,13 +185,23 @@ class BossMiroir(Boss):
                 else:
                     self.attack_rect.topright = (self.rect.left, self.rect.y + 20)
 
+   def draw(self, surface):  #cette fonction faudra l'adapter selon le tile
+        # On appelle le draw du parent pour afficher le sprite du tileset
+        super().draw(surface) 
+        
+        # On ajoute juste un petit effet visuel "miroir" par dessus (code bonus)
+        # Un contour bleu pour dire que c'est une copie magique
+        pygame.draw.rect(surface, (0, 191, 255), self.rect, 2, border_radius=5)
+        # petit contour blanc pour l'effet "miroir"
+        pygame.draw.rect(surface, (255, 255, 255), self.rect, 2)
+
     def update(self, dt, joueur=None):
         """
         Méthode principale appelée à chaque frame.
         """
         # on n'utilise pas le update de Enemy car on veut un mouvement spécial
         # super().update(dt) 
-        
+
         # Le *args et **kwargs permettent d'ignorer les arguments
         # supplémentaires envoyés par game.py (murs, plateformes, etc.)
         if joueur is not None:
@@ -213,3 +225,143 @@ class BossMiroir(Boss):
                 # On pourrait réduire le retard en phase 2 pour être plus dur
                 if self.frames_retard > 30:
                     self.frames_retard -= 1
+
+class LaTempête(Boss):
+    """
+    Boss Tempête : Une tempête de souvenirs. 
+    Le but n'est pas de battre le boss mais de survivre à la scène pour ça :
+    Le boss ne sera pas qu'une entité physique, mais un gestionnaire d'objets tombants. Ce gestionnaire fait tomber 2 types d'objets :
+    Souvenirs Sombres (Dégâts) : Si tu les touches, tu perds 1 PV
+    Souvenirs Lumineux (Score/Survie) : Tu dois en ramasser x pour gagner le combat et "calmer la tempête".
+    """
+    def __init__(self, x, y):
+        # On appelle le constructeur (Enemy/Boss)
+        super().__init__(x, y)
+        
+        # --- CONFIGURATION PHYSIQUE ---
+        self.rect = pygame.Rect(x, y, 120, 120)
+        self.hp = 9999  # Il ne meurt pas par les dégâts classiques
+        self.invincible = True 
+        
+        # --- SYSTÈME DE PHASES (15s / 15s) ---
+        self.timer_cycle = 0.0
+        self.phase_tempete = False  # False = Calme, True = Pluie intense
+        self.seuil_cycle = 15.0     # Durée de chaque phase en secondes
+        
+        # --- GESTION DES OBJETS TOMBANTS ---
+        # On crée une liste vide pour stocker les dictionnaires d'objets
+        self.liste_souvenirs = []
+        self.dernier_spawn_temps = time.time()
+        
+        # --- PROGRESSION ---
+        self.souvenirs_clairs_collectes = 0
+        self.objectif_victoire = 15
+        self.combat_termine = False
+
+        # --- ANIMATION ET MOUVEMENT ---
+        self.base_y = y # On mémorise la hauteur de départ
+        self.compteur_animation = 0.0
+
+    def creer_et_ajouter_souvenir(self):
+        """
+        FONCTION DE CRÉATION : Génère un objet (dictionnaire) 
+        et l'ajoute à la liste principale.
+        """
+        taille = random.randint(30, 50)
+        position_x = random.randint(50, SCREEN_WIDTH - 50)
+        
+        # Choix du type (Sombre = Dégâts, Lumineux = Point)
+        chance = random.random()
+        est_lumineux = chance < 0.20 # 20% de chance d'avoir un souvenir clair
+        
+        # On crée le dictionnaire de l'objet
+        nouvel_objet = {
+            "rect": pygame.Rect(position_x, -60, taille, taille),
+            "vitesse": random.uniform(3.0, 5.0) if not self.phase_tempete else random.uniform(6.0, 10.0),
+            "est_bon": est_lumineux,
+            "couleur": (255, 255, 200) if est_lumineux else (40, 10, 60),
+            "rotation": 0,
+            "vitesse_rotation": random.randint(1, 5),
+            "actif": True
+        }
+        
+        # On l'ajoute à la liste 
+        self.liste_souvenirs.append(nouvel_objet)
+
+    def gerer_spawn_objets(self):
+        """
+        Gère le timing d'apparition selon la phase de 15 secondes.
+        """
+        maintenant = time.time()
+        
+        # Ratio de spawn : 1s en calme, ~0.15s en tempête
+        delai = 1.0 if not self.phase_tempete else 0.15
+        
+        if maintenant - self.dernier_spawn_temps > delai:
+            self.creer_et_ajouter_souvenir()
+            self.dernier_spawn_temps = maintenant
+
+    def update(self, dt, joueur):
+        """
+        Mise à jour globale du boss et de ses projectiles.
+        """
+        if self.combat_termine:
+            return
+
+        # 1. Gestion du chrono des 15 secondes
+        self.timer_cycle += dt
+        if self.timer_cycle >= self.seuil_cycle:
+            self.phase_tempete = not self.phase_tempete
+            self.timer_cycle = 0.0 # Reset du timer
+            print(f"Changement de phase ! Tempête : {self.phase_tempete}")
+
+        # 2. Mouvement flottant (accessible au corps à corps)
+        self.compteur_animation += 0.05
+        # Le boss se deplace horizontalement et verticalement
+        self.rect.x = (SCREEN_WIDTH // 2 - 60) + math.sin(self.compteur_animation) * 100
+        self.rect.y = self.base_y + math.cos(self.compteur_animation) * 30
+
+        # 3. Spawn et Mise à jour des souvenirs
+        self.gerer_spawn_objets()
+        
+        # On parcourt la liste des objets tombants
+        for s in self.liste_souvenirs:
+            if s["actif"]:
+                # Chute
+                s["rect"].y += s["vitesse"]
+                s["rotation"] += s["vitesse_rotation"]
+                
+                # Collision avec le joueur
+                if joueur.rect.colliderect(s["rect"]):
+                    if s["est_bon"]:
+                        self.souvenirs_clairs_collectes += 1
+                        if self.souvenirs_clairs_collectes >= self.objectif_victoire:
+                            self.combat_termine = True
+                    else:
+                        # On utilise ta fonction de dégâts
+                        joueur.hit_by_enemy(s["rect"])
+                    s["actif"] = False
+                
+                # suppression si hors écran
+                if s["rect"].y > SCREEN_HEIGHT + 100:
+                    s["actif"] = False
+
+        # 4. Collision avec le corps du Boss
+        if joueur.rect.colliderect(self.rect):
+            # Le contact avec le noyau blesse le joueur
+            joueur.hit_by_enemy(self.rect)
+
+        # 5. Nettoyage de la liste 
+        nouvelle_liste = []
+        for s in self.liste_souvenirs:
+            if s["actif"] == True:
+                nouvelle_liste.append(s)
+        self.liste_souvenirs = nouvelle_liste
+
+    def draw(self, surface): #pareil à adapter selon le tile
+        """Affiche le boss et la pluie de souvenirs."""
+        # On appelle le draw du parent pour afficher le sprite du tileset
+        super().draw(surface) 
+        
+        # On ajoute juste un petit effet visuel "miroir" par dessus (conteur bleu)
+        pygame.draw.rect(surface, (0, 191, 255), self.rect, 2, border_radius=5)
