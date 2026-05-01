@@ -1249,17 +1249,23 @@ class Player:
             if self.attacking and self.combo_step < 3:
                 self._combo_queued = True
                 
-        self.anim_finie = (
-            (self.combo_step == 1 and self.idle_anim_1xatk.done) or
-            (self.combo_step == 2 and self.idle_anim_2xatk_short.done) or
-            (self.combo_step == 3 and self.idle_anim_3xatk.done)  or
-            (self.combo_step == 1 and self.idle_anim_1xjumpatk.done) or
-            (self.combo_step == 2 and self.idle_anim_2xjumpatk.done)
-        )
-        
+        if not self.on_ground:
+            self.anim_finie = (
+                (self.combo_step == 1 and self.idle_anim_1xjumpatk.done) or
+                (self.combo_step == 2 and self.idle_anim_2xjumpatk.done)
+            )
+        else:
+            self.anim_finie = (
+                (self.combo_step == 1 and self.idle_anim_1xatk.done) or
+                (self.combo_step == 2 and self.idle_anim_2xatk_short.done) or
+                (self.combo_step == 3 and self.idle_anim_3xatk.done)
+            )
         # fin atk
         if self.attacking and self.anim_finie:
             self.just_fallen = False
+            if self.combo_step == 1:
+                self.idle_anim_1xatk.reset()
+                self.idle_anim_1xjumpatk.reset()
             if self.combo_step == 2:
                 self.idle_anim_2xatk_short.reset()
                 self.idle_anim_2xjumpatk.reset()
@@ -1617,13 +1623,14 @@ class Player:
         sy = self.rect.bottom  - img_h
 
         # ── Compensation attaques ────────────────────────────────────────
-        if self.attacking and self.attack_dir == "side":
-            if self.combo_step == 1:
-                sx += 85 * self.direction
-            elif self.combo_step == 2:
-                sx += 65 * self.direction
-            else:  # x3
-                sx += 107 * self.direction
+        if self.attacking and self.attack_dir == "side" :
+            if self.on_ground :
+                if self.combo_step == 1 :
+                    sx += 85 * self.direction
+                elif self.combo_step == 2 :
+                    sx += 65 * self.direction
+                else:  # x3
+                    sx += 107 * self.direction
 
         # ── Compensation back dodge ──────────────────────────────────────
         # Le sprite back dodge utilise une toile 142×61 (vs ~46×55 pour
