@@ -245,6 +245,86 @@
       "type": "torch",
       "flicker": true,
       "flicker_speed": 2
+    },
+    {
+      "x": 2579,
+      "y": 2726,
+      "radius": 46,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2577,
+      "y": 2905,
+      "radius": 51,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2576,
+      "y": 3082,
+      "radius": 50,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2577,
+      "y": 3260,
+      "radius": 46,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2579,
+      "y": 3437,
+      "radius": 56,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2936,
+      "y": 2725,
+      "radius": 49,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2934,
+      "y": 2907,
+      "radius": 46,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2934,
+      "y": 3083,
+      "radius": 50,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2936,
+      "y": 3260,
+      "radius": 49,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2934,
+      "y": 3447,
+      "radius": 53,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
     }
   ],
   "portals": [

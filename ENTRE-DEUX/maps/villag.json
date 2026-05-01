@@ -448,18 +448,14 @@
   "pnjs": [
     {
       "type": "pnj",
-      "x": -830,
-      "y": 388,
+      "x": -832,
+      "y": 374,
       "nom": "objet_1",
-      "sprite_name": "pancarte",
+      "sprite_name": "objet_parlant_40x40.png",
       "dialogues": [
         [
           [
-            "Bienvenue au village de Veilos",
-            "objet_1"
-          ],
-          [
-            "Rencontrez les \u00e2mes d\u00e9chues",
+            "sdfsdfs",
             "objet_1"
           ]
         ]
