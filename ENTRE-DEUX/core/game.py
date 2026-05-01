@@ -66,6 +66,7 @@ from ui.items_effects import play_cassette
 # ── Entités vivantes
 from entities.player import Player
 from entities.enemy import Enemy
+from entities.boss import *
 
 # ── Monde (éditeur, plateformes, collisions)
 from world.editor import Editor
@@ -213,9 +214,9 @@ class Game:
         self.ennemis = [
             Enemy(500, 530 - 60),
             BossMiroir(800, 400),       # Ajout du premier boss
-            BossTempete(1200, 400),    # Ajout du deuxième boss
+            
         ]
-
+        #  BossTempete(1200, 400),    # Ajout du deuxième boss
         # Zones-déclencheurs (téléportation, cinématiques) — vide au boot,
         # rempli par les cartes / l'éditeur. cf. world/triggers.py [D02]
         self.triggers = TriggerZoneGroup()

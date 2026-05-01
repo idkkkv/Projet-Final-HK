@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="16" tileheight="16" infinite="1" nextlayerid="6" nextobjectid="10">
- <tileset firstgid="1" source="../../../../../../../Downloads/Basic Tiles Only.tsx"/>
+ <tileset firstgid="1" source="Basic Tiles Only.tsx"/>
  <imagelayer id="2" name="décor" offsetx="0.333333" offsety="3.66667">
-  <image source="../../../../../../../Downloads/The Pit.jpg" width="735" height="412"/>
+  <image source="../../../../../../../Downloads/The Pit.jpg"/>
  </imagelayer>
  <layer id="1" name="Calque de Tuiles 1" width="30" height="20">
   <data encoding="csv">

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="16" tileheight="16" infinite="1" nextlayerid="8" nextobjectid="4">
- <tileset firstgid="1" source="../../../../../../../Downloads/télécharger (11).tsx"/>
- <tileset firstgid="1126" source="../../../../../../../Downloads/Basic Tiles Only.tsx"/>
+ <tileset firstgid="1" source="télécharger (11).tsx"/>
+ <tileset firstgid="1126" source="Basic Tiles Only.tsx"/>
  <imagelayer id="5" name="décor 0" offsetx="-288.333" offsety="-157">
-  <image source="../../../../../../../Downloads/télécharger (11).jpg" width="735" height="413"/>
+  <image source="télécharger (11).jpg" width="735" height="413"/>
  </imagelayer>
  <layer id="6" name="décor 1" width="30" height="20">
   <data encoding="csv">

@@ -185,7 +185,7 @@ class BossMiroir(Boss):
                 else:
                     self.attack_rect.topright = (self.rect.left, self.rect.y + 20)
 
-   def draw(self, surface):  #cette fonction faudra l'adapter selon le tile
+    def draw(self, surface):  #cette fonction faudra l'adapter selon le tile
         # On appelle le draw du parent pour afficher le sprite du tileset
         super().draw(surface) 
         
@@ -206,7 +206,7 @@ class BossMiroir(Boss):
         # supplémentaires envoyés par game.py (murs, plateformes, etc.)
         if joueur is not None:
             self.capturer_etat_joueur(joueur)
-            self.appliquer_comportement_miroir(SCREEN_WIDTH // 2)
+            self.appliquer_comportement_miroir(SCENE_WIDTH // 2)
             self.actualiser_hitbox_attaque()
 
         if joueur is not None:
@@ -268,7 +268,7 @@ class LaTempête(Boss):
         et l'ajoute à la liste principale.
         """
         taille = random.randint(30, 50)
-        position_x = random.randint(50, SCREEN_WIDTH - 50)
+        position_x = random.randint(50, self.vx - 50)
         
         # Choix du type (Sombre = Dégâts, Lumineux = Point)
         chance = random.random()
@@ -318,7 +318,7 @@ class LaTempête(Boss):
         # 2. Mouvement flottant (accessible au corps à corps)
         self.compteur_animation += 0.05
         # Le boss se deplace horizontalement et verticalement
-        self.rect.x = (SCREEN_WIDTH // 2 - 60) + math.sin(self.compteur_animation) * 100
+        self.rect.x = (SCENE_WIDTH // 2 - 60) + math.sin(self.compteur_animation) * 100
         self.rect.y = self.base_y + math.cos(self.compteur_animation) * 30
 
         # 3. Spawn et Mise à jour des souvenirs
@@ -343,7 +343,7 @@ class LaTempête(Boss):
                     s["actif"] = False
                 
                 # suppression si hors écran
-                if s["rect"].y > SCREEN_HEIGHT + 100:
+                if s["rect"].y > SCENE_WIDTH + 100:
                     s["actif"] = False
 
         # 4. Collision avec le corps du Boss
