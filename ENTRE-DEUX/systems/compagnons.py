@@ -67,17 +67,16 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 import settings
-# ── Choix de l'entité "compagnon" ────────────────────────────────────────────
-# Historiquement on utilisait entities.compagnon.Compagnon (un petit fantôme
-# blanc avec une IA "suit / court / pause"). On l'a remplacé par Luciole, qui
-# est juste une lumière flottant en orbite autour du joueur (pas de collision
-# → plus de bug près des murs ; rendu plus joli ; cohérent avec l'esthétique).
+# ── Entité "compagnon" du jeu : la Luciole ──────────────────────────────────
+# Une Luciole est une lumière qui flotte en orbite autour du joueur. Elle
+# n'a pas de collision (= pas de bug d'IA contre les murs) et son rendu
+# est cohérent avec l'esthétique du jeu (foyer, brume, peur).
 #
-# La classe Luciole expose la MÊME API publique que Compagnon (mêmes méthodes,
-# mêmes attributs lus depuis ce fichier), donc le reste du code n'a rien à
-# changer. Si on veut revenir à l'ancien rendu, il suffit de remplacer
-# l'import ci-dessous par :
-#       from entities.compagnon import Compagnon as Luciole
+# Tout le code en aval (HUD, jauge de peur, sauvegarde…) parle de
+# "compagnon" mais manipule en fait des Luciole : c'est purement une
+# question de vocabulaire de design. Si un jour on ajoute un autre type
+# de compagnon, on pourra introduire une classe parente — pour l'instant
+# on garde l'archi simple.
 from entities.luciole import Luciole
 
 
@@ -156,6 +155,109 @@ class CompagnonGroup:
             c.etat = "suit"
 
     # ═════════════════════════════════════════════════════════════════════════
+    #  3b. GAGNER UNE NOUVELLE LUCIOLE (récompense de gameplay)
+    # ═════════════════════════════════════════════════════════════════════════
+    #
+    #  À APPELER quand le joueur DÉBLOQUE une luciole — par exemple :
+    #     - après avoir vaincu un boss
+    #     - lors d'un échange particulier avec un villageois
+    #     - en récompense d'une énigme résolue
+    #     - ... toute action narrative qui mérite une récompense rare
+    #
+    #  RÈGLES :
+    #     - Maximum 5 lucioles dans tout le jeu (settings.COMPAGNON_NB_MAX).
+    #       Si on est déjà au max, la fonction renvoie False et ne fait rien
+    #       (à toi de prévoir un message côté narratif si tu veux le signaler).
+    #     - La nouvelle luciole apparaît directement à côté du joueur, déjà
+    #       visible (pas d'écran de transition). Effet "pop" simple et net.
+    #     - On synchronise aussi `nb_compagnons` dans la config si tu veux
+    #       que la sauvegarde soit cohérente après un quit/restart — voir
+    #       l'argument `sauvegarder` plus bas.
+    #
+    #  EXEMPLES D'USAGE :
+    #     # Après un boss vaincu, dans game.py :
+    #     if boss.vient_de_mourir():
+    #         self.compagnons.gagner_luciole(self.joueur, source="boss")
+    #
+    #     # Après un échange avec un villageois (dans un dialogue) :
+    #     if self.compagnons.gagner_luciole(self.joueur, source="villageois"):
+    #         show_message("Une luciole te rejoint !")
+    #     else:
+    #         show_message("Tu en as déjà cinq, tes mains sont pleines.")
+    #
+    #  VALEUR DE RETOUR :
+    #     True  → une nouvelle luciole a été créée et est visible
+    #     False → on était déjà au maximum, rien n'a été fait
+
+    def gagner_luciole(self, joueur=None, source="generic", sauvegarder=False):
+        """Ajoute UNE nouvelle luciole, jusqu'à la limite de 5.
+
+        Arguments :
+            joueur       : l'objet Player (sert à savoir où faire apparaître
+                           la nouvelle luciole). Optionnel : si None, elle
+                           apparaît à (0, 0) et viendra se positionner toute
+                           seule à la prochaine frame.
+            source       : étiquette libre pour les logs ("boss", "villageois",
+                           "enigme", ...). N'a pas d'effet sur le gameplay.
+            sauvegarder  : si True, met aussi à jour game_config.json pour
+                           que le gain persiste après une fermeture du jeu.
+                           Désactivé par défaut : à toi de décider quand
+                           sauvegarder (souvent on le fait déjà après un
+                           checkpoint ou en quittant la partie).
+
+        Renvoie True si la luciole a été créée, False si déjà au max.
+        """
+
+        # Déjà au maximum (5 par défaut) → rien à faire, on signale par False.
+        # Le joueur "narrativement" doit avoir un message ailleurs ; ici on
+        # ne fait QUE la mécanique.
+        if len(self.compagnons) >= settings.COMPAGNON_NB_MAX:
+            return False
+
+        # idx = sa position dans la liste, sert à étaler les phases initiales
+        # (couleur, taille, ancres aléatoires...) d'une luciole à l'autre.
+        idx = len(self.compagnons)
+
+        # Position de spawn : pile sur le joueur si on l'a, sinon (0, 0).
+        # La luciole va de toute façon se "stabiliser" à son ancre dans
+        # quelques frames (cf. entities/luciole.py).
+        if joueur is not None:
+            sx = float(joueur.rect.centerx)
+            sy = float(joueur.rect.centery)
+        else:
+            sx, sy = 0.0, 0.0
+
+        nouvelle = Luciole(x=sx, y=sy, idx=idx)
+        # Elle apparaît visible immédiatement (sinon le fade-in serait
+        # confus : "j'ai gagné quoi ?"). On peut imaginer plus tard un
+        # effet de particules autour de la spawn — pour l'instant on
+        # garde simple, à toi de brancher un effet visuel si tu veux.
+        nouvelle.dans_cape  = False
+        nouvelle.visibilite = 1.0
+        nouvelle.etat       = "suit"
+        self.compagnons.append(nouvelle)
+
+        # Optionnel : on persiste le gain dans la config (compteur joueur).
+        # Sans ça, relancer le jeu repart avec l'ancien nombre. Utiliser
+        # avec parcimonie — souvent on préfère sauvegarder seulement aux
+        # points de contrôle (cf. core/state_manager).
+        if sauvegarder:
+            try:
+                from systems.save_system import lire_config, ecrire_config
+                cfg = lire_config()
+                cfg["nb_compagnons"] = len(self.compagnons)
+                ecrire_config(cfg)
+            except Exception as e:
+                # On ne doit JAMAIS planter le jeu pour un souci de save :
+                # on log et on continue. Le gain reste valide en mémoire.
+                print(f"[gagner_luciole] sauvegarde ignorée ({source}) : {e}")
+
+        # Log discret (utile pour debug : on voit dans la console quelle
+        # source a déclenché le gain). Tu peux supprimer si trop bavard.
+        print(f"[gagner_luciole] +1 luciole (source={source}, total={len(self.compagnons)})")
+        return True
+
+    # ═════════════════════════════════════════════════════════════════════════
     #  4. CAPE : RAPPELER / RESSORTIR
     # ═════════════════════════════════════════════════════════════════════════
     #
@@ -229,7 +331,12 @@ class CompagnonGroup:
     #  le framerate.
 
     def affecter_peur(self, peur, joueur, dt):
-        """Cumule l'effet apaisant ou angoissant de chaque compagnon sur la peur."""
+        """Cumule l'effet apaisant ou angoissant de chaque compagnon sur la peur.
+
+        OBSOLÈTE : remplacé par calcul_stade_peur() + FearSystem.set_target_stade().
+        Conservé pour ne pas casser un appel existant côté core/game.py — la
+        nouvelle logique discrète passe par calcul_stade_peur().
+        """
 
         # Pas de compagnons ou pas de jauge → rien à faire.
         if len(self.compagnons) == 0 or peur is None:
@@ -258,6 +365,42 @@ class CompagnonGroup:
             else:
                 # Trop loin → angoissant → peur monte.
                 peur.increase(settings.PEUR_VITESSE_HAUSSE_LOIN * dt)
+
+    # ═════════════════════════════════════════════════════════════════════════
+    #  6b. STADE DE PEUR DISCRET (5 stades, lié au nb de compagnons)
+    # ═════════════════════════════════════════════════════════════════════════
+    #
+    #  Règle de jeu :
+    #     - Stade de base = NB_STADES (5) → joueur seul = panique max.
+    #     - Chaque compagnon PROCHE (cape ou ≤ COMPAGNON_DIST_RASSURANT)
+    #       enlève 1 stade.
+    #     - Chaque compagnon LOIN (> COMPAGNON_DIST_RASSURANT) AJOUTE 1 stade.
+    #     - Résultat clampé dans [0, NB_STADES].
+    #
+    #  Exemples (avec NB_STADES = 5) :
+    #     0 compagnons               → stade 5  (panique)
+    #     5 compagnons tous proches  → stade 0  (calme)
+    #     3 proches, 2 loin          → stade 5 - 3 + 2 = 4
+    #     1 proche, 1 loin           → stade 5 - 1 + 1 = 5
+
+    def calcul_stade_peur(self, joueur, nb_stades=5):
+        """Renvoie le stade entier 0..nb_stades selon les compagnons présents.
+        À appeler chaque frame, puis passer le résultat à FearSystem.set_target_stade()."""
+
+        nb_proches = 0
+        nb_loin    = 0
+        for c in self.compagnons:
+            if c.dans_cape:
+                nb_proches += 1
+                continue
+            distance = c.distance_au_joueur(joueur)
+            if distance <= settings.COMPAGNON_DIST_RASSURANT:
+                nb_proches += 1
+            else:
+                nb_loin += 1
+
+        stade = nb_stades - nb_proches + nb_loin
+        return max(0, min(nb_stades, stade))
 
     # ═════════════════════════════════════════════════════════════════════════
     #  7. RENDU — en deux passes pour l'effet de profondeur

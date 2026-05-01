@@ -160,7 +160,7 @@ from systems.hitbox_config   import (get_hitbox, set_hitbox,
                                       PLAYER_KEY,
                                       get_player_hitbox, set_player_hitbox)
 from world.tilemap           import Platform, Wall, Decor
-from world.triggers          import CutsceneTrigger, creer_depuis_dict
+from world.triggers          import CutsceneTrigger, FearZoneTrigger, creer_depuis_dict
 from world.tiled_importer    import importer_tiled
 from world.cinematique_editor import CinematiqueEditor
 from world.pnj_editor         import PNJEditor
@@ -484,6 +484,10 @@ class Editor:
         self._pending_portal_rect  = None
         self._pending_trigger_rect = None
         self._pending_trigger_nom  = ""
+        # Si True, le prochain rect tracé en mode 12 deviendra une fear_zone
+        # (et non une cutscene). Activé par la touche [F] en mode 12.
+        # Remis à False après création (1 [F] = 1 fear_zone).
+        self._pending_trigger_is_fear = False
         self._editing_trigger      = None   # zone en cours de rename ([R])
         self.trigger_zones         = []
 
@@ -1242,6 +1246,15 @@ class Editor:
         # ── Mode 12 : Trigger (cinématiques) ──────────────────────────────
         # [R] = renommer / régler la zone trigger SOUS LE CURSEUR (cutscene_nom
         #       puis max_plays). Évite de devoir supprimer + recréer la zone.
+        # [F] = la PROCHAINE zone tracée sera une "fear_zone" (= ralentit le
+        #       joueur s'il a trop peur, et bloque s'il n'a pas assez de
+        #       compagnons). Une seule activation = une seule fear_zone.
+        elif key == pygame.K_f and self.mode == 12:
+            self._pending_trigger_is_fear = not self._pending_trigger_is_fear
+            if self._pending_trigger_is_fear:
+                self._show_msg("Prochaine zone = FEAR_ZONE — trace le rect.")
+            else:
+                self._show_msg("Mode fear_zone annulé.")
         elif key == pygame.K_r and self.mode == 12:
             zone = self._trigger_sous_curseur()
             if zone is None:
@@ -1371,6 +1384,34 @@ class Editor:
                 self._ask_text("trigger_max_plays",
                                "Nombre max de lectures (1=unique, 0=illimité, défaut=1) :")
                 return "done"
+            elif mode == "fear_zone_params" and self._pending_trigger_rect:
+                # Format saisie : "max_peur direction texte..."
+                # ex: "0 d Vous avez trop peur"   ou  "2 g"   ou  "0"
+                # max_peur : 0..5 (défaut 0). direction : g/d/h/b (défaut d).
+                # texte : tout le reste de la ligne (peut être vide → défaut).
+                parts = name.split(" ", 2)
+                try:
+                    peur_max = int(parts[0]) if parts and parts[0] else 0
+                except ValueError:
+                    peur_max = 0
+                direction = "d"
+                if len(parts) >= 2 and parts[1] in ("g", "d", "h", "b"):
+                    direction = parts[1]
+                texte = parts[2] if len(parts) >= 3 and parts[2] else \
+                        "Vous avez trop peur pour avancer..."
+                # Les espaces tapés étaient remplacés par "_" → on les remet.
+                texte = texte.replace("_", " ")
+                r = self._pending_trigger_rect
+                self.trigger_zones.append(FearZoneTrigger(
+                    (r[0], r[1], r[2], r[3]),
+                    peur_max=peur_max, direction_mur=direction, texte=texte,
+                    nom=f"fear_{peur_max}",
+                ))
+                self._pending_trigger_rect    = None
+                self._pending_trigger_is_fear = False
+                self._show_msg(
+                    f"Fear zone créée (peur_max={peur_max}, mur={direction}).")
+                return "done"
             elif mode == "trigger_max_plays" and self._pending_trigger_rect:
                 # Étape 2/2 : on construit le trigger
                 try:
@@ -1441,9 +1482,17 @@ class Editor:
             self._text_input = self._text_input[:-1]
 
         else:
-            # Pour les PNJ, la saisie "riche" passe par l'événement TEXTINPUT
-            # (voir handle_textinput) pour supporter les accents.
-            if self._text_mode not in ("pnj_nom", "pnj_dialogue"):
+            # ── Modes "riches" : saisie via TEXTINPUT (gère majuscules,
+            # accents, ponctuation française) ─────────────────────────────
+            # Pour ces modes, on NE traite PAS la touche en KEYDOWN
+            # (sauf BACKSPACE/ENTER plus haut, qui ne génèrent pas de
+            # TEXTINPUT). Tout le caractère arrive via handle_textinput().
+            #
+            # Par défaut : modes PNJ + fear_zone_params. Si tu veux ajouter
+            # un autre mode (ex: titre de map, commentaire libre…), ajoute
+            # son nom ici ET dans handle_textinput() ci-dessous.
+            modes_riches = ("pnj_nom", "pnj_dialogue", "fear_zone_params")
+            if self._text_mode not in modes_riches:
                 char = pygame.key.name(key)
                 if len(char) == 1 and (char.isalnum() or char in ",.#"):
                     self._text_input += char
@@ -1472,8 +1521,13 @@ class Editor:
         return "typing"
 
     def handle_textinput(self, text):
-        """Appelé depuis game.py sur les TEXTINPUT (saisie riche PNJ)."""
-        if self._text_mode in ("pnj_nom", "pnj_dialogue"):
+        """Appelé depuis game.py sur les TEXTINPUT (saisie riche).
+
+        Les TEXTINPUT remontent les caractères "finalisés" par l'OS, donc
+        gèrent NATIVEMENT les majuscules (Shift), les accents (â, é, ç…)
+        et la ponctuation française. Pour ces modes-ci, on by-pass la
+        boucle KEYDOWN (cf. _handle_text) — le caractère arrive ici."""
+        if self._text_mode in ("pnj_nom", "pnj_dialogue", "fear_zone_params"):
             self._text_input += text
 
     def _list_maps(self):
@@ -1738,7 +1792,17 @@ class Editor:
                            "Map cible :" + (f"  ({', '.join(maps)})" if maps else ""))
         elif kind == "trigger":
             self._pending_trigger_rect = (x, y, w, h)
-            self._ask_text("trigger_nom", "Nom de la cinématique (ex: intro) :")
+            if self._pending_trigger_is_fear:
+                # Saisie unique pour les 3 paramètres : "max dir texte"
+                # exemple : "0 d Vous avez trop peur pour avancer..."
+                # Astuce multi-ligne : utiliser | comme séparateur.
+                # exemple : "0 d Le couloir est sombre.|Reviens plus tard."
+                self._ask_text(
+                    "fear_zone_params",
+                    "Fear zone — peur_max(0-5) dir(g/d/h/b) texte (| = saut de ligne) :")
+            else:
+                self._ask_text("trigger_nom",
+                               "Nom de la cinématique (ex: intro) :")
         elif kind == "hole":
             # Avant le 1er trou, on crée un point de restauration (Phase 2).
             if not self.has_holes:

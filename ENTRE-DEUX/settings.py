@@ -280,6 +280,64 @@ PEUR_VITESSE_BAISSE_PROCHE = 6      # peur baisse / s par compagnon proche
 PEUR_VITESSE_HAUSSE_LOIN   = 8      # peur monte  / s par compagnon trop loin
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  ZONES DE PEUR (FearZoneTrigger) — règles de ralentissement
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Quand le joueur entre dans une zone de peur ET que son stade > peur_max
+#  exigée par la zone, on RALENTIT sa vitesse. Règle :
+#
+#       multiplicateur = max(MIN, 1.0 - REDUCTION_PAR_STADE × (stade - peur_max))
+#
+#  Exemples avec les défauts (MIN = 0.08 et REDUCTION = 0.22) :
+#     - +1 stade au-dessus → 1.0 - 0.22 = 0.78 (sensiblement plus lent)
+#     - +2 stades          → 0.56
+#     - +3 stades          → 0.34
+#     - +4 stades          → 0.12
+#     - +5 stades          → 0.08  (plancher atteint, on rampe)
+#
+#  POURQUOI UN PLANCHER (et pas zéro) ?
+#  ------------------------------------
+#  À 8 % de vitesse on bouge encore d'environ 16 px/s — assez pour
+#  pouvoir reculer si on s'est trop avancé. Combiné au RALENTISSEMENT
+#  PROGRESSIF (cf. world/triggers.py facteur_vitesse_progressif), dès
+#  qu'on s'éloigne du mur on récupère de la vitesse, donc le demi-tour
+#  reste toujours possible. Mais collé au mur, c'est un calvaire — c'est
+#  exactement ce qu'on veut pour faire comprendre "tu ne dois pas être là".
+#
+#  POURQUOI 0.08 ET 0.22 ?
+#  -----------------------
+#  Réglages calibrés pour que :
+#     - Stade 5 vs peur_max 0 : on rampe vraiment près du mur (8%).
+#     - Stade 2 vs peur_max 0 : ralentissement marqué (56%) mais jouable.
+#     - Stade 1 vs peur_max 0 : léger handicap (78%) — la zone se
+#       remarque sans être pénible.
+#  Tu peux ajuster MIN plus bas (0.05 = vraiment immobile) ou plus haut
+#  (0.20 = encore "praticable") selon ton goût.
+
+FEAR_ZONE_VITESSE_MIN          = 0.08   # plancher : 8 % au pire (presque sur place)
+FEAR_ZONE_REDUCTION_PAR_STADE  = 0.22   # 22 % de vitesse en moins par stade en trop
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Vitesse de RECUL (quand on s'éloigne du mur de peur)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Si le joueur va DANS LE SENS OPPOSÉ au mur (= il essaie de sortir de
+#  la zone), on lui rend une vitesse "presque normale" (75 % par défaut),
+#  même s'il est physiquement contre le mur. Sans ça, le joueur croit
+#  qu'il est bloqué — il appuie pour reculer mais bouge à peine.
+#
+#  Avec ce système, dès qu'il change de direction, il se sent capable
+#  de fuir → message clair : "je peux sortir si je le veux".
+#
+#  On garde le ralentissement progressif quand il VA VERS le mur
+#  (la zone reste dissuasive dans le bon sens).
+#
+#  Mettre 1.0 → vitesse pleine en recul (très permissif).
+#  Mettre 0.5 → recul ralenti aussi (déconseillé : risque blocage perçu).
+
+FEAR_ZONE_VITESSE_RECUL        = 0.75   # 75 % quand on s'éloigne du mur
+
+
 # ── PALETTE DES LUCIOLES (couleur + taille personnalisables par slot) ───────
 #
 #  Le joueur peut, via le menu Paramètres → Compagnons, choisir une couleur

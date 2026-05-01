@@ -64,9 +64,9 @@ from ui.inventory import Inventory, ITEMS
 from ui.items_effects import play_cassette
 
 # ── Entités vivantes
+from entities.boss import *
 from entities.player import Player
 from entities.enemy import Enemy
-from entities.boss import *
 
 # ── Monde (éditeur, plateformes, collisions)
 from world.editor import Editor
@@ -93,6 +93,7 @@ from ui.hud import HUD
 from ui.help_overlay import HelpOverlay
 from ui.settings_screen import SettingsScreen
 from ui.inventory import Inventory
+from ui.fear_overlay import FearOverlay
 from ui.gestionnaire_histoire import GestionnaireHistoire
 
 # ── Utilitaires et audio
@@ -209,14 +210,22 @@ class Game:
         # On branche le menu Paramètres MAINTENANT (après joueur créé).
         self.parametres.bind_compagnons(self.compagnons, self.joueur)
 
+        # ── Tracking des sources de lucioles déjà obtenues ──
+        # Ensemble (set) de chaînes : "boss_miroir", "villageois_anna", etc.
+        # Mis à jour par gagner_luciole_unique() et sauvegardé dans save.json
+        # (cf. _sauvegarder() / _charger_partie()). Sert à NE PAS redonner
+        # une luciole quand le joueur retue le même boss après un reload
+        # ou parle 2 fois au même villageois récompenseur.
+        self.lucioles_sources_obtenues = set()
+
         # On crée une liste d'ennemis qui contiendra aussi nos Boss
         # On les instancie ici pour qu'ils soient chargés en mémoire dès le début
         self.ennemis = [
             Enemy(500, 530 - 60),
             BossMiroir(800, 400),       # Ajout du premier boss
-            
+            LaTempête(1200, 400),    # Ajout du deuxième boss
         ]
-        #  BossTempete(1200, 400),    # Ajout du deuxième boss
+
         # Zones-déclencheurs (téléportation, cinématiques) — vide au boot,
         # rempli par les cartes / l'éditeur. cf. world/triggers.py [D02]
         self.triggers = TriggerZoneGroup()
@@ -325,6 +334,13 @@ class Game:
 
         self.hud        = HUD()                          # cœurs + jauge de peur
         self.peur       = FearSystem(max_fear=100)       # 0 → 100
+        # Overlay du texte d'avertissement quand on entre dans une fear_zone
+        # avec trop de peur. La police sera injectée plus tard (init différée
+        # car HUD/police chargés plus tard).
+        self.fear_overlay = FearOverlay()
+        # Multiplicateur de vitesse appliqué au joueur par les fear_zones.
+        # Recalculé chaque frame : 1.0 = vitesse normale, 0.5 = ralenti, etc.
+        self._mult_vitesse_peur = 1.0
         self.aide       = HelpOverlay()                  # aide F1
         self.parametres = SettingsScreen()               # écran Paramètres
 
@@ -570,7 +586,16 @@ class Game:
         self._etait_dash   = j.dashing
 
     def _declencher_effets_ennemis(self, ennemis_alive_avant):
-        """Screen shake + particules quand un ennemi vient de mourir."""
+        """Screen shake + particules quand un ennemi vient de mourir.
+
+        BONUS : si le mort est un BOSS, on déclenche aussi un gain de
+        luciole (récompense rare). On reconnaît un boss en testant
+        isinstance(ennemi, Boss) — voir entities/boss.py.
+        """
+        # Import local pour éviter d'alourdir l'en-tête du fichier et
+        # les imports circulaires potentiels.
+        from entities.boss import Boss
+
         for ennemi in self.ennemis:
             if ennemi.alive:
                 continue
@@ -586,6 +611,74 @@ class Game:
                     gravity=800, taille=(1, 4),
                     duree=(0.4, 0.8),
                 )
+
+                # ── Récompense BOSS : +1 luciole (max 5 dans tout le jeu) ───
+                # On utilise gagner_luciole_unique() qui mémorise la source
+                # → un boss déjà tué dans une partie précédente (rechargée)
+                # ne donne plus de luciole. Identifiant = type de la classe
+                # (ex: "boss_BossMiroir") pour distinguer chaque boss.
+                if isinstance(ennemi, Boss):
+                    source_id = f"boss_{ennemi.__class__.__name__}"
+                    obtenue = self.gagner_luciole_unique(source_id)
+                    # Petit feu d'artifice supplémentaire si on a vraiment
+                    # gagné quelque chose — plus marquant qu'une mort
+                    # d'ennemi normale. À transformer en VRAI effet visuel
+                    # (FX, son spécial...) le jour où tu en feras un.
+                    if obtenue:
+                        self.particles.burst(
+                            self.joueur.rect.centerx,
+                            self.joueur.rect.centery,
+                            nb=30,
+                            couleur=(255, 230, 160),
+                            vx_range=(-160, 160),
+                            vy_range=(-220, -40),
+                            gravity=400, taille=(2, 5),
+                            duree=(0.6, 1.2),
+                        )
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 4b. Récompense de luciole avec mémoire (anti double-don)
+    # ═════════════════════════════════════════════════════════════════════════
+    #
+    #  Helper à utiliser POUR TOUTES les récompenses uniques (boss,
+    #  villageois, énigmes, etc.). Vérifie d'abord si la source a déjà
+    #  donné une luciole, puis :
+    #     - si oui → ne fait rien, renvoie False
+    #     - si non → ajoute la luciole, mémorise la source, renvoie True
+    #
+    #  La mémoire est sauvegardée dans save.json (clé "lucioles_sources_obtenues")
+    #  → le joueur ne peut pas farmer en rechargeant après un boss.
+    #
+    #  EXEMPLES D'USAGE :
+    #     self.gagner_luciole_unique("boss_BossMiroir")
+    #     self.gagner_luciole_unique("villageois_anna_quete1")
+    #     self.gagner_luciole_unique("enigme_foret_lune")
+
+    def gagner_luciole_unique(self, source_id):
+        """Donne une luciole UNE SEULE FOIS pour une source donnée.
+
+        Renvoie True si une nouvelle luciole a été créée, False sinon
+        (déjà obtenue OU groupe au max). La sauvegarde de la mémoire
+        se fait quand le joueur appuie sur "Sauvegarder" — ce n'est
+        donc pas instantané (cohérent avec le reste du système)."""
+
+        # Source déjà utilisée dans cette partie (ou partie chargée) ?
+        # → on refuse.
+        if source_id in self.lucioles_sources_obtenues:
+            return False
+
+        # On tente l'ajout. La fonction renvoie False si on est au max
+        # (5 lucioles déjà). Dans ce cas, on NE mémorise PAS la source,
+        # comme ça quand le joueur perdra une luciole d'une autre façon
+        # (futur système ?), il pourra retenter. À adapter selon le
+        # design qu'on veut.
+        ok = self.compagnons.gagner_luciole(
+            joueur=self.joueur,
+            source=source_id,
+        )
+        if ok:
+            self.lucioles_sources_obtenues.add(source_id)
+        return ok
 
     # ═════════════════════════════════════════════════════════════════════════
     # 5.  PORTAILS & FONDU ENCHAÎNÉ (transitions entre cartes)
@@ -862,19 +955,46 @@ class Game:
 
         self.joueur.rect.x = donnees.get("x", self.joueur.spawn_x)
         self.joueur.rect.y = donnees.get("y", self.joueur.spawn_y)
+
+        # ── Restauration du nombre de LUCIOLES gagnées ─────────────────
+        # Sans ça, à chaque "Continuer" on repartirait avec la valeur du
+        # menu Paramètres (game_config.json), donc une partie à 4 lucioles
+        # gagnées via boss/villageois retomberait à 0 après quit/restart.
+        # Si la clé est absente (vieille save), on garde le nb actuel.
+        if "nb_compagnons" in donnees:
+            self.compagnons.set_nb(int(donnees["nb_compagnons"]))
+
+        # ── Restauration des sources de lucioles déjà obtenues ─────────
+        # Évite que tuer 2 fois le même boss (rejouer après reload) ne
+        # redonne une luciole en double. Cf. compagnons.gagner_luciole().
+        self.lucioles_sources_obtenues = set(
+            donnees.get("lucioles_sources_obtenues", [])
+        )
+
         self.compagnons.respawn(self.joueur)
         self.etats.switch(GAME)
 
     def _sauvegarder(self):
         """Écrit la partie courante dans save.json."""
         sauvegarder({
-            "mode":                 self.mode,
-            "hp":                   self.joueur.hp,
-            "map":                  self.carte_actuelle,
-            "x":                    self.joueur.rect.x,
-            "y":                    self.joueur.rect.y,
-            "cinematiques_jouees":  self.cinematiques_jouees,
-            "historique_dialogues": self.historique_dialogues,
+            "mode":                       self.mode,
+            "hp":                         self.joueur.hp,
+            "map":                        self.carte_actuelle,
+            "x":                          self.joueur.rect.x,
+            "y":                          self.joueur.rect.y,
+            "cinematiques_jouees":        self.cinematiques_jouees,
+            "historique_dialogues":       self.historique_dialogues,
+            # ── Lucioles ─────────────────────────────────────────────────
+            # Nombre courant de lucioles dans le groupe (incluant celles
+            # gagnées en jeu via gagner_luciole). Lu au "Continuer" pour
+            # restaurer le bon nombre.
+            "nb_compagnons":              len(self.compagnons.compagnons),
+            # Liste des sources déjà utilisées (ex: "boss_miroir",
+            # "villageois_anna"). Sert à éviter le double-don sur reload.
+            # On convertit en list car JSON ne sait pas sérialiser un set.
+            "lucioles_sources_obtenues":  list(getattr(self,
+                                                "lucioles_sources_obtenues",
+                                                set())),
         })
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -1115,6 +1235,12 @@ class Game:
             self.dialogue.avancer()
             return
 
+        # Si l'overlay "fear text" est visible : Espace = fade-out immédiat.
+        # Placé APRÈS le dialogue pour ne pas le voler quand un PNJ parle.
+        if self.fear_overlay.actif and key == pygame.K_SPACE:
+            self.fear_overlay.skip()
+            return
+
         # Échap :
         #   1. Saisie texte éditeur ouverte → on annule la saisie.
         #   2. Cinématique en cours          → on la SKIPE entièrement.
@@ -1128,6 +1254,19 @@ class Game:
             elif not self.dialogue.actif:
                 self.etats.switch(PAUSE)
                 self.menu_pause.selection = 0
+            return
+
+        # ── Saisie texte de l'éditeur OUVERTE ? ─────────────────────────────
+        # Quand une popup demande de taper un texte (nom de map, dialogue
+        # PNJ, paramètres de fear zone, etc.), TOUTES les autres touches
+        # (E, C, TAB, J, H, F4...) doivent être traitées comme du texte
+        # à saisir, PAS comme des raccourcis. Sinon impossible d'écrire
+        # "Ne reste pas là" parce que le E fermerait l'éditeur, le C
+        # appellerait les compagnons, etc. Échap sert toujours à annuler
+        # (déjà géré juste au-dessus).
+        if self.editeur.active and self.editeur._text_mode:
+            resultat = self.editeur.handle_key(key)
+            self._traiter_resultat_editeur(resultat)
             return
 
         # TAB : ouvrir/fermer l'inventaire.
@@ -1428,17 +1567,167 @@ class Game:
                 if hasattr(self.camera, "release_cinematic"):
                     self.camera.release_cinematic()
 
-        # Compagnons : IA + influence sur la jauge de peur.
+        # Compagnons : IA + nouveau calcul du STADE de peur (5 niveaux discrets).
+        # Règle : stade = 5 - nb_proches + nb_loin (clampé). Voir compagnons.py.
         self.compagnons.update(dt, self.joueur)
-        self.compagnons.affecter_peur(self.peur, self.joueur, dt)
+        target_stade = self.compagnons.calcul_stade_peur(self.joueur,
+                                                         FearSystem.NB_STADES)
+        self.peur.set_target_stade(target_stade)
+        self.peur.update(dt)
+
+        # Fear zones : ralentissement + texte + mur invisible si peur trop forte.
+        # On délègue à _appliquer_fear_zones() pour garder ce bloc lisible.
+        self._appliquer_fear_zones()
 
         self.hud.update(dt, self.joueur, self.peur)
+        # L'overlay texte se met à jour aussi (pour le fade in/out).
+        self.fear_overlay.update(dt)
 
         # Particules et shake (le shake continue pendant la hit-pause
         # pour qu'on sente bien l'impact).
         self.particles.update(dt)
         self.camera.shake_offset = self.shake.update(dt)
         self.hp_overlay.update(dt)
+
+    # ═════════════════════════════════════════════════════════════════════════
+    # 9b. FEAR ZONES — ralentissement progressif + mur côté direction_mur
+    # ═════════════════════════════════════════════════════════════════════════
+    #
+    #  Logique appliquée chaque frame, depuis update() :
+    #
+    #    1) On parcourt les fear_zones de la carte.
+    #    2) Si le joueur EST dans la zone :
+    #         a) On garde le facteur de vitesse le plus contraignant
+    #            (= le plus petit) parmi les zones où il se trouve.
+    #         b) On affiche le texte d'avertissement (si stade > peur_max).
+    #         c) On érige un mur invisible sur le côté `direction_mur`
+    #            (par défaut "d" = droite) → le joueur ne peut PAS
+    #            franchir cette frontière tant qu'il a trop peur.
+    #    3) Si aucune zone ne le ralentit → multiplier = 1.0.
+    #    4) Si le joueur est SORTI de toutes les zones → on cache l'overlay.
+    #
+    #  POURQUOI LE MUR REVIENT-IL ?
+    #  ----------------------------
+    #  Sans mur, une zone de peur reste juste "lente" : le joueur peut
+    #  passer à 35 % de vitesse, c'est pénible mais pas un vrai obstacle
+    #  scénaristique. Avec le mur (côté direction_mur uniquement), on a
+    #  un VRAI gate : tu DOIS avoir assez de lucioles pour franchir. Pour
+    #  les autres côtés (les bords sans mur), le joueur peut toujours
+    #  rebrousser chemin → pas de piège, juste une frontière dirigée.
+    #
+    #  RÈGLE ANTI-BLOCAGE :
+    #  Le multiplicateur de vitesse a un PLANCHER (FEAR_ZONE_VITESSE_MIN
+    #  = 0.35). Donc même si tu rentres dans la zone et heurtes le mur,
+    #  tu peux toujours marcher pour reculer et en sortir par l'autre
+    #  côté. Ce qui résout le bug initial "je rentre un poil et je suis
+    #  coincé" tout en gardant la sensation d'un vrai obstacle.
+
+    def _appliquer_fear_zones(self):
+        """Calcule self._mult_vitesse_peur, déclenche overlay et mur."""
+
+        # Sans triggers (carte sans fear_zone), on remet les défauts et basta.
+        if not hasattr(self, "triggers") or self.triggers is None:
+            self.joueur.speed_multiplier = 1.0
+            return
+
+        from world.triggers import FearZoneTrigger
+        stade = self.peur.get_stade()
+
+        mult_min = 1.0          # Le plus petit (= plus pénalisant) gagne.
+        in_zone  = False        # Y a-t-il au moins une zone qui me contient ?
+        texte_a_afficher = None
+        rect_mur = None         # Le mur le plus contraignant (1 seul à la fois).
+        zone_mur = None         # La zone correspondante (pour le côté).
+
+        for zone in self.triggers.zones:
+            if not isinstance(zone, FearZoneTrigger):
+                continue
+            if not zone.rect.colliderect(self.joueur.rect):
+                continue
+
+            in_zone = True
+            # Facteur PROGRESSIF : varie selon la position du joueur dans
+            # la zone. Loin du mur = peu pénalisé. Collé au mur = maximum
+            # de ralentissement. Donne un feedback kinesthétique qui
+            # indique au joueur dans quel sens fuir.
+            facteur = zone.facteur_vitesse_progressif(stade, self.joueur.rect)
+            if facteur < mult_min:
+                mult_min = facteur
+
+            # Si trop de peur pour cette zone : afficher le texte + mur.
+            if stade > zone.peur_max:
+                texte_a_afficher = zone.texte
+                rect_mur = zone.rect_mur()
+                zone_mur = zone
+
+        # Applique le multiplicateur de vitesse au joueur. Lu chaque frame
+        # par player.py, à la fois pour la marche/course ET le dash/slide
+        # (cf. entities/player.py — la vitesse est ralentie partout).
+        self.joueur.speed_multiplier = mult_min
+
+        # ── Direction du mur + bonus de RECUL ──────────────────────────
+        # On expose au joueur la direction de la "menace" pour qu'il
+        # puisse appliquer un multiplicateur PLUS PERMISSIF quand il va
+        # dans le sens OPPOSÉ (= il essaie de sortir de la zone).
+        # Sans ça, à 8 % de vitesse, le joueur croit être bloqué quand
+        # il appuie pour reculer.
+        #
+        # Convention :
+        #   fear_wall_dir = "d" / "g" / "h" / "b" / None
+        #   fear_recul_mult = vitesse en repli (typiquement 0.75)
+        #
+        # entities/player.py fait le test "ax va dans le sens OPPOSÉ au
+        # mur ? Alors j'utilise fear_recul_mult au lieu de speed_multiplier".
+        if zone_mur is not None:
+            self.joueur.fear_wall_dir = zone_mur.direction_mur
+            try:
+                import settings as _s
+                self.joueur.fear_recul_mult = _s.FEAR_ZONE_VITESSE_RECUL
+            except (ImportError, AttributeError):
+                self.joueur.fear_recul_mult = 0.75
+        else:
+            # Pas de mur (zone inactive ou peur OK) → on neutralise.
+            self.joueur.fear_wall_dir = None
+            self.joueur.fear_recul_mult = 1.0
+
+        # Affichage du texte (seulement si on est dans une zone trop dure).
+        # On laisse FearOverlay choisir lui-même sa police "mystère"
+        # (cf. ui/fear_overlay.py) — pas besoin d'injecter celle du HUD,
+        # qui ne donne pas l'ambiance voulue (Consolas trop "code").
+        if texte_a_afficher:
+            self.fear_overlay.show(texte_a_afficher)
+
+        # Plus dans aucune zone trop dure → on fait disparaître l'overlay.
+        if not in_zone:
+            self.fear_overlay.hide()
+
+        # ── Mur invisible côté `direction_mur` ──────────────────────────────
+        # Le mur est une fine bande (8 px) sur le bord `direction_mur` de
+        # la zone. On bloque la traversée dans LES DEUX SENS à travers
+        # cette bande : que le joueur arrive de l'extérieur ou tente de
+        # sortir de l'intérieur, il est repoussé du côté où il se trouve
+        # déjà (push perpendiculaire au mur, vers le centre de masse du
+        # joueur). Les autres bords de la zone restent libres → on peut
+        # toujours rebrousser chemin pour ressortir, donc pas de piège.
+        if rect_mur and zone_mur and self.joueur.rect.colliderect(rect_mur):
+            r = self.joueur.rect
+            cote = zone_mur.direction_mur
+
+            if cote in ("d", "g"):
+                # Mur vertical : on regarde sur quelle face du mur le
+                # joueur se trouve (centerx) et on le pousse de ce côté.
+                if r.centerx < rect_mur.centerx:
+                    r.right = rect_mur.left
+                else:
+                    r.left = rect_mur.right
+                self.joueur.vx = 0
+            else:
+                # Mur horizontal ("h" = haut, "b" = bas).
+                if r.centery < rect_mur.centery:
+                    r.bottom = rect_mur.top
+                else:
+                    r.top = rect_mur.bottom
+                self.joueur.vy = 0
 
     # ═════════════════════════════════════════════════════════════════════════
     # 10.  RENDU — dessine le monde et les interfaces
@@ -1623,6 +1912,9 @@ class Game:
         if not self.editeur.active:
             self.hp_overlay.draw(self.screen, self.joueur)
             self.hud.draw(self.screen, self.joueur, self.peur)
+            # Overlay "fear text" : dessiné par-dessus le HUD pour rester
+            # lisible. Invisible si self.fear_overlay.actif est False.
+            self.fear_overlay.draw(self.screen)
 
         # 18-21. Gestionnaire histoire, inventaire, dialogue, aide.
         self.gestionnaire_histoire.draw(self.screen)
@@ -1729,7 +2021,19 @@ class Game:
             # clock.tick(FPS) attend ce qu'il faut pour viser FPS images/s.
             # Elle renvoie le nombre de MILLISECONDES depuis le dernier appel.
             # On divise par 1000 pour passer en secondes.
-            self._dt = self.clock.tick(FPS) / 1000
+            #
+            # CAP DU DT (critique sur Windows) : quand l'utilisateur déplace
+            # la fenêtre, pygame gèle le main loop. Au moment du lâcher, dt
+            # peut grimper à 1-5 secondes → la physique calcule
+            # velocity × dt et le joueur se téléporte SOUS la plateforme
+            # parce qu'il bouge plus que l'épaisseur de la plateforme en
+            # 1 frame (= traverse les collisions). Idem au tout 1er frame
+            # après chargement (init lent). On cape donc à 50 ms (= comme
+            # si on tournait à 20 fps minimum), ce qui garantit que la
+            # détection de collision fonctionne. Sur Mac le bug n'apparaît
+            # pas car SDL2 gère le déplacement de fenêtre différemment.
+            dt_brut  = self.clock.tick(FPS) / 1000
+            self._dt = min(dt_brut, 0.05)
 
             # ── 2. Collecte des events ──
             events = pygame.event.get()

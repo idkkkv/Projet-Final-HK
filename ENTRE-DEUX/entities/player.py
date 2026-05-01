@@ -166,6 +166,27 @@ class Player:
         self.puissance_saut = JUMP_POWER
         self.speed          = PLAYER_SPEED
         self.run_speed      = PLAYER_RUN_SPEED
+        # Multiplicateur de vitesse temporaire (1.0 = normal).
+        # Utilisé par les fear_zones pour ralentir le joueur quand il a
+        # trop peur. game.py recalcule cette valeur chaque frame avant
+        # update(). Si plusieurs effets veulent ralentir, ils se cumulent
+        # par MULTIPLICATION (0.5 × 0.5 = 0.25). Voir _appliquer_fear_zones().
+        self.speed_multiplier = 1.0
+
+        # ── Système de recul dans une fear_zone ──────────────────────────
+        # Quand le joueur est dans une zone avec un mur de peur, on lui
+        # accorde une vitesse PLUS PERMISSIVE quand il va dans le sens
+        # OPPOSÉ au mur (il essaie de sortir → on lui rend ~75 %).
+        # Sans ça, avec speed_multiplier à 8 %, le joueur croit être
+        # bloqué et n'arrive pas à fuir intuitivement.
+        #
+        # Mis à jour chaque frame par game.py _appliquer_fear_zones() :
+        #   fear_wall_dir   : "d"/"g"/"h"/"b"/None — où est le mur
+        #   fear_recul_mult : multiplicateur quand on s'éloigne (~0.75)
+        # La méthode _mult_horizontal() décide quoi appliquer selon
+        # le sens de l'input ou du dash.
+        self.fear_wall_dir   = None
+        self.fear_recul_mult = 1.0
 
         # ── Combat ──
         self.attack_has_hit   = False                 # True si on a touché un ennemi durant l'attaque actuelle
@@ -468,6 +489,44 @@ class Player:
     # 3.  CYCLE DE VIE (respawn, rechargement de la hitbox)
     # ═════════════════════════════════════════════════════════════════════════
 
+    # ─── Helper : multiplicateur de vitesse selon le sens horizontal ─────
+    #
+    #  Renvoie le multiplicateur à appliquer pour un mouvement horizontal :
+    #     - sens > 0  → on va vers la DROITE
+    #     - sens < 0  → on va vers la GAUCHE
+    #     - sens = 0  → immobile (on renvoie speed_multiplier de base)
+    #
+    #  Cas spécial fear_zone : si on s'éloigne du mur (sens opposé au
+    #  fear_wall_dir), on utilise le multiplicateur de RECUL qui est
+    #  généralement bien plus généreux (0.75 au lieu de 0.08 par ex).
+    #  Le joueur ressent donc qu'il peut TOUJOURS fuir vers la sortie,
+    #  même au pire stade de peur.
+    #
+    #  Si pas de fear_zone active (fear_wall_dir = None ou "h"/"b" pour
+    #  un mur vertical alors que le mouvement est horizontal), on renvoie
+    #  simplement speed_multiplier — comportement classique.
+
+    def _mult_horizontal(self, sens):
+        """Multiplicateur effectif pour un mouvement horizontal."""
+        base = self.speed_multiplier
+        wall = self.fear_wall_dir
+
+        # Pas de mur OU mur horizontal (h/b) : pas de bonus de recul
+        # latéral, on garde le multiplicateur de base.
+        if wall not in ("d", "g") or sens == 0:
+            return base
+
+        # On s'éloigne du mur ?
+        #   - mur "d" (à droite) → s'éloigner = aller à gauche (sens < 0)
+        #   - mur "g" (à gauche) → s'éloigner = aller à droite (sens > 0)
+        s_eloigne = (wall == "d" and sens < 0) or (wall == "g" and sens > 0)
+        if s_eloigne:
+            # On prend le MAX des deux : si le base est déjà > recul_mult
+            # (peu probable mais possible), on n'aggrave pas la situation.
+            return max(base, self.fear_recul_mult)
+        # Va vers le mur → multiplicateur sévère habituel.
+        return base
+
     def respawn(self):
         """Fait réapparaître le joueur à son point de spawn avec PV pleins.
 
@@ -736,6 +795,17 @@ class Player:
             # Back dodge : vitesse réduite + arrêt du mouvement pendant la
             # phase de récupération (frames 14-20 = perso se relève, ne
             # doit plus reculer physiquement).
+            #
+            # speed_multiplier : appliqué AUSSI au dash et au back dodge.
+            # C'est volontaire : les fear_zones ralentissent "de toutes les
+            # manières possibles" (cf. settings.py / world/triggers.py). Si
+            # le dash gardait sa pleine vitesse, le joueur pourrait esquiver
+            # le ralentissement → on perdrait l'effet de la zone.
+            #
+            # MAIS : on utilise _mult_horizontal(self.dash_dir) — donc si
+            # on dash dans le sens OPPOSÉ au mur (= on s'enfuit), on a le
+            # bonus de recul (~75 %). Logique : un dash de fuite reste
+            # efficace, un dash vers le mur est étouffé.
             if self.dash_back:
                 progress = 1.0 - (self.dash_timer / BACK_DODGE_DURATION)
                 if progress >= BACK_DODGE_MOVE_FRACTION:
@@ -744,9 +814,11 @@ class Player:
                     self.vx = 0
                 else:
                     # Phase recoil : le perso recule.
-                    self.vx = BACK_DODGE_SPEED * self.dash_dir
+                    self.vx = BACK_DODGE_SPEED * self.dash_dir * \
+                              self._mult_horizontal(self.dash_dir)
             else:
-                self.vx = DASH_SPEED * self.dash_dir
+                self.vx = DASH_SPEED * self.dash_dir * \
+                          self._mult_horizontal(self.dash_dir)
             self.walking = False
             self.idle = False
         else:
@@ -761,13 +833,13 @@ class Player:
                     self.idle_anim_run_turn.reset()
                     self.direction = ax
 
-                self.vx = ax * self.run_speed
+                self.vx = ax * self.run_speed * self._mult_horizontal(ax)
                 self.run_duree += dt
             else:
                 if self.run_state in ["run", "start"]:
                     self.run_state = "stop"
                     self.idle_anim_run_stop.reset()
-                self.vx = ax * self.speed
+                self.vx = ax * self.speed * self._mult_horizontal(ax)
 
             # ── Override wall-jump push ──────────────────────────────────
             # Pendant la phase de push (juste après un wall jump), on FORCE

@@ -40,16 +40,22 @@
       "h": 1926
     },
     {
-      "x": 2884,
-      "y": 1526,
-      "w": 110,
-      "h": 313
-    },
-    {
       "x": 2721,
       "y": 1602,
       "w": 198,
       "h": 15
+    },
+    {
+      "x": 2683,
+      "y": 1393,
+      "w": 99,
+      "h": 289
+    },
+    {
+      "x": 2362,
+      "y": 1399,
+      "w": 328,
+      "h": 133
     }
   ],
   "custom_walls": [],
@@ -299,16 +305,6 @@
   "pnjs": [
     {
       "type": "pnj",
-      "x": 1907,
-      "y": 2884,
-      "nom": "Ne cherche pas \u00e0 avancer. Ce n'est pas par l\u00e0 que commence le chemin.|Regarde plut\u00f4t ce que tu \u00e9vite.",
-      "sprite_name": "objet_parlant_64x96.png",
-      "dialogues": [],
-      "dialogue_mode": "boucle_dernier",
-      "has_gravity": true
-    },
-    {
-      "type": "pnj",
       "x": 2331,
       "y": 1800,
       "nom": "Pancarte",
@@ -333,5 +329,18 @@
       "has_gravity": false
     }
   ],
-  "trigger_zones": []
+  "trigger_zones": [
+    {
+      "type": "fear",
+      "x": 2415,
+      "y": 1682,
+      "w": 370,
+      "h": 151,
+      "nom": "fear_0",
+      "one_shot": false,
+      "peur_max": 0,
+      "direction_mur": "d",
+      "texte": "Vous avez trop peur pour avancer|Rebrousser chemin.."
+    }
+  ]
 }

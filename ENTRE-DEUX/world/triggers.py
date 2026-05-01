@@ -376,6 +376,234 @@ class CutsceneTrigger(TriggerZone):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+#  3b. ZONE DE PEUR (fear_zone) — limite l'accès selon le stade de peur
+# ═════════════════════════════════════════════════════════════════════════════
+#
+#  Mécanique de gameplay :
+#    - Quand le joueur ENTRE dans la zone, on affiche un overlay "fear_text"
+#      (un petit texte qui fade in/out).
+#    - Tant qu'il est DANS la zone et que son stade de peur > peur_max
+#      requise, sa vitesse est divisée par 2 par stade au-dessus
+#      (= ralentissement progressif).
+#    - Si stade > peur_max ET le joueur essaie de SORTIR par le côté
+#      "direction_mur" (par défaut: droite), il est BLOQUÉ comme par
+#      une plateforme invisible.
+#
+#  Exemple : peur_max=0 → il faut être à stade 0 (calme, 5 compagnons
+#  proches) pour traverser librement. Avec stade 2, on est ralenti
+#  ×0.25 et on bute sur le mur.
+#
+#  L'overlay et le wall sont gérés par game.py au moment du check —
+#  ce trigger ne fait QUE stocker les paramètres et exposer une méthode
+#  d'aide. Pas d'effet en propre dans on_enter / on_exit (sinon ça se
+#  déclencherait une seule fois alors qu'on veut un effet CONTINU).
+
+class FearZoneTrigger(TriggerZone):
+    """Zone qui ralentit (et finit par bloquer) le joueur quand sa peur
+    est trop élevée. one_shot=False par défaut : effet permanent tant
+    qu'on est dedans."""
+
+    # Rouge orangé : couleur "alerte/danger" en éditeur.
+    _COULEUR_DEBUG = (240, 90, 70)
+
+    def __init__(self, rect, peur_max=0, direction_mur="d",
+                 texte="Vous avez trop peur pour avancer...",
+                 nom="", one_shot=False):
+        """rect          : rectangle de la zone (coords monde).
+        peur_max         : stade de peur MAX toléré pour traverser librement
+                           (0..5). Plus c'est bas, plus c'est exigeant.
+        direction_mur    : "g"/"d"/"h"/"b" → côté de la zone qui bloque
+                           le joueur quand il a trop peur. "d" = droite.
+        texte            : message affiché à l'overlay au 1er passage.
+        """
+        super().__init__(rect, nom=nom, one_shot=one_shot)
+        # Borne peur_max dans [0, 5] (NB_STADES) pour éviter les valeurs
+        # absurdes (un peur_max=10 rendrait la zone toujours franchissable).
+        self.peur_max      = max(0, min(5, int(peur_max)))
+        # Borne la direction à une lettre valide. "d" par défaut = on bloque
+        # le côté droit, le joueur peut quand même reculer vers la gauche.
+        if direction_mur not in ("g", "d", "h", "b"):
+            direction_mur = "d"
+        self.direction_mur = direction_mur
+        self.texte         = texte
+
+    # ── Calcul du ralentissement ────────────────────────────────────────
+
+    def facteur_vitesse(self, stade):
+        """Renvoie le multiplicateur de vitesse appliqué CONTRE LE MUR.
+
+        C'est le pire cas : le joueur est tout au bord du `direction_mur`.
+        Ailleurs dans la zone, la vitesse est moins pénalisée (cf.
+        `facteur_vitesse_progressif()`).
+
+        - Stade <= peur_max → 1.0 (vitesse normale, on passe sans souci).
+        - Sinon → réduction LINÉAIRE proportionnelle au "trop-plein" de
+          peur, avec un PLANCHER pour qu'on puisse toujours marcher
+          (sinon on resterait coincé dans la zone).
+
+        Formule (cf. settings.py FEAR_ZONE_VITESSE_MIN / _REDUCTION_PAR_STADE) :
+            mult = max(MIN, 1.0 - REDUCTION × (stade - peur_max))
+
+        Exemples avec les défauts (MIN = 0.35, REDUCTION = 0.18) :
+            +1 stade  → 0.82
+            +2 stades → 0.64
+            +3 stades → 0.46
+            +4 stades → 0.35   (plancher)
+
+        Le plancher garantit qu'on peut TOUJOURS marcher pour rebrousser
+        chemin — la zone est dissuasive, pas une prison.
+        """
+        # Lecture tardive de settings → si tu changes les valeurs en cours
+        # de partie via l'éditeur de constantes, l'effet est immédiat.
+        try:
+            import settings as _s
+            mini      = _s.FEAR_ZONE_VITESSE_MIN
+            reduction = _s.FEAR_ZONE_REDUCTION_PAR_STADE
+        except (ImportError, AttributeError):
+            mini      = 0.35
+            reduction = 0.18
+
+        diff = stade - self.peur_max
+        if diff <= 0:
+            return 1.0
+        mult = 1.0 - reduction * diff
+        if mult < mini:
+            mult = mini
+        return mult
+
+    # ─────────────────────────────────────────────────────────────────────
+    #  RALENTISSEMENT PROGRESSIF SELON LA DISTANCE AU MUR
+    # ─────────────────────────────────────────────────────────────────────
+    #
+    #  Idée : plus le joueur s'approche du `direction_mur`, plus il est
+    #  ralenti. Plus il s'éloigne (vers le côté opposé de la zone), plus
+    #  il retrouve sa vitesse normale.
+    #
+    #  POURQUOI ? Pour donner un FEEDBACK CLAIR au joueur :
+    #     - "Je vais plus vite quand je m'éloigne du mur" → message :
+    #       "ce mur me repousse, j'ai trop peur pour y aller".
+    #     - "Je rampe quand je suis collé au mur" → message :
+    #       "il faut vraiment que je sorte de là".
+    #  C'est un guide kinesthétique, sans HUD ni texte explicite.
+    #
+    #  FORMULE :
+    #     prog = position relative dans la zone, depuis le côté opposé
+    #            au mur (0 = à l'opposé, 1 = collé contre le mur)
+    #     mult = 1.0 - prog × (1.0 - mult_au_mur)
+    #     mult = max(MIN_ABSOLU, mult)
+    #
+    #  Exemples avec stade = peur_max + 3 (mult_au_mur = 0.46) :
+    #     prog 0.0 (opposé)  → mult 1.00 (pleine vitesse)
+    #     prog 0.5 (milieu)  → mult 0.73
+    #     prog 1.0 (au mur)  → mult 0.46
+
+    def facteur_vitesse_progressif(self, stade, joueur_rect):
+        """Comme facteur_vitesse, mais module selon la distance au mur.
+
+        Renvoie 1.0 si stade <= peur_max (pas de pénalité du tout).
+        Sinon, interpole entre 1.0 (à l'opposé du mur) et
+        facteur_vitesse(stade) (collé contre le mur).
+        """
+        if stade <= self.peur_max:
+            return 1.0
+
+        # Multiplicateur "au mur" = pire cas (cf. facteur_vitesse).
+        mult_au_mur = self.facteur_vitesse(stade)
+
+        # Calcul de la "progression" (0 = côté opposé au mur, 1 = au mur).
+        # On utilise le centre du joueur pour éviter les sauts d'1 pixel.
+        r = self.rect
+        cote = self.direction_mur
+        if cote == "d":
+            # Mur à droite → prog = 0 quand joueur est à gauche, 1 à droite
+            if r.width <= 0:
+                prog = 1.0
+            else:
+                prog = (joueur_rect.centerx - r.left) / r.width
+        elif cote == "g":
+            # Mur à gauche → prog = 0 quand joueur est à droite
+            if r.width <= 0:
+                prog = 1.0
+            else:
+                prog = (r.right - joueur_rect.centerx) / r.width
+        elif cote == "b":
+            if r.height <= 0:
+                prog = 1.0
+            else:
+                prog = (joueur_rect.centery - r.top) / r.height
+        else:  # "h"
+            if r.height <= 0:
+                prog = 1.0
+            else:
+                prog = (r.bottom - joueur_rect.centery) / r.height
+
+        # Borne dans [0, 1] (au cas où le joueur soit légèrement hors zone
+        # à cause d'un float ou d'un push).
+        if prog < 0.0:
+            prog = 0.0
+        if prog > 1.0:
+            prog = 1.0
+
+        # ── Courbe NON-LINÉAIRE (concave) pour un effet TRÈS marqué ─────────
+        # On élève prog à une puissance < 1 pour OBTENIR une courbe qui
+        # monte vite près de l'entrée puis ralentit. Conséquence :
+        #
+        #     prog 0.0  →  pénalité 0 %      (libre)
+        #     prog 0.1  →  pénalité ~25 %    (déjà ressenti dès l'entrée)
+        #     prog 0.3  →  pénalité ~49 %    (clairement difficile)
+        #     prog 0.5  →  pénalité ~66 %    (la moitié de la marge)
+        #     prog 0.7  →  pénalité ~81 %
+        #     prog 1.0  →  pénalité 100 %    (plancher au mur)
+        #
+        # Avantage : le joueur SENT le ralentissement immédiatement quand
+        # il rentre dans la zone, ce qui rend l'effet lisible visuellement.
+        # Avant (linéaire), il fallait être à mi-zone pour voir une vraie
+        # différence — le joueur croyait "rien ne change".
+        # Si tu veux ajuster : 0.5 → courbe plus pentue (très marquée),
+        #                      0.7 → courbe douce, 1.0 → linéaire d'origine.
+        EXPOSANT_COURBE = 0.6
+        prog_courbe = prog ** EXPOSANT_COURBE
+
+        # Interpolation : 1.0 (loin) → mult_au_mur (proche), avec courbe.
+        mult = 1.0 - prog_courbe * (1.0 - mult_au_mur)
+
+        # Plancher absolu de sécurité (ne descend jamais en dessous).
+        try:
+            import settings as _s
+            mini = _s.FEAR_ZONE_VITESSE_MIN
+        except (ImportError, AttributeError):
+            mini = 0.35
+        if mult < mini:
+            mult = mini
+        return mult
+
+    # ── Mur invisible : RECTANGLE FIN sur le côté `direction_mur` ───────
+
+    def rect_mur(self, epaisseur=8):
+        """Renvoie le rect (coords monde) du mur invisible. Utilisé par
+        game.py pour bloquer le joueur si stade > peur_max."""
+        r = self.rect
+        if self.direction_mur == "d":     # bloque la sortie par la DROITE
+            return pygame.Rect(r.right - epaisseur, r.y, epaisseur, r.h)
+        if self.direction_mur == "g":
+            return pygame.Rect(r.x, r.y, epaisseur, r.h)
+        if self.direction_mur == "h":
+            return pygame.Rect(r.x, r.y, r.w, epaisseur)
+        # "b"
+        return pygame.Rect(r.x, r.bottom - epaisseur, r.w, epaisseur)
+
+    # ── Sérialisation ───────────────────────────────────────────────────
+
+    def to_dict(self):
+        d = super().to_dict()
+        d["type"]          = "fear"
+        d["peur_max"]      = self.peur_max
+        d["direction_mur"] = self.direction_mur
+        d["texte"]         = self.texte
+        return d
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 #  4. GROUPE DE TRIGGERS — un seul check() pour toutes les zones d'une carte
 # ═════════════════════════════════════════════════════════════════════════════
 #
@@ -454,6 +682,17 @@ def creer_depuis_dict(data):
             target_map=data.get("target_map"),
             nom=nom,
             one_shot=one_shot,
+        )
+    if t == "fear":
+        return FearZoneTrigger(
+            rect,
+            peur_max=data.get("peur_max", 0),
+            direction_mur=data.get("direction_mur", "d"),
+            texte=data.get("texte", "Vous avez trop peur pour avancer..."),
+            nom=nom,
+            # one_shot doit rester False pour les fear_zones : effet continu
+            # tant qu'on est dedans, et on veut le revoir à chaque entrée.
+            one_shot=False,
         )
     return TriggerZone(rect, nom=nom, one_shot=one_shot)
 
