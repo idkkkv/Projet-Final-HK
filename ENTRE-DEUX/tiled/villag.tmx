@@ -33,23 +33,6 @@
  </imagelayer>
  <objectgroup id="37" name="collisions">
   <object id="1" x="-480" y="143.978" width="1440" height="32.0222"/>
-  <object id="5" x="-106.333" y="64.3333">
-   <polygon points="0,0 -21.3333,21.6667 137.333,21 116,-1"/>
-  </object>
-  <object id="6" x="97" y="5.33333">
-   <polygon points="0,0 20.3333,-19.6667 136,-20 158.333,-0.666667"/>
-  </object>
-  <object id="7" x="-107" y="64" width="118" height="26.6667"/>
-  <object id="8" x="-111.563" y="68.9375" width="4.46875" height="21.8125"/>
-  <object id="9" x="-116.531" y="74.8438" width="4.78125" height="15.875"/>
-  <object id="10" x="-120.156" y="77.9375" width="3.40625" height="12.8438"/>
-  <object id="11" x="-123.531" y="80.9688" width="3.125" height="9.71875"/>
-  <object id="12" x="-127.031" y="83.9688" width="3.375" height="6.84375"/>
-  <object id="13" x="-72.875" y="80.75"/>
-  <object id="14" x="11.25" y="68.125" width="4.5" height="27.875"/>
-  <object id="15" x="16.875" y="74.625" width="4.625" height="20.75"/>
-  <object id="16" x="22.625" y="80.75" width="4.875" height="15.25"/>
-  <object id="17" x="28.125" y="85.25" width="3.25" height="10.5"/>
  </objectgroup>
  <layer id="7" name="décor 24" width="30" height="20">
   <data encoding="csv">
