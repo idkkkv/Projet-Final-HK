@@ -445,6 +445,28 @@
       "echelle": 1.0
     }
   ],
-  "pnjs": [],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": -830,
+      "y": 388,
+      "nom": "objet_1",
+      "sprite_name": "pancarte",
+      "dialogues": [
+        [
+          [
+            "Bienvenue au village de Veilos",
+            "objet_1"
+          ],
+          [
+            "Rencontrez les \u00e2mes d\u00e9chues",
+            "objet_1"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": false
+    }
+  ],
   "trigger_zones": []
 }
