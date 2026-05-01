@@ -172,7 +172,7 @@ class Player:
         self.attacking        = False                 # True pendant une attaque
         self.attack_dir       = "side"                # "side" ou "down"
         self.attack_rect      = pygame.Rect(0, 0, ATTACK_RECT_W, ATTACK_RECT_H)
-        self.attack_timer     = 0                     # temps restant de l'attaque
+        #self.attack_timer     = 0                     # temps restant de l'attaque
         # Drapeau qui assure qu'un pogo ne se déclenche qu'une fois par attaque.
         self._attack_buffered = False
         self.attack_ground = False                    # True si l'attaque a été déclenchée vers le sol
@@ -181,6 +181,7 @@ class Player:
         self.combo_step = 0
         self.combo_timer = 0
         self.combo_max_delay = 1.0 # secondes
+        
 
         # ── Vie & dégâts ──
         self.max_hp           = PLAYER_MAX_HP
@@ -192,6 +193,7 @@ class Player:
         self.hitted_normal    = False
         self.hitted_hard      = False
         self.healing          = False
+        self.just_fallen      = False #pour pas faire 2 atk
 
         # ── Régénération passive ──
         # Le joueur récupère 1 PV s'il reste TOTALEMENT immobile au sol
@@ -260,8 +262,11 @@ class Player:
         # atk ------------------------------
         frames_atk_x1 = self._charger_frames("1xatkmerged_0", 17)
         frames_atk_x2_long = self._charger_frames("2xatkmerged_long_0", 25)
-        frames_atk_x2_short = self._charger_frames("2xatkmerged_short_0", 25)
+        frames_atk_x2_short = self._charger_frames("2xatkmerged_short_0", 20)
         frames_atk_x3 = self._charger_frames("3xatkmerged_0", 34)
+
+        frames_jump_atk_x1 = self._charger_frames("shejumpsatkx1_00", 8)
+        frames_jump_atk_x2 = self._charger_frames("shejumpsatkx2_00", 8)
 
         # heal -----------------------------
         frames_heal_merged = self._charger_frames("shehealsmerged_0", 18)
@@ -308,6 +313,9 @@ class Player:
         self.idle_anim_2xatk_long = Animation(frames_atk_x2_long, img_dur=5, loop=False)
         self.idle_anim_2xatk_short = Animation(frames_atk_x2_short, img_dur=3, loop=False)
         self.idle_anim_3xatk = Animation(frames_atk_x3, img_dur=3, loop=False)
+
+        self.idle_anim_1xjumpatk = Animation(frames_jump_atk_x1, img_dur=3, loop=False)
+        self.idle_anim_2xjumpatk = Animation(frames_jump_atk_x2, img_dur=3, loop=False)
 
         self.idle_anim_heal = Animation(frames_heal_merged, img_dur=5, loop=False)
         self.idle_anim_hurt_normal = Animation(frames_hurt_normal, img_dur=5, loop=False)
@@ -798,13 +806,13 @@ class Player:
                     and self.wall_jump_windup_timer <= 0):
                 self.direction = ax
 
-        if self.attacking and not self.dashing:
+        """if self.attacking and not self.dashing:
             if self.combo_step == 1:
                 self.vx = self.direction * 80
             elif self.combo_step == 2:
                 self.vx = self.direction * 200
             else:  # x3
-                self.vx = self.direction * 160
+                self.vx = self.direction * 160"""
 
         # Si on ne fait rien, on prend l'animation idle
         if not self.walking and not self.dashing:
@@ -1168,18 +1176,29 @@ class Player:
             self._last_f_press_time = now
             if self.attacking and self.combo_step < 3:
                 self._combo_queued = True
-
+                
+        self.anim_finie = (
+            (self.combo_step == 1 and self.idle_anim_1xatk.done) or
+            (self.combo_step == 2 and self.idle_anim_2xatk_short.done) or
+            (self.combo_step == 3 and self.idle_anim_3xatk.done)  or
+            (self.combo_step == 1 and self.idle_anim_1xjumpatk.done) or
+            (self.combo_step == 2 and self.idle_anim_2xjumpatk.done)
+        )
+        
         # fin atk
-        if self.attacking and self.attack_timer <= 0:
+        if self.attacking and self.anim_finie:
+            self.just_fallen = False
+            if self.combo_step == 2:
+                self.idle_anim_2xatk_short.reset()
+                self.idle_anim_2xjumpatk.reset()
+            elif self.combo_step == 3:
+                self.idle_anim_3xatk.reset()
+
             if self._combo_queued and (now - self._last_f_press_time < self.combo_max_delay):
                 self.combo_step = min(self.combo_step + 1, 3)
                 self._combo_queued = False
                 self.attack_has_hit = False
                 self.attack_timer = ATTACK_DURATION 
-                if self.combo_step == 2:
-                    self.idle_anim_2xatk_short.reset()
-                else:
-                    self.idle_anim_3xatk.reset()
                 sound_manager.jouer("attaque")
             else:
                 # fin combo
@@ -1195,7 +1214,13 @@ class Player:
             self.attack_has_hit = False
             self.attack_timer = ATTACK_DURATION
             self.attack_dir = "down" if (ay > 0 and not self.on_ground) else "side"
-            self.idle_anim_1xatk.reset()
+            if not self.on_ground:
+                self.idle_anim_1xjumpatk.reset()
+                self.idle_anim_2xjumpatk.reset()
+            else:
+                self.idle_anim_1xatk.reset()
+                self.idle_anim_2xatk_short.reset()
+                self.idle_anim_3xatk.reset()
             sound_manager.jouer("attaque")
 
         # inactif trop longtemps, reset combo
@@ -1361,6 +1386,8 @@ class Player:
         # Dessinés AVANT le perso pour qu'ils soient en arrière-plan.
         # On les dessine tant qu'ils ne sont pas terminés (one-shot).
         self._draw_aerial_dash_fx(surf, camera)
+        img = self.idle_anim_idle.img()
+        anim = self.idle_anim_idle
 
         # hurt -----------------------------
         if self.hitted_hard:
@@ -1381,21 +1408,6 @@ class Player:
             img = self.idle_anim_heal.img()
             if self.idle_anim_heal.done:
                 self.healing = False
-
-        # atk ------------------------------
-        elif self.attacking:
-            if self.combo_step == 1:
-                anim = self.idle_anim_1xatk
-                self.idle_anim_1xatk.update()
-                img = self.idle_anim_1xatk.img()
-            elif self.combo_step == 2:
-                anim = self.idle_anim_2xatk_short
-                self.idle_anim_2xatk_short.update()
-                img = self.idle_anim_2xatk_short.img()
-            else:
-                anim = self.idle_anim_3xatk
-                self.idle_anim_3xatk.update()
-                img = self.idle_anim_3xatk.img()
 
         # dash -----------------------------
 
@@ -1423,25 +1435,66 @@ class Player:
             # phase push (cf. branche suivante).
             self.idle_anim_wall_jump.update()
             img = self.idle_anim_wall_jump.img()
+            
+        # jump -----------------------------
         elif not self.on_ground:
             # Double saut en cours ?
             if self.jumps_used >= 2:
                 # Forward (touche maintenue) ou vertical (statique) ?
-                if self.double_jump_forward:
-                    anim = self.idle_anim_double_jump_fwd
-                else:
-                    anim = self.idle_anim_double_jump
-                if not anim.done:
-                    anim.update()
-                    img = anim.img()
-                else:
-                    # Anim terminée → on bascule sur jump (chute)
-                    self.idle_anim_jump.update()
-                    img = self.idle_anim_jump.img()
+                if self.attacking and not self.on_ground:
+                    if self.combo_step == 1:
+                        print("X1")
+                        self.idle_anim_1xjumpatk.update()
+                        img = self.idle_anim_1xjumpatk.img()
+                    elif self.combo_step == 2:
+                        print("X2")
+                        self.idle_anim_2xjumpatk.update()
+                        img = self.idle_anim_2xjumpatk.img()
+                    self.just_fallen = True
+
+                else :
+                    if self.double_jump_forward:
+                        anim = self.idle_anim_double_jump_fwd
+                    else:
+                        anim = self.idle_anim_double_jump
+
+                    if not anim.done:
+                        anim.update()
+                        img = anim.img()
+                    else:
+                        # Anim terminée → on bascule sur jump (chute)
+                        self.idle_anim_jump.update()
+                        img = self.idle_anim_jump.img()
             else:
                 # Saut normal
-                self.idle_anim_jump.update()
-                img = self.idle_anim_jump.img()
+                if self.attacking and not self.on_ground:
+                    if self.combo_step == 1:
+                        anim = self.idle_anim_1xjumpatk
+                        self.idle_anim_1xjumpatk.update()
+                        img = self.idle_anim_1xjumpatk.img()
+                    elif self.combo_step == 2:
+                        anim = self.idle_anim_2xjumpatk
+                        self.idle_anim_2xjumpatk.update()
+                        img = self.idle_anim_2xjumpatk.img()
+                    self.just_fallen = True
+                else:
+                    self.idle_anim_jump.update()
+                    img = self.idle_anim_jump.img()
+
+        # atk ------------------------------
+        elif self.attacking and not self.just_fallen:
+            if self.combo_step == 1:
+                anim = self.idle_anim_1xatk
+                self.idle_anim_1xatk.update()
+                img = self.idle_anim_1xatk.img()
+            elif self.combo_step == 2:
+                anim = self.idle_anim_2xatk_short
+                self.idle_anim_2xatk_short.update()
+                img = self.idle_anim_2xatk_short.img()
+            else:
+                anim = self.idle_anim_3xatk
+                self.idle_anim_3xatk.update()
+                img = self.idle_anim_3xatk.img()
 
         # debut du run ----------------------------
 
@@ -1494,11 +1547,11 @@ class Player:
         # ── Compensation attaques ────────────────────────────────────────
         if self.attacking and self.attack_dir == "side":
             if self.combo_step == 1:
-                sx += 55 * self.direction
+                sx += 85 * self.direction
             elif self.combo_step == 2:
-                sx += 39 * self.direction
+                sx += 65 * self.direction
             else:  # x3
-                sx += 80 * self.direction
+                sx += 107 * self.direction
 
         # ── Compensation back dodge ──────────────────────────────────────
         # Le sprite back dodge utilise une toile 142×61 (vs ~46×55 pour
