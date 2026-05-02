@@ -1436,7 +1436,7 @@ class Game:
         hp_avant            = self.joueur.hp
         ennemis_alive_avant = [e for e in self.ennemis if e.alive]
 
-        self.ennemis = [e for e in self.ennemis if e.alive or not e.animations["die"].done]
+        self.ennemis[:] = [e for e in self.ennemis if e.alive or not e.animations["die"].done]
 
         # ── Mise à jour des entités (Ennemis et Boss) ──
         for entite in self.ennemis:

@@ -164,7 +164,7 @@ class Enemy:
 
     def __init__(self, x, y, 
                  nb_frames=1,
-                 sprite_name="mushroom",
+                 sprite_name="golem",
                  scale_factor = 2,
                  max_vie = 3,
                  has_gravity=True,             # False = vole (fantôme, oiseau)
@@ -197,19 +197,27 @@ class Enemy:
         self.scale_factor = {
             "mushroom": 2,
             "flamur": 1,
-            "monstre_perdu": 1
+            "monstre_perdu": 1,
+            "golem": 3
         }.get(sprite_name, scale_factor)
 
         frames = self._charger_frames(sprite_name, nb_frames)
         self.sprite_w = frames[0].get_width()
         self.sprite_h = frames[0].get_height()
 
+        self.nb_frame = {
+            "mushroom": {"idle": 7, "run": 8, "walk": 8, "atk": 10, "die": 15},
+            "flamur": {"idle": 1, "run": 15, "walk": 15, "atk": 1, "die": 1},
+            "monstre_perdu": {"idle": 1, "run": 1, "walk": 1, "atk": 1, "die": 1},
+            "golem": {"idle": 1, "run": 10, "walk": 10, "atk": 11, "die": 13},
+        }
+
         self.animations = {
-            "idle": Animation(self._scale_frames(self._charger_frames(sprite_name + "idle", 7)), img_dur=10),
-            "run": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", 8)), img_dur=4),
-            "walk": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", 8)), img_dur=4),
-            "atk": Animation(self._scale_frames(self._charger_frames(sprite_name + "atk", 10)), img_dur=4),
-            "die": Animation(self._scale_frames(self._charger_frames(sprite_name + "die", 15)), img_dur=4, loop=False),
+            "idle": Animation(self._scale_frames(self._charger_frames(sprite_name + "idle", self.nb_frame[sprite_name]["idle"])), img_dur=10),
+            "run": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", self.nb_frame[sprite_name]["run"])), img_dur=4),
+            "walk": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", self.nb_frame[sprite_name]["walk"])), img_dur=4),
+            "atk": Animation(self._scale_frames(self._charger_frames(sprite_name + "atk", self.nb_frame[sprite_name]["atk"])), img_dur=4),
+            "die": Animation(self._scale_frames(self._charger_frames(sprite_name + "die", self.nb_frame[sprite_name]["die"])), img_dur=4, loop=False),
         }
         self.current_anim = "idle"
         self.sprite_name = sprite_name
