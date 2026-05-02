@@ -1,5 +1,5 @@
 {
-    "activeFile": "parcoursvert2.0.tmx",
+    "activeFile": "",
     "expandedProjectPaths": [
         "."
     ],
@@ -18,6 +18,10 @@
                 "y": 1200
             }
         },
+        "2.tsx": {
+            "scaleInDock": 3,
+            "scaleInEditor": 1
+        },
         "2maps.tmx": {
             "scale": 0.5640625,
             "selectedLayer": 0,
@@ -27,7 +31,7 @@
             }
         },
         "Basic Tiles Only.tsx": {
-            "scaleInDock": 1.5,
+            "scaleInDock": 3,
             "scaleInEditor": 1
         },
         "C:/../../Downloads/Basic Tiles Only.tsx": {
@@ -43,12 +47,12 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 711.3333333333333,
+                "x": 710.6666666666666,
                 "y": 1200
             }
         },
         "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/Basic Tiles Only.tsx": {
-            "scaleInDock": 1.5
+            "scaleInDock": 1
         },
         "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/map1 sol + déco.tsx": {
             "scaleInDock": 1
@@ -57,15 +61,32 @@
             "scaleInDock": 1
         },
         "C:/Users/Utilisateur/Projet-Final-HK/sans titre.tsx": {
+            "dynamicWrapping": true,
             "scaleInDock": 1
         },
+        "House (Outside And Inside) 1Tileset.tsx": {
+            "scaleInDock": 2,
+            "scaleInEditor": 3
+        },
         "House (Outside And Inside) Tileset.tsx": {
-            "scaleInDock": 1.5,
+            "scaleInDock": 3,
+            "scaleInEditor": 1
+        },
+        "House (Outside And Inside) Tileset2.tsx": {
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "TX Village Props.tsx": {
-            "scaleInDock": 1,
+            "scaleInDock": 0.5,
             "scaleInEditor": 1
+        },
+        "big.tmx": {
+            "scale": 0.33,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1471.2121212121212,
+                "y": 975.7575757575758
+            }
         },
         "bossabandon.tmx": {
             "scale": 1.128125,
@@ -80,10 +101,10 @@
                 4
             ],
             "scale": 3,
-            "selectedLayer": 4,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": 240.16666666666666,
-                "y": 160
+                "x": 210.5,
+                "y": 186.33333333333331
             }
         },
         "map1 sol + déco.tsx": {
@@ -95,19 +116,22 @@
             "scaleInEditor": 1
         },
         "p.tmx": {
-            "scale": 16,
-            "selectedLayer": 0,
+            "expandedObjectLayers": [
+                2
+            ],
+            "scale": 0.5,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 678.78125,
-                "y": 1071
+                "x": 347,
+                "y": 664
             }
         },
         "parcoursvert.tmx": {
-            "scale": 8,
+            "scale": 2,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 602.3125,
-                "y": 861
+                "x": 267.75,
+                "y": 609.5
             }
         },
         "parcoursvert.tsx": {
@@ -129,12 +153,42 @@
             "scaleInDock": 4,
             "scaleInEditor": 1
         },
+        "s.tmx": {
+            "expandedObjectLayers": [
+                6
+            ],
+            "scale": 1.5,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 281,
+                "y": 178.66666666666669
+            }
+        },
         "seraphinhom.tmx": {
             "scale": 1.0919433593749999,
             "selectedLayer": 0,
             "viewCenter": {
                 "x": -48.99521531100479,
                 "y": 0
+            }
+        },
+        "sm.tmx": {
+            "expandedObjectLayers": [
+                7
+            ],
+            "scale": 1.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 237.66666666666666,
+                "y": 178.66666666666669
+            }
+        },
+        "sm1.tmx": {
+            "scale": 2,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 264.25,
+                "y": 96
             }
         },
         "sprites.tsx": {
@@ -144,11 +198,11 @@
             "scaleInDock": 1
         },
         "villag.tmx": {
-            "scale": 8,
+            "scale": 1,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 256.0625,
-                "y": -17.75
+                "x": 113,
+                "y": -142
             }
         },
         "villag.tmx#Basic Tiles Only": {
@@ -176,15 +230,18 @@
             "scaleInDock": 1
         },
         "étoiles.tsx": {
-            "scaleInDock": 1.5,
+            "dynamicWrapping": false,
+            "scaleInDock": 0.5,
             "scaleInEditor": 1
         }
     },
     "last.externalTilesetPath": "C:/Users/Utilisateur/Projet-Final-HK/ENTRE-DEUX/tiled",
     "last.imagePath": "C:/Users/Utilisateur/Projet-Final-HK/ENTRE-DEUX/tiled",
+    "map.height": 20,
     "map.lastUsedFormat": "tmx",
-    "map.tileHeight": 32,
-    "map.tileWidth": 32,
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 40,
     "openFiles": [
         "1maps.tmx",
         "map1 sol + déco.tsx",
@@ -195,12 +252,14 @@
         "2maps.tmx",
         "maprose.tsx",
         "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/1maps.tmx",
+        "s.tmx",
+        "sm.tmx",
         "m1.tmx",
+        "House (Outside And Inside) Tileset2.tsx",
         "House (Outside And Inside) Tileset.tsx",
         "étoiles.tsx",
-        "parcoursvert.tmx",
-        "parcoursvert2.0.tmx",
-        "parcoursvert.tsx"
+        "2.tsx",
+        "House (Outside And Inside) 1Tileset.tsx"
     ],
     "project": "sans titre.tiled-project",
     "recentFiles": [
@@ -213,13 +272,14 @@
         "2maps.tmx",
         "maprose.tsx",
         "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/1maps.tmx",
-        "m1.tmx",
-        "House (Outside And Inside) Tileset.tsx",
-        "étoiles.tsx"
+        "s.tmx",
+        "sm.tmx",
+        "m1.tmx"
     ],
+    "resizeMap.removeObjects": false,
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {
-        "height": 32,
-        "width": 32
+        "height": 16,
+        "width": 16
     }
 }

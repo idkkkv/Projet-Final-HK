@@ -301,6 +301,16 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true
+    },
+    {
+      "x": 481,
+      "y": 316,
+      "w": 63,
+      "h": 104,
+      "target_map": "s",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
     }
   ],
   "decors": [

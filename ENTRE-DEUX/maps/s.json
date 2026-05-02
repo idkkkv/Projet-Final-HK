@@ -1,0 +1,177 @@
+{
+  "ground_y": 980,
+  "ceiling_y": 0,
+  "scene_width": 1900,
+  "scene_left": 0,
+  "camera_y_offset": -230,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 1834,
+    "y": 864
+  },
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 0,
+      "y": 912,
+      "w": 1920,
+      "h": 48
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 980,
+      "w": 1900,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 1900,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2580
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 1900,
+      "y": -800,
+      "w": 800,
+      "h": 2580
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 96,
+      "y": 413,
+      "radius": 1312,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1128,
+      "y": 786,
+      "radius": 79,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 1024,
+      "y": 803,
+      "w": 66,
+      "h": 113,
+      "target_map": "sm1",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
+    },
+    {
+      "x": 1887,
+      "y": 795,
+      "w": 12,
+      "h": 119,
+      "target_map": "villag",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
+    }
+  ],
+  "decors": [
+    {
+      "x": 0,
+      "y": 0,
+      "sprite": "tiled_sv_bg_end_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 576,
+      "y": 288,
+      "sprite": "tiled_sv_d_cor_5_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 144,
+      "y": 384,
+      "sprite": "tiled_sv_d_cor_4_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 0,
+      "y": 720,
+      "sprite": "tiled_sv_d_cor_3_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 0,
+      "y": 432,
+      "sprite": "tiled_sv_d_cor_2_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 0,
+      "y": 432,
+      "sprite": "tiled_sv_d_cor_1_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 48,
+      "y": 336,
+      "sprite": "tiled_sv_d_cor_0_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 1634,
+      "y": 866,
+      "nom": "Pancarte",
+      "sprite_name": "objet_parlant_40x40.png",
+      "dialogues": [
+        [
+          [
+            "Chez S\u00e9raphin",
+            "Pancarte"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": false
+    }
+  ],
+  "trigger_zones": []
+}

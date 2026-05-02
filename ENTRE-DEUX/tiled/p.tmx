@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="24" height="35" tilewidth="32" tileheight="32" infinite="0" nextlayerid="3" nextobjectid="290">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="24" height="35" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="291">
  <tileset firstgid="1" source="parcoursvert.tsx"/>
+ <imagelayer id="3" name="bg_end" offsetx="-523.333" offsety="-527.333" mode="multiply">
+  <image source="bigé.png" width="2240" height="2240"/>
+ </imagelayer>
  <objectgroup id="2" name="collisions">
   <object id="2" x="0.0434783" y="1073.96" width="767.957" height="46.0435"/>
   <object id="3" x="143.957" y="817.938" width="48.0122" height="256.019"/>
@@ -250,6 +253,7 @@
   <object id="287" x="511.909" y="690" width="32.0909" height="16.1818"/>
   <object id="288" x="591.944" y="897.967" width="16.0556" height="32.1583"/>
   <object id="289" x="223.909" y="97.9688" width="15.9972" height="31.8494"/>
+  <object id="290" x="1540" y="-288"/>
  </objectgroup>
  <layer id="1" name="décor 1" width="24" height="35" locked="1">
   <data encoding="csv">

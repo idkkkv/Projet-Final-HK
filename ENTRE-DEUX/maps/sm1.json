@@ -1,0 +1,201 @@
+{
+  "ground_y": 350,
+  "ceiling_y": 0,
+  "scene_width": 1500,
+  "scene_left": -100,
+  "camera_y_offset": -90,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 1161,
+    "y": 284
+  },
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 0,
+      "y": 13,
+      "w": 1422,
+      "h": 36
+    },
+    {
+      "x": 29,
+      "y": 25,
+      "w": 18,
+      "h": 312
+    },
+    {
+      "x": 48,
+      "y": 290,
+      "w": 624,
+      "h": 45
+    },
+    {
+      "x": 673,
+      "y": 311,
+      "w": 30,
+      "h": 27
+    },
+    {
+      "x": 676,
+      "y": 336,
+      "w": 762,
+      "h": 48
+    },
+    {
+      "x": 1392,
+      "y": 2,
+      "w": 39,
+      "h": 375
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": -100,
+      "y": 350,
+      "w": 1600,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": -100,
+      "y": -800,
+      "w": 1600,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -900,
+      "y": -800,
+      "w": 800,
+      "h": 1950
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 1500,
+      "y": -800,
+      "w": 800,
+      "h": 1950
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 839,
+      "y": 259,
+      "radius": 61,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1246,
+      "y": 216,
+      "radius": 82,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 481,
+      "y": 213,
+      "radius": 41,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 726,
+      "y": -369,
+      "radius": 955,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -271,
+      "y": 286,
+      "radius": 560,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1729,
+      "y": 544,
+      "radius": 494,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1711,
+      "y": 314,
+      "radius": 406,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1498,
+      "y": 413,
+      "radius": 300,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1079,
+      "y": 114,
+      "radius": 184,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 216,
+      "y": 111,
+      "radius": 132,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 1130,
+      "y": 242,
+      "w": 100,
+      "h": 105,
+      "target_map": "s",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
+    }
+  ],
+  "decors": [
+    {
+      "x": 0,
+      "y": 0,
+      "sprite": "tiled_sm1_d_cor_1_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": []
+}
