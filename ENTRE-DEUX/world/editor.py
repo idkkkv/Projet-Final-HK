@@ -300,15 +300,25 @@ def _parse_color(s):
 # ═════════════════════════════════════════════════════════════════════════════
 
 class Portal:
-    """Un rectangle bleu cliquable → charge une autre carte JSON."""
+    """Un rectangle bleu cliquable → charge une autre carte JSON.
 
-    def __init__(self, x, y, w, h, target_map, target_x=-1, target_y=-1):
+    Depuis v5, un portail peut être marqué `require_up=True` → il se
+    comporte alors comme une PORTE : il faut appuyer sur Z (ou flèche ↑)
+    pour "entrer". Sans appui, on peut rester dans la zone sans rien
+    déclencher — pratique pour les portes de maison, où on ne veut pas
+    être téléporté par accident en passant devant.
+    """
+
+    def __init__(self, x, y, w, h, target_map, target_x=-1, target_y=-1,
+                 require_up=False):
         self.rect       = pygame.Rect(x, y, w, h)
         self.target_map = target_map
         # target_x / target_y = position d'arrivée dans la map cible.
         # -1 = le joueur atterrit au spawn défini dans la map cible.
         self.target_x   = target_x
         self.target_y   = target_y
+        # Si True → portail "porte" : il faut appuyer sur HAUT pour entrer.
+        self.require_up = bool(require_up)
 
     def to_dict(self):
         """Sérialisation pour JSON."""
@@ -318,17 +328,31 @@ class Portal:
             "target_map": self.target_map,
             "target_x":   self.target_x,
             "target_y":   self.target_y,
+            "require_up": self.require_up,
         }
 
     def draw(self, surf, camera, font):
-        """Affiche un rectangle bleu semi-transparent + nom de la map cible."""
+        """Affiche un rectangle semi-transparent + nom de la map cible.
+
+        Couleur :
+            bleu   (défaut)    → portail classique (téléport à l'entrée)
+            orange (require_up) → PORTE (téléport sur appui ↑), repérable
+                                   en un coup d'œil en mode éditeur.
+        """
         sr = camera.apply(self.rect)
+        if self.require_up:
+            base_rgb = (220, 150, 70)   # orange doré = porte chaleureuse
+        else:
+            base_rgb = (0, 120, 255)    # bleu portail classique
         # Surface SRCALPHA : supporte la transparence (voir [D5]).
         s  = pygame.Surface((sr.w, sr.h), pygame.SRCALPHA)
-        s.fill((0, 120, 255, 60))
+        s.fill((*base_rgb, 60))
         surf.blit(s, sr)
-        pygame.draw.rect(surf, (0, 120, 255), sr, 2)
-        surf.blit(font.render(f"-> {self.target_map}", True, (0, 180, 255)),
+        pygame.draw.rect(surf, base_rgb, sr, 2)
+        # Libellé : préfixe [PORTE] si require_up, pour bien distinguer.
+        prefixe = "[PORTE] " if self.require_up else ""
+        surf.blit(font.render(f"{prefixe}-> {self.target_map}",
+                              True, base_rgb),
                   (sr.x, sr.y - 18))
 
 
@@ -482,6 +506,10 @@ class Editor:
         self._text_mode           = None
         self._text_prompt         = ""
         self._pending_portal_rect  = None
+        # Si True, le prochain portail tracé sera une PORTE (require_up) :
+        # téléportation uniquement sur appui ↑/Z, pas à l'entrée bête.
+        # Basculé par [P] en mode 4. Reset à False après création.
+        self._pending_portal_is_door = False
         self._pending_trigger_rect = None
         self._pending_trigger_nom  = ""
         # Si True, le prochain rect tracé en mode 12 deviendra une fear_zone
@@ -1230,6 +1258,19 @@ class Editor:
                            "Taille de l'objet (LxH ou L H, ex: 64 96) :")
             return "text_input"
 
+        # ── Mode 4 : Portail → [P] bascule "prochaine porte" ─────────────
+        # Une "porte" est un portail qui ne se déclenche QUE si le joueur
+        # appuie sur Z (ou ↑) — comme pour "entrer" dans une maison. Sans
+        # appui, on peut rester devant la porte sans être téléporté.
+        # À activer AVANT de tracer le rectangle du portail.
+        elif key == pygame.K_p and self.mode == 4:
+            current = getattr(self, "_pending_portal_is_door", False)
+            self._pending_portal_is_door = not current
+            if self._pending_portal_is_door:
+                self._show_msg("Prochain portail = PORTE (Z pour entrer)")
+            else:
+                self._show_msg("Prochain portail = classique")
+
         # ── Mode 11 : Blocs (auto-tiling) ──────────────────────────────────
         elif key == pygame.K_t and self.mode == 11:
             self.bloc_theme = "vert" if self.bloc_theme == "bleu" else "bleu"
@@ -1376,8 +1417,13 @@ class Editor:
             elif mode == "scale_zoom": self._appliquer_scale_zoom(name)
             elif mode == "portal_name" and self._pending_portal_rect:
                 r = self._pending_portal_rect
-                self.portals.append(Portal(r[0], r[1], r[2], r[3], name))
-                self._pending_portal_rect = None
+                # _pending_portal_is_door : True si on a appuyé sur [P]
+                # avant de tracer (= "prochain portail = PORTE").
+                is_door = getattr(self, "_pending_portal_is_door", False)
+                self.portals.append(Portal(r[0], r[1], r[2], r[3], name,
+                                           require_up=is_door))
+                self._pending_portal_rect    = None
+                self._pending_portal_is_door = False     # désarme après usage
             elif mode == "trigger_nom" and self._pending_trigger_rect:
                 # Étape 1/2 : on a le nom, on demande max_plays
                 self._pending_trigger_nom = name
@@ -3194,6 +3240,9 @@ class Editor:
                 p["target_map"],
                 p.get("target_x", -1),
                 p.get("target_y", -1),
+                # require_up : portail "porte" (activé par appui ↑/Z).
+                # Absent dans les vieilles saves → défaut False (classique).
+                require_up=p.get("require_up", False),
             ))
 
         # Décors.

@@ -25,6 +25,7 @@
   <image source="House (Outside And Inside) Tileset.png" width="352" height="512"/>
  </tileset>
  <tileset firstgid="10967" source="TX Village Props.tsx"/>
+ <tileset firstgid="15063" source="../../../Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/Basic Tiles Only.tsx"/>
  <imagelayer id="38" name="bg_end" offsetx="-486.5" offsety="-216">
   <image source="fondvillage.jpg" width="720" height="360"/>
  </imagelayer>
@@ -147,7 +148,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,2032,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,16105,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

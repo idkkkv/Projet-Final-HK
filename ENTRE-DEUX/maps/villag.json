@@ -279,7 +279,18 @@
       "h": 82,
       "target_map": "map22",
       "target_x": -1,
-      "target_y": -1
+      "target_y": -1,
+      "require_up": false
+    },
+    {
+      "x": 1732,
+      "y": 313,
+      "w": 69,
+      "h": 104,
+      "target_map": "bossseraphin",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
     }
   ],
   "decors": [

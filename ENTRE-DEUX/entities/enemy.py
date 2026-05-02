@@ -414,33 +414,62 @@ class Enemy:
         dy = self.rect.bottom - player_rect.bottom
         return dy < max_jump_h + self.hitbox_h * 2
 
-    def _has_ground_ahead(self, step, walls_near, holes):
-        """True s'il y a du sol `step` pixels devant l'ennemi (sinon = trou)."""
+    def _has_ground_ahead(self, step, walls_near, holes, platforms=None):
+        """True s'il y a du sol `step` pixels devant l'ennemi (sinon = trou).
+
+        Teste DANS L'ORDRE :
+          1. Trous explicites → pas de sol (stop).
+          2. Proche de GROUND_Y → sol global du monde.
+          3. Murs is_border sous la position → bordure de plateforme classique.
+          4. PLATEFORMES custom sous la position → plateformes de l'éditeur
+             ou importées depuis Tiled.
+
+        Sans le point 4, un ennemi posé sur une plateforme surélevée
+        croyait qu'il y avait un trou devant lui dès qu'il atteignait le
+        bord et faisait demi-tour en permanence — même sans vrai trou.
+        C'est le bug "l'ennemi se retourne alors qu'il n'y a pas de mur".
+        """
         check_x = self.rect.centerx + step * self.direction
         check_y = self.rect.bottom
 
-        # Trou explicite → pas de sol.
+        # 1. Trou explicite → pas de sol.
         if holes:
             probe = pygame.Rect(check_x - 2, check_y - 4, 4, 8)
             for h in holes:
                 if probe.colliderect(h):
                     return False
 
-        # Si on est proche du sol global (GROUND_Y), considère qu'il y a du sol.
+        # 2. Sol global du monde.
         if abs(check_y - settings.GROUND_Y) < 20:
             return True
 
-        # Sinon : on cherche un mur de bordure juste sous la position de test.
+        # Probe de test : petit rect juste SOUS les pieds (où devrait
+        # se trouver la plateforme qui nous porte à check_x).
         probe = pygame.Rect(check_x - 2, check_y, 4, 8)
+
+        # 3. Mur de bordure (convention existante dans le moteur).
         for w in walls_near:
             if not getattr(w, "is_border", False):
                 continue
-            if hasattr(w, "rect"):
-                wr = w.rect
-            else:
-                wr = w
+            wr = w.rect if hasattr(w, "rect") else w
             if probe.colliderect(wr):
                 return True
+
+        # 4. Plateformes custom : on regarde si le haut d'une plateforme
+        # est AU NIVEAU du probe (tolérance quelques px) ET que le probe
+        # se situe bien à l'aplomb de la plateforme horizontalement.
+        # Sans ce test, impossible de patrouiller sur une plateforme
+        # surélevée créée dans l'éditeur.
+        if platforms:
+            if hasattr(platforms, "query"):
+                proches = platforms.query(probe)
+            else:
+                proches = platforms
+            for p in proches:
+                pr = p.rect if hasattr(p, "rect") else p
+                if probe.colliderect(pr):
+                    return True
+
         return False
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -618,7 +647,7 @@ class Enemy:
                 and self._hole_cooldown <= 0 and self._turn_cooldown <= 0):
             # Distance de test devant l'ennemi (proportionnelle à la vitesse).
             step = max(int(abs(total_vx * dt)) + self.hitbox_w // 2, 24)
-            if not self._has_ground_ahead(step, walls_near, holes):
+            if not self._has_ground_ahead(step, walls_near, holes, platforms):
                 self._do_turn()
                 # On recule un peu pour ne pas rester à cheval sur le bord.
                 self.rect.x -= int(total_vx * dt) * 4

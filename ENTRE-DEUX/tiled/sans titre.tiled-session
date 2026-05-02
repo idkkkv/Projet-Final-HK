@@ -1,5 +1,5 @@
 {
-    "activeFile": "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/1maps.tmx",
+    "activeFile": "villag.tmx",
     "expandedProjectPaths": [
         "."
     ],
@@ -40,8 +40,8 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 1149.5,
-                "y": 866
+                "x": 711,
+                "y": 1200
             }
         },
         "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/Basic Tiles Only.tsx": {
@@ -92,11 +92,11 @@
             "scaleInDock": 1
         },
         "villag.tmx": {
-            "scale": 0.5,
-            "selectedLayer": 2,
+            "scale": 8,
+            "selectedLayer": 6,
             "viewCenter": {
-                "x": -32,
-                "y": -284
+                "x": -246.1875,
+                "y": 131.375
             }
         },
         "villag.tmx#Basic Tiles Only": {
@@ -148,13 +148,13 @@
         "map1 sol + déco.tsx",
         "plants.tsx",
         "Basic Tiles Only.tsx",
-        "villag.tmx",
-        "TX Village Props.tsx",
-        "2maps.tmx",
-        "bossabandon.tmx",
-        "seraphinhom.tmx",
+        "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/1maps.tmx",
         "maprose.tsx",
-        "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/1maps.tmx"
+        "seraphinhom.tmx",
+        "bossabandon.tmx",
+        "2maps.tmx",
+        "TX Village Props.tsx",
+        "villag.tmx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.tileSize": {

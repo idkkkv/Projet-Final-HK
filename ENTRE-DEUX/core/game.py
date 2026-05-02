@@ -353,7 +353,17 @@ class Game:
     def _init_transitions(self):
         """Initialise les variables de fondu entre cartes et menus."""
         # Fondu enchaîné entre deux cartes (quand on passe un portail).
-        self.vitesse_fondu       = 0.4                  # secondes pour 0 → 255
+        self.vitesse_fondu       = 0.4                  # secondes pour 0 → 255 (portail classique)
+        # Durée du fondu pour les PORTAILS PORTE (require_up=True).
+        # Plus long que pour un portail classique → rend l'entrée dans
+        # une maison plus "rituelle" et moins agressive visuellement.
+        # Si tu veux un fondu encore plus lent, monte jusqu'à ~1.5 s.
+        self.vitesse_fondu_porte = 1.0                  # secondes pour 0 → 255 (porte)
+        # Durée utilisée pour la transition en cours. Mise à jour au
+        # moment où on déclenche un fondu, pour que _update_fondu sache
+        # quelle vitesse appliquer sans avoir à re-tester le type de
+        # portail à chaque frame.
+        self._fondu_duree_courante = self.vitesse_fondu
         self._fondu_alpha        = 0                    # 0 = rien, 255 = noir total
         self._fondu_etat         = "none"               # "none" / "out" / "in"
         self._fondu_surface      = None                 # cache de la surface noire
@@ -698,27 +708,52 @@ class Game:
         if self._fondu_etat != "none":
             return                                      # déjà en transition
 
+        # Input "regarder vers le haut" — utilisé par les portails PORTE.
+        # On le lit directement ici pour ne pas dépendre de l'état du
+        # joueur (il pourrait être en dash, attaque, etc.).
+        keys = pygame.key.get_pressed()
+        input_up = keys[pygame.K_z] or keys[pygame.K_UP]
+
         for portail in self.editeur.portals:
-            if self.joueur.rect.colliderect(portail.rect):
-                # On mémorise où on doit arriver, le chargement se fera
-                # quand l'écran sera complètement noir.
-                self._portail_en_attente = (
-                    portail.target_map,
-                    portail.target_x,
-                    portail.target_y,
-                )
-                self._fondu_etat  = "out"
-                self._fondu_alpha = 0
-                return
+            if not self.joueur.rect.colliderect(portail.rect):
+                continue
+
+            # Portail PORTE (require_up=True) : ne se déclenche que si le
+            # joueur "entre" volontairement en appuyant sur Z ou ↑. On peut
+            # donc rester devant la porte sans être téléporté par accident
+            # → plus diégétique, plus sûr pour les portes de maisons.
+            if getattr(portail, "require_up", False) and not input_up:
+                continue
+
+            # On mémorise où on doit arriver, le chargement se fera
+            # quand l'écran sera complètement noir.
+            self._portail_en_attente = (
+                portail.target_map,
+                portail.target_x,
+                portail.target_y,
+            )
+            # Durée du fondu pour CETTE transition. Les PORTES ont un
+            # fondu plus long (plus rituel) que les portails classiques.
+            if getattr(portail, "require_up", False):
+                self._fondu_duree_courante = self.vitesse_fondu_porte
+            else:
+                self._fondu_duree_courante = self.vitesse_fondu
+            self._fondu_etat  = "out"
+            self._fondu_alpha = 0
+            return
 
     def _update_fondu(self, dt):
         """Fait avancer le fondu : alpha ± vitesse*dt chaque frame."""
         if self._fondu_etat == "none":
             return
 
-        # Vitesse = 255 alpha en `vitesse_fondu` secondes.
+        # Vitesse = 255 alpha en `_fondu_duree_courante` secondes.
+        # Cette durée est fixée au moment où le fondu DÉMARRE :
+        #   - portail classique → self.vitesse_fondu       (défaut 0.4 s)
+        #   - porte (require_up) → self.vitesse_fondu_porte (défaut 1.0 s)
         # max(0.05, ...) protège d'une division par zéro si on met 0.
-        vitesse = 255 / max(0.05, self.vitesse_fondu)
+        duree = getattr(self, "_fondu_duree_courante", self.vitesse_fondu)
+        vitesse = 255 / max(0.05, duree)
 
         if self._fondu_etat == "out":
             self._fondu_alpha += vitesse * dt
