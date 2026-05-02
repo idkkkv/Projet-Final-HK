@@ -1,0 +1,251 @@
+{
+  "ground_y": 982,
+  "ceiling_y": 0,
+  "scene_width": 2400,
+  "scene_left": 0,
+  "camera_y_offset": 150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 554,
+    "y": 797
+  },
+  "bg_color": [
+    38,
+    19,
+    46
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": -2,
+      "y": 186,
+      "w": 152,
+      "h": 584
+    },
+    {
+      "x": -2,
+      "y": 846,
+      "w": 442,
+      "h": 110
+    },
+    {
+      "x": 150,
+      "y": 186,
+      "w": 108,
+      "h": 471
+    },
+    {
+      "x": 258,
+      "y": 184,
+      "w": 113,
+      "h": 363
+    },
+    {
+      "x": 371,
+      "y": 184,
+      "w": 108,
+      "h": 253
+    },
+    {
+      "x": 480,
+      "y": 186,
+      "w": 74,
+      "h": 140
+    },
+    {
+      "x": 515,
+      "y": 808,
+      "w": 76,
+      "h": 37
+    },
+    {
+      "x": 517,
+      "y": 324,
+      "w": 184,
+      "h": 228
+    },
+    {
+      "x": 554,
+      "y": 182,
+      "w": 147,
+      "h": 138
+    },
+    {
+      "x": 662,
+      "y": 846,
+      "w": 439,
+      "h": 108
+    },
+    {
+      "x": 995,
+      "y": 187,
+      "w": 182,
+      "h": 368
+    },
+    {
+      "x": 1176,
+      "y": 807,
+      "w": 76,
+      "h": 39
+    },
+    {
+      "x": 1179,
+      "y": 184,
+      "w": 32,
+      "h": 152
+    },
+    {
+      "x": 1213,
+      "y": 187,
+      "w": 103,
+      "h": 255
+    },
+    {
+      "x": 1322,
+      "y": 182,
+      "w": 106,
+      "h": 368
+    },
+    {
+      "x": 1325,
+      "y": 845,
+      "w": 366,
+      "h": 110
+    },
+    {
+      "x": 1432,
+      "y": 186,
+      "w": 110,
+      "h": 474
+    },
+    {
+      "x": 1547,
+      "y": 187,
+      "w": 143,
+      "h": 582
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 982,
+      "w": 2400,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 2400,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2582
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2400,
+      "y": -800,
+      "w": 800,
+      "h": 2582
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 607,
+      "y": 465,
+      "radius": 92,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1087,
+      "y": 464,
+      "radius": 110,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1049,
+      "y": 906,
+      "radius": 59,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 719,
+      "y": 907,
+      "radius": 58,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1525,
+      "y": 574,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 166,
+      "y": 575,
+      "radius": 68,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [],
+  "decors": [
+    {
+      "x": 0,
+      "y": 0,
+      "sprite": "tiled_bosssepharin_vitre_x2p30.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 0,
+      "y": 184,
+      "sprite": "tiled_bosssepharin_d_cor_1_x2p30.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 0,
+      "y": 515,
+      "sprite": "tiled_bosssepharin_d_cor2_x2p30.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 110,
+      "y": 405,
+      "sprite": "tiled_bosssepharin_d_cor3__x2p30.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": []
+}
