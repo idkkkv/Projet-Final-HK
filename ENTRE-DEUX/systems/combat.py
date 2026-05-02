@@ -78,7 +78,7 @@
 
 from settings import (
     KNOCKBACK_PLAYER, KNOCKBACK_ENEMY,
-    INVINCIBLE_DURATION,
+    INVINCIBLE_DURATION,VOLUME_KILL_ENEMY
 )
 from audio import sound_manager
 
@@ -226,7 +226,7 @@ def resoudre_attaques_joueur(joueur, ennemis):
                 sound_manager.arreter("attaque")
 
                 #bruit toucher
-                sound_manager.jouer("attaque_contact")
+                sound_manager.jouer("attaque_contact", volume=VOLUME_KILL_ENEMY)
 
             joueur.attack_has_hit = True #pour activer le visuel et bloquer les attaques suivantes de la même animation 
 

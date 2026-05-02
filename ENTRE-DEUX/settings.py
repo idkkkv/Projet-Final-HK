@@ -443,6 +443,8 @@ RAYON_JOUEUR          = 90
 
 VOLUME_MUSIQUE        = 0.7
 VOLUME_PAS            = 0.3
+VOLUME_ATK = 0.4 #joueur atk basiques en l'air en sur le sol
+VOLUME_KILL_ENEMY = 0.15 #joueur atk et tue une enemyd
 
 #  Cadence des bruits de pas — temps entre 2 sons (en secondes).
 #  Plus PETIT = pas plus rapprochés (plus fréquents).

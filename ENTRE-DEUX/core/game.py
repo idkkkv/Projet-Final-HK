@@ -1436,6 +1436,8 @@ class Game:
         hp_avant            = self.joueur.hp
         ennemis_alive_avant = [e for e in self.ennemis if e.alive]
 
+        self.ennemis = [e for e in self.ennemis if e.alive or not e.animations["die"].done]
+
         # ── Mise à jour des entités (Ennemis et Boss) ──
         for entite in self.ennemis:
             # 1. On vérifie si c'est un boss spécial (qui a besoin du joueur entier)
@@ -1447,13 +1449,13 @@ class Game:
                 # Logique ennemi simple 
                 entite.update(phys_dt, self.platforms, murs, self.joueur.rect, holes=trous)
 
-            # 2. Gestion des collisions (Dégâts reçus par le joueur)
-            if self.joueur.rect.colliderect(entite.rect):
+            # 2. Gestion des collisions (Dégâts reçus par le joueur) - UNIQUEMENT si l'entité est vivante
+            if entite.alive and self.joueur.rect.colliderect(entite.rect):
                 # On utilise ta fonction de recul/dégâts
                 self.joueur.hit_by_enemy(entite.rect)
                 
-            # 3. Cas spécial pour le Boss Tempête 
-            if hasattr(entite, 'liste_souvenirs'):
+            # 3. Cas spécial pour le Boss Tempête - UNIQUEMENT si le boss est vivant
+            if entite.alive and hasattr(entite, 'liste_souvenirs'):
                 # On vérifie si le joueur touche un des souvenirs dans la liste du boss
                 for s in entite.liste_souvenirs:
                     if s["actif"] and self.joueur.rect.colliderect(s["rect"]):
@@ -1464,8 +1466,8 @@ class Game:
                             self.joueur.hit_by_enemy(s["rect"])
                             s["actif"] = False
             
-            # 3. cas spécial pour le Boss Explosion : on vérifie si une zone de danger est active et si le joueur y est dedans
-            if hasattr(entite, 'liste_zones_danger'):
+            # 4. cas spécial pour le Boss Explosion - UNIQUEMENT si le boss est vivant
+            if entite.alive and hasattr(entite, 'liste_zones_danger'):
                 for zone in entite.liste_zones_danger:
                     if zone["explosion_faite"]:
                         if self.joueur.rect.colliderect(zone["rect"]):

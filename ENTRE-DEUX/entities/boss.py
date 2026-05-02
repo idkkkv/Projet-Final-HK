@@ -206,7 +206,7 @@ class BossMiroir(Boss):
         # supplémentaires envoyés par game.py (murs, plateformes, etc.)
         if joueur is not None:
             self.capturer_etat_joueur(joueur)
-            self.appliquer_comportement_miroir(SCREEN_WIDTH // 2)
+            self.appliquer_comportement_miroir(WIDTH // 2)
             self.actualiser_hitbox_attaque()
 
         if joueur is not None:
@@ -268,7 +268,7 @@ class LaTempête(Boss):
         et l'ajoute à la liste principale.
         """
         taille = random.randint(30, 50)
-        position_x = random.randint(50, SCREEN_WIDTH - 50)
+        position_x = random.randint(50, WIDTH - 50)
         
         # Choix du type (Sombre = Dégâts, Lumineux = Point)
         chance = random.random()
@@ -318,7 +318,7 @@ class LaTempête(Boss):
         # 2. Mouvement flottant (accessible au corps à corps)
         self.compteur_animation += 0.05
         # Le boss se deplace horizontalement et verticalement
-        self.rect.x = (SCREEN_WIDTH // 2 - 60) + math.sin(self.compteur_animation) * 100
+        self.rect.x = (WIDTH // 2 - 60) + math.sin(self.compteur_animation) * 100
         self.rect.y = self.base_y + math.cos(self.compteur_animation) * 30
 
         # 3. Spawn et Mise à jour des souvenirs
@@ -346,8 +346,8 @@ class LaTempête(Boss):
                 if s["rect"].y > SCREEN_HEIGHT + 100:
                     s["actif"] = False
 
-        # 4. Collision avec le corps du Boss
-        if joueur.rect.colliderect(self.rect):
+        # 4. Collision avec le corps du Boss - UNIQUEMENT si le boss est vivant
+        if self.alive and joueur.rect.colliderect(self.rect):
             # Le contact avec le noyau blesse le joueur
             joueur.hit_by_enemy(self.rect)
 

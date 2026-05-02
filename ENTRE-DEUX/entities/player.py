@@ -86,7 +86,7 @@ from settings import (
     BACK_DODGE_LOCK, BACK_DODGE_INPUT_WINDOW,
     BACK_DODGE_DURATION, BACK_DODGE_SPEED, BACK_DODGE_MOVE_FRACTION,
     DEAD_ZONE, BTN_CROIX, BTN_CARRE, BTN_L1, BTN_R1,
-    BLANC, VOLUME_PAS, STEP_INTERVAL_WALK, STEP_INTERVAL_RUN, FPS, PLAYER_RUN_SPEED
+    BLANC, VOLUME_PAS, VOLUME_ATK, STEP_INTERVAL_WALK, STEP_INTERVAL_RUN, FPS, PLAYER_RUN_SPEED
 )
 from utils import find_file
 from entities.animation import Animation
@@ -1279,7 +1279,7 @@ class Player:
                 self._combo_queued = False
                 self.attack_has_hit = False
                 self.attack_timer = ATTACK_DURATION 
-                sound_manager.jouer("attaque")
+                sound_manager.jouer("attaque", volume=VOLUME_ATK)
             else:
                 # fin combo
                 self.attacking = False
@@ -1301,7 +1301,7 @@ class Player:
                 self.idle_anim_1xatk.reset()
                 self.idle_anim_2xatk_short.reset()
                 self.idle_anim_3xatk.reset()
-            sound_manager.jouer("attaque")
+            sound_manager.jouer("attaque", volume=VOLUME_ATK)
 
         # inactif trop longtemps, reset combo
         if not self.attacking and now - self._last_f_press_time > self.combo_max_delay:

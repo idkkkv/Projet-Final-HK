@@ -113,48 +113,16 @@ def list_enemy_sprites():
     if not os.path.isdir(ENEMIES_DIR):
         return sprites
 
-    for f in sorted(os.listdir(ENEMIES_DIR)):
-        full = os.path.join(ENEMIES_DIR, f)
-        if f.endswith((".png", ".jpg")):
-            sprites.append(f)
-        elif os.path.isdir(full):
-            # Dossier : on vérifie qu'il y a au moins une image dedans.
-            # Liste en compréhension (voir [D33]).
-            frames = [
-                g for g in sorted(os.listdir(full))
-                if g.endswith((".png", ".jpg"))
-            ]
-            if frames:
-                sprites.append(f)
+    for name in sorted(os.listdir(ENEMIES_DIR)):
+        full = os.path.join(ENEMIES_DIR, name)
+
+        if os.path.isdir(full):
+            sprites.append(name)
+
+        elif name.endswith((".png", ".jpg")):
+            sprites.append(os.path.splitext(name)[0])
+
     return sprites
-
-
-def _charger_frames(sprite_name):
-    """Charge les frames d'un sprite (statique = 1 frame, animé = n frames)."""
-    chemin = os.path.join(ENEMIES_DIR, sprite_name)
-
-    # Cas 1 : dossier d'animation.
-    if os.path.isdir(chemin):
-        # On trie les fichiers par NUMÉRO (pas alphabétique). Ex. :
-        # "frame9.png" doit venir AVANT "frame10.png".
-        #
-        # `key=lambda s: ...` = fonction de tri en une ligne (voir [D34]).
-        # "".join(filter(str.isdigit, s)) garde uniquement les chiffres de s,
-        # puis int(...) le convertit en nombre. Le `or "0"` évite le plantage
-        # si la chaîne est vide.
-        fichiers = sorted(
-            (g for g in os.listdir(chemin) if g.endswith((".png", ".jpg"))),
-            key=lambda s: int("".join(filter(str.isdigit, s)) or "0"),
-        )
-        return [pygame.image.load(os.path.join(chemin, ff)) for ff in fichiers]
-
-    # Cas 2 : fichier unique.
-    if os.path.exists(chemin):
-        return [pygame.image.load(chemin)]
-
-    # Cas 3 : rien trouvé → on tente find_file (cherche partout dans assets/).
-    return [pygame.image.load(find_file(sprite_name))]
-
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  Helpers géométriques (hors classe)
@@ -180,7 +148,6 @@ def _nearby(walls, rect, margin=_CULL_DIST):
             proches.append(w)
     return proches
 
-
 # ═════════════════════════════════════════════════════════════════════════════
 #  CLASSE Enemy
 # ═════════════════════════════════════════════════════════════════════════════
@@ -195,10 +162,13 @@ class Enemy:
     # Beaucoup de paramètres ! Ils sont tous optionnels sauf x et y.
     # Chacun a une valeur par défaut adaptée à un ennemi "standard".
 
-    def __init__(self, x, y,
+    def __init__(self, x, y, 
+                 nb_frames=1,
+                 sprite_name="mushroom",
+                 scale_factor = 2,
+                 max_vie = 3,
                  has_gravity=True,             # False = vole (fantôme, oiseau)
                  has_collision=True,
-                 sprite_name="monstre_perdu.png",
                  can_jump=False,               # peut-il sauter au-dessus des murs ?
                  jump_power=400,               # impulsion de saut (px/s)
                  detect_range=200,             # portée en X de détection (px)
@@ -224,17 +194,25 @@ class Enemy:
         self.rect = pygame.Rect(x, y, self.hitbox_w, self.hitbox_h)
 
         # ── Sprites / animation ──
-        self.sprite_name = sprite_name
-        frames = _charger_frames(sprite_name)
+        self.scale_factor = {
+            "mushroom": 2,
+            "flamur": 1,
+            "monstre_perdu": 1
+        }.get(sprite_name, scale_factor)
+
+        frames = self._charger_frames(sprite_name, nb_frames)
         self.sprite_w = frames[0].get_width()
         self.sprite_h = frames[0].get_height()
-        # Sprites animés → 4 frames/image (5 fps dans 80 fps de base = 20fps).
-        # Sprites statiques → 20 frames/image (ralentir pour pas "flasher").
-        if len(frames) > 1:
-            img_dur = 4
-        else:
-            img_dur = 20
-        self.idle_anim = Animation(frames, img_dur=img_dur)
+
+        self.animations = {
+            "idle": Animation(self._scale_frames(self._charger_frames(sprite_name + "idle", 7)), img_dur=10),
+            "run": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", 8)), img_dur=4),
+            "walk": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", 8)), img_dur=4),
+            "atk": Animation(self._scale_frames(self._charger_frames(sprite_name + "atk", 10)), img_dur=4),
+            "die": Animation(self._scale_frames(self._charger_frames(sprite_name + "die", 15)), img_dur=4, loop=False),
+        }
+        self.current_anim = "idle"
+        self.sprite_name = sprite_name
 
         # ── Vitesses ──
         self.patrol_speed = patrol_speed
@@ -252,7 +230,6 @@ class Enemy:
         self.patrol_right = patrol_right if patrol_right >= 0 else x + 300
 
         # ── États booléens ──
-        self.alive             = True
         self.on_ground         = False
         self.has_gravity       = has_gravity
         self.has_collision     = has_collision
@@ -289,6 +266,8 @@ class Enemy:
         # ── Détection ──
         self.detect_range    = detect_range
         self.detect_height   = detect_height
+        self.atk_active = False
+        self.attack_timer = 0.0
         self.chasing         = False
         self.returning       = False
         self.memory_timer    = 0.0
@@ -296,6 +275,24 @@ class Enemy:
         self.last_known_dir  = 1
         self.attack_cooldown = 0.0
 
+        # ──Santé ──
+        self.alive             = True
+        self.max_vie = max_vie
+    
+    # ═════════════════════════════════════════════════════════════════════════════
+    #  Redimentionner
+    # ═════════════════════════════════════════════════════════════════════════════
+
+    def _scale_frames(self, frames):
+        return [
+            pygame.transform.smoothscale(
+                f,
+                (int(f.get_width() * self.scale_factor),
+                int(f.get_height() * self.scale_factor))
+            )
+            for f in frames
+        ]
+    
     # ═════════════════════════════════════════════════════════════════════════
     # 2.  HELPERS GÉOMÉTRIQUES (détection, zones, ligne de vue)
     # ═════════════════════════════════════════════════════════════════════════
@@ -522,10 +519,45 @@ class Enemy:
     #    10. Déplacement
     #    11. Sol / plafond / trou
 
+    def _charger_frames(self, file, x, start=1):
+        """Charge x frames PNG numérotées séquentiellement."""
+        frames = []
+        for i in range(start, x + 1):
+            try:
+                # .convert_alpha() = optimisation perf cruciale (cf. docstring)
+                surf = pygame.image.load(find_file(f"{file}{i}.png")).convert_alpha()
+                frames.append(surf)
+            except FileNotFoundError:
+                print(f"Frame manquante : {file}{i}.png")
+                # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
+                break
+
+        # Cas 1 : au moins une frame → on l'utilise.
+        if frames:
+            return frames
+
+        # Cas 2 : aucune frame → fallback sur monstre_perdu.png
+        try:
+            return [pygame.image.load(find_file("monstre_perdu.png")).convert_alpha()]
+        except FileNotFoundError:
+            # Cas 3 : tout manque → carré vert
+            placeholder = pygame.Surface((PLAYER_W, PLAYER_H))
+            placeholder.fill((0, 255, 86))
+            return [placeholder]
+
     def update(self, dt, platforms=None, walls=None, player_rect=None,
                holes=None):
         if not self.alive:
+            self.vx = 0
+            self.vy = 0
+            self.knockback_vx = 0
+            self.animations["die"].update()
             return
+        
+        if self.atk_active:
+            self.attack_timer -= dt
+            if self.attack_timer <= 0:
+                self.atk_active = False
 
         # ── 1. Décrémentation des timers ──────────────────────────────────
         if self.attack_cooldown > 0:
@@ -596,11 +628,28 @@ class Enemy:
         # ── 10. Collisions sol / plafond / trou ──────────────────────────
         self._gerer_collisions_verticales(holes)
 
+        # changer d'animation
+        if self.atk_active:
+            self.current_anim = "atk"
+        elif self.chasing:
+            self.current_anim = "run"
+        elif abs(self.vx) > 10:
+            self.current_anim = "walk"
+        else:
+            self.current_anim = "idle"
+
     # ─── Sous-routines de update() ───────────────────────────────────────────
 
     def _detecter_joueur(self, dt, player_rect, walls_near, platforms, holes):
         """Met à jour chasing / returning selon la détection + mémoire."""
         # Zone à tester : plus large si déjà en chasse.
+        if self.attack_cooldown <= 0:
+            attack_rect = self.rect.inflate(30, 10)
+            if attack_rect.colliderect(player_rect):
+                self.atk_active = True
+                self.attack_timer = 0.3
+                self.attack_cooldown = 0.4
+
         if self.chasing:
             zone = self._chase_rect()
         else:
@@ -752,13 +801,29 @@ class Enemy:
 
     def draw(self, surf, camera, show_hitbox=False):
         if not self.alive:
-            return
+            img = self.animations["die"].img()
 
-        # ── 1. Sprite (avec miroir si on regarde à gauche) ──
-        img = self.idle_anim.img()
+            if self.direction < 0:
+                img = pygame.transform.flip(img, True, False)
+            if self.direction >= 0:
+                sx = self.rect.x - self.hitbox_ox
+                sy = self.rect.y - self.hitbox_oy
+            else:
+                sx = self.rect.x - (self.sprite_w - self.hitbox_ox - self.hitbox_w)
+                sy = self.rect.y - self.hitbox_oy
+
+            surf.blit(img, camera.apply(pygame.Rect(sx, sy, self.sprite_w, self.sprite_h)))
+            return            
+        
+        # ── 1. Sprite ──
+        
+        #base
+        img = self.animations[self.current_anim].img()
+        self.animations[self.current_anim].update()
+
+        # se retourner
         if self.direction < 0:
             img = pygame.transform.flip(img, True, False)
-        self.idle_anim.update()
 
         # Position du sprite (le offset est miroir si on regarde à gauche).
         if self.direction >= 0:

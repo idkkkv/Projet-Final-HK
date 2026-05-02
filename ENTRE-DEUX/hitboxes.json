@@ -1,13 +1,19 @@
 {
-  "monstre_perdu.png": {
-    "w": 117,
-    "h": 91,
-    "ox": 3,
-    "oy": 12
+  "monstre_perdu": {
+    "w": 89,
+    "h": 79,
+    "ox": 8,
+    "oy": 25
   },
   "flamur": {
     "w": 74,
     "h": 110,
+    "ox": 30,
+    "oy": 7
+  },
+  "mushroom": {
+    "w": 74,
+    "h": 120,
     "ox": 30,
     "oy": 7
   },
