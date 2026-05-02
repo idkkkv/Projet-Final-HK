@@ -1052,7 +1052,7 @@ class Editor:
                 return None
             self._snapshot()
             if   key == pygame.K_UP:    settings.GROUND_Y  = max(100,  settings.GROUND_Y - 20)
-            elif key == pygame.K_DOWN:  settings.GROUND_Y  = min(3000, settings.GROUND_Y + 20)
+            elif key == pygame.K_DOWN:  settings.GROUND_Y  = min(4000, settings.GROUND_Y + 20)
             elif key == pygame.K_HOME:  settings.CEILING_Y = max(-500, settings.CEILING_Y - 20)
             elif key == pygame.K_END:   settings.CEILING_Y = min(settings.GROUND_Y - 100,
                                                                  settings.CEILING_Y + 20)
