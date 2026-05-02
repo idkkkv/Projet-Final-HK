@@ -32,5 +32,19 @@
   ],
   "carte_debut": "map22",
   "hud_mode": "permanent",
-  "nb_compagnons": 0
+  "nb_compagnons": 2,
+  "lucioles_couleurs_idx": [
+    1,
+    1,
+    2,
+    3,
+    4
+  ],
+  "lucioles_tailles_idx": [
+    0,
+    2,
+    2,
+    2,
+    2
+  ]
 }

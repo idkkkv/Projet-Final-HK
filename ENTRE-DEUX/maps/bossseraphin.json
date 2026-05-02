@@ -1,14 +1,14 @@
 {
-  "ground_y": 982,
+  "ground_y": 942,
   "ceiling_y": 0,
-  "scene_width": 2400,
+  "scene_width": 1700,
   "scene_left": 0,
   "camera_y_offset": 150,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 554,
-    "y": 797
+    "x": 54,
+    "y": 807
   },
   "bg_color": [
     38,
@@ -134,8 +134,8 @@
   "ground_segments": [
     {
       "x": 0,
-      "y": 982,
-      "w": 2400,
+      "y": 942,
+      "w": 1700,
       "h": 800
     }
   ],
@@ -143,7 +143,7 @@
     {
       "x": 0,
       "y": -800,
-      "w": 2400,
+      "w": 1700,
       "h": 800
     }
   ],
@@ -152,15 +152,15 @@
       "x": -800,
       "y": -800,
       "w": 800,
-      "h": 2582
+      "h": 2542
     }
   ],
   "right_segments": [
     {
-      "x": 2400,
+      "x": 1700,
       "y": -800,
       "w": 800,
-      "h": 2582
+      "h": 2542
     }
   ],
   "holes": [],
@@ -215,7 +215,18 @@
       "flicker_speed": 5
     }
   ],
-  "portals": [],
+  "portals": [
+    {
+      "x": 485,
+      "y": 900,
+      "w": 121,
+      "h": 55,
+      "target_map": "villag",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
+    }
+  ],
   "decors": [
     {
       "x": 0,
