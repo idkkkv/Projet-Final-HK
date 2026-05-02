@@ -81,6 +81,7 @@ from settings import (
     INVINCIBLE_DURATION,VOLUME_KILL_ENEMY
 )
 from audio import sound_manager
+import random
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -92,7 +93,7 @@ from audio import sound_manager
 
 DEGAT_ATTAQUE_JOUEUR = 1   # coup d'épée du joueur → 1 PV à l'ennemi
 DEGAT_CONTACT_ENNEMI = 1   # contact d'un ennemi   → 1 PV (= 1 cœur) au joueur
-CRIT_CHANCE_ENNEMI = 0.2   # dgt crit
+CRIT_CHANCE_ENNEMI = 1.0   # dgt crit (temporaire pour test)
 CRIT_MULTIPLIER = 2        # 2 coeurs retirés
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -277,7 +278,27 @@ def resoudre_contacts_ennemis(joueur, ennemis):
             # joueur.hit_by_enemy() s'occupe de tout côté joueur :
             # son d'impact, animation rouge, mise à jour du HUD, son
             # propre knockback amorti.
-            joueur.hit_by_enemy(ennemi.rect)
+            degats = DEGAT_CONTACT_ENNEMI
+            degats_base = DEGAT_CONTACT_ENNEMI
+
+            # chance crit + dgt crit 
+            is_crit = random.random() < CRIT_CHANCE_ENNEMI
+
+            if is_crit: 
+                degats *= CRIT_MULTIPLIER
+                joueur.hitted_hard = True
+            else :
+                joueur.hitted_normal = True
+
+            infliger_degats(
+                joueur,
+                degats,
+                source_rect=ennemi.rect,
+                knockback=KNOCKBACK_PLAYER
+            )
+                
+            joueur.idle_anim_hurt_normal.reset()
+            joueur.idle_anim_hurt_hard.reset()
 
         # On sort APRÈS le premier ennemi (cf. règle plus haut).
         return

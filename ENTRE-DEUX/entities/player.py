@@ -613,6 +613,15 @@ class Player:
         sound_manager.jouer("degat")
         self.show_hp_timer = HP_DISPLAY_DURATION
 
+        if self.hp <= self.max_hp // 2:          # coup "fort" si PV ≤ moitié
+            self.hitted_hard   = True
+            self.hitted_normal = False
+            self.idle_anim_hurt_hard.reset()
+        else:
+            self.hitted_normal = True
+            self.hitted_hard   = False
+            self.idle_anim_hurt_normal.reset()
+
         # Mort ?
         if self.hp <= 0:
             self.dead = True
@@ -1690,7 +1699,7 @@ class Player:
                 new_w, new_h,
             )
 
-        if self.invincible:
+        if self.invincible and not (self.hitted_hard or self.hitted_normal):
             if int(self.invincible_timer * 12) % 2 == 0:
                 surf.blit(img, camera.apply(sprite_rect))
         else:
