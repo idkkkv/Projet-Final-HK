@@ -150,6 +150,29 @@ class Camera:
         if surf:
             self._sw, self._sh = surf.get_size()
 
+        # ── Adaptation au ZOOM caméra ───────────────────────────────────────
+        # Quand zoom != 1.0, le rendu du monde se fait sur un BUFFER plus
+        # petit (taille = écran // zoom_entier) qui sera scalé vers l'écran
+        # à la fin du frame (cf. _dessiner_monde dans game.py). Pour que le
+        # joueur reste centré dans CE buffer, la caméra doit raisonner sur
+        # la "vue logique" (= ce qui est réellement dessiné), pas sur la
+        # résolution écran finale. Sans cette ligne, le joueur apparaît
+        # décentré quand on zoome.
+        #
+        # PIXEL ART CRISP — On arrondit la valeur de zoom à l'ENTIER le plus
+        # proche. Raison : pygame.transform.scale() fait du nearest-neighbor ;
+        # avec un zoom fractionnaire (ex. 1.5×), certains pixels source
+        # deviennent 1 px à l'écran et d'autres 2 px → pixel art flou /
+        # irrégulier. Avec un facteur ENTIER, chaque pixel source correspond
+        # à exactement N pixels d'écran → sprite parfaitement net.
+        # La valeur "zoom" peut rester un float côté éditeur (UI/save) ;
+        # seul le rendu utilise l'entier.
+        z = self.zoom if (self.zoom and self.zoom > 0) else 1.0
+        z_int = max(1, int(round(z)))
+        if z_int != 1:
+            self._sw = max(1, self._sw // z_int)
+            self._sh = max(1, self._sh // z_int)
+
         if self.free_mode:
             return                           # la caméra est pilotée à la souris
 
@@ -216,7 +239,34 @@ class Camera:
         else:
             self.offset_x = max(settings.SCENE_LEFT,
                                 min(self.offset_x, self.scene_width - self._sw))
-        self.offset_y = max(min_y, min(self.offset_y, max(0, max_y)))
+        # ── Cadrage vertical ────────────────────────────────────────────────
+        # Le y_offset réglé en éditeur (PageUp/PageDown) DOIT toujours avoir
+        # un effet visible sur la caméra.
+        #
+        # Ancien comportement (bug) : la clamp `max(0, max_y)` saturait la
+        # position quand le joueur était près du sol. Avec le zoom le buffer
+        # devient plus petit, donc max_y est positif et grand. Le target_y
+        # demandé (qui inclut y_offset=150) dépassait max_y → tout
+        # réglage ±20 px était avalé par la clamp. D'où le constat utilisateur :
+        # "avec le zoom, je ne peux plus remonter/redescendre la caméra".
+        #
+        # Correctif : quand le monde est PLUS GRAND que la vue (cas normal,
+        # surtout en mode zoom), on laisse offset_y rejoindre target_y
+        # (y_offset a toujours un effet visible). Quand le monde tient
+        # dans la vue (petites maps natives), on garde l'ancienne clamp
+        # pour ne pas afficher une bande noire sous le sol.
+        vue_plus_grande_que_monde = (
+            max_y < 0 or (settings.GROUND_Y + 40 - settings.CEILING_Y) <= self._sh
+        )
+        if vue_plus_grande_que_monde:
+            # Monde plus petit que la vue : on garde le comportement d'origine.
+            self.offset_y = max(min_y, min(self.offset_y, max(0, max_y)))
+        else:
+            # Monde plus grand que la vue : on élargit la clamp dans la
+            # direction demandée par y_offset → target_y toujours atteignable.
+            effective_max = max(max_y, target_y)
+            effective_min = min(min_y, target_y)
+            self.offset_y = max(effective_min, min(self.offset_y, effective_max))
 
     # ─────────────────────────────────────────────────────────────────────────
     #  CAMÉRA LIBRE (mode éditeur uniquement — clic molette pour pan)

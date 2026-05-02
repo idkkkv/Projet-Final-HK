@@ -91,7 +91,7 @@ BLEU        = ( 98, 143, 217)  # bleu clair  — joueur, UI
 BLEU_NUIT   = ( 30,  30,  40)  # bleu très sombre — fond
 ROUGE       = (217, 108,  98)  # rouge doux  — dégâts, ennemis
 GRIS        = (178, 171, 184)  # gris violacé — décor secondaire
-VIOLET      = ( 38,  19,  46)  # violet foncé — ambiance
+VIOLET      = ( 0,  0,  0)  # violet foncé — ambiance
 BLANC       = (255, 255, 255)  # blanc pur   — compagnons, texte
 NOIR        = (  0,   0,   0)  # noir pur    — voile, contours
 

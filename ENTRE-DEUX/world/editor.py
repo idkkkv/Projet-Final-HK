@@ -1620,9 +1620,19 @@ class Editor:
         # Applique à la caméra.
         self.camera.zoom = new_cz
 
-        self._show_msg(
-            f"Taille joueur = {new_ps:.2f}  |  Zoom caméra = {new_cz:.2f}"
-        )
+        # Pixel art crisp : le rendu arrondit le zoom à l'entier le plus
+        # proche (1, 2, 3…) pour garder le pixel art NET. On affiche la
+        # valeur effective pour que l'utilisateur ne soit pas surpris.
+        zoom_effectif = max(1, int(round(new_cz)))
+        if abs(new_cz - zoom_effectif) > 0.01:
+            self._show_msg(
+                f"Taille joueur = {new_ps:.2f}  |  Zoom demandé = {new_cz:.2f}  "
+                f"→ zoom effectif (pixel art net) = {zoom_effectif}×"
+            )
+        else:
+            self._show_msg(
+                f"Taille joueur = {new_ps:.2f}  |  Zoom caméra = {new_cz:.2f}"
+            )
     def _appliquer_import_tiled(self, saisie):
         """Importe une carte Tiled. La saisie peut être :
             - "nom"            → offset (0, 0), scale 1.0
@@ -3145,15 +3155,19 @@ class Editor:
         if "scene_width" in data:
             settings.SCENE_WIDTH    = data["scene_width"]
             self.camera.scene_width = data["scene_width"]
-        if "camera_y_offset" in data:
-            self.camera.y_offset = data["camera_y_offset"]
-        # Zoom caméra et échelle joueur (par carte).
-        if "camera_zoom" in data:
-            self.camera.zoom = float(data["camera_zoom"])
-        if "player_scale" in data:
-            settings.PLAYER_SCALE = float(data["player_scale"])
-            if hasattr(self.player, "reload_hitbox"):
-                self.player.reload_hitbox()
+        # IMPORTANT : on applique TOUJOURS une valeur, même si la clé
+        # n'est pas dans le JSON (ancienne map). Sinon, charger une
+        # vieille map après avoir joué une map zoomée garderait le zoom
+        # de la map précédente → chaque map DOIT avoir son propre zoom,
+        # y_offset et échelle joueur.
+        self.camera.y_offset  = data.get("camera_y_offset", 150)
+        # Zoom caméra (par carte). Défaut = 1.0 (pas de zoom) pour les
+        # anciennes maps qui n'ont pas encore ce champ.
+        self.camera.zoom      = float(data.get("camera_zoom", 1.0))
+        # Échelle joueur (par carte). Défaut = 1.0.
+        settings.PLAYER_SCALE = float(data.get("player_scale", 1.0))
+        if hasattr(self.player, "reload_hitbox"):
+            self.player.reload_hitbox()
         if "spawn" in data:
             self.spawn_x = data["spawn"]["x"]
             self.spawn_y = data["spawn"]["y"]

@@ -8,19 +8,19 @@
             "scaleInEditor": 1
         },
         "1maps.tmx": {
-            "scale": 1.5,
-            "selectedLayer": 4,
+            "scale": 2,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 974.3333333333333,
-                "y": 1200
+                "x": 603.25,
+                "y": 586
             }
         },
         "2maps.tmx": {
             "scale": 0.5640625,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 383.8227146814404,
-                "y": -251.74515235457062
+                "x": 383.8227146814405,
+                "y": -251.74515235457068
             }
         },
         "Basic Tiles Only.tsx": {
@@ -40,7 +40,7 @@
             "scale": 1,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 711,
+                "x": 711.5,
                 "y": 1200
             }
         },
@@ -127,8 +127,8 @@
     "last.externalTilesetPath": "C:/Users/Utilisateur/Projet-Final-HK/ENTRE-DEUX/tiled",
     "last.imagePath": "C:/Users/Utilisateur/Projet-Final-HK/ENTRE-DEUX/tiled",
     "map.lastUsedFormat": "tmx",
-    "map.tileHeight": 16,
-    "map.tileWidth": 16,
+    "map.tileHeight": 32,
+    "map.tileWidth": 32,
     "openFiles": [
         "1maps.tmx",
         "map1 sol + déco.tsx",

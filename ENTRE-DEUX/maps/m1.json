@@ -1,0 +1,194 @@
+{
+  "ground_y": 812,
+  "ceiling_y": 300,
+  "scene_width": 2000,
+  "scene_left": -200,
+  "camera_y_offset": 150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 691,
+    "y": 531
+  },
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 143,
+      "y": 623,
+      "w": 1200,
+      "h": 48
+    },
+    {
+      "x": 144,
+      "y": 288,
+      "w": 45,
+      "h": 333
+    },
+    {
+      "x": 144,
+      "y": 287,
+      "w": 1200,
+      "h": 48
+    },
+    {
+      "x": 672,
+      "y": 576,
+      "w": 672,
+      "h": 45
+    },
+    {
+      "x": 1296,
+      "y": 289,
+      "w": 45,
+      "h": 285
+    },
+    {
+      "x": 644,
+      "y": 602,
+      "w": 30,
+      "h": 25
+    },
+    {
+      "x": 204,
+      "y": 579,
+      "w": 116,
+      "h": 48
+    },
+    {
+      "x": 204,
+      "y": 569,
+      "w": 38,
+      "h": 16
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": -200,
+      "y": 812,
+      "w": 2200,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": -200,
+      "y": -500,
+      "w": 2200,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -1000,
+      "y": -500,
+      "w": 800,
+      "h": 2112
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2000,
+      "y": -500,
+      "w": 800,
+      "h": 2112
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 792,
+      "y": 403,
+      "radius": 380,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 314,
+      "y": 410,
+      "radius": 188,
+      "type": "dim",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 986,
+      "y": 457,
+      "radius": 84,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1224,
+      "y": 456,
+      "radius": 89,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1104,
+      "y": 504,
+      "radius": 40,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 678,
+      "y": 485,
+      "w": 84,
+      "h": 91,
+      "target_map": "villag",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
+    }
+  ],
+  "decors": [
+    {
+      "x": 192,
+      "y": 384,
+      "sprite": "tiled_m1_d_cor_4_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 144,
+      "y": 288,
+      "sprite": "tiled_m1_d_cor_3_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 240,
+      "y": 336,
+      "sprite": "tiled_m1_d_cor_2_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 192,
+      "y": 432,
+      "sprite": "tiled_m1_d_cor_1_x3p00.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": []
+}

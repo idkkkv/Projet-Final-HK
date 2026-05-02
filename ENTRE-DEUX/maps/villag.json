@@ -8,7 +8,7 @@
   "player_scale": 1.0,
   "spawn": {
     "x": -1023,
-    "y": 303
+    "y": 367
   },
   "bg_color": [
     38,
@@ -283,11 +283,11 @@
       "require_up": false
     },
     {
-      "x": 1732,
-      "y": 313,
-      "w": 69,
-      "h": 104,
-      "target_map": "bossseraphin",
+      "x": 1730,
+      "y": 309,
+      "w": 68,
+      "h": 107,
+      "target_map": "m1",
       "target_x": -1,
       "target_y": -1,
       "require_up": true

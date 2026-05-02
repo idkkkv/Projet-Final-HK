@@ -1801,15 +1801,25 @@ class Game:
     def _dessiner_monde(self):
         # ── ZOOM CAMÉRA ────────────────────────────────────────────────────
         # Si camera.zoom != 1.0, on rend le monde sur une surface buffer
-        # de taille écran/zoom, puis on scale ce buffer sur l'écran réel
-        # à la fin. zoom > 1 = rapproche (perso plus gros, vue plus serrée).
-        # zoom < 1 = dézoome (perso plus petit, vue plus large).
+        # de taille écran//zoom_entier, puis on scale ce buffer sur l'écran
+        # réel à la fin. zoom > 1 = rapproche (perso plus gros, vue plus
+        # serrée). zoom < 1 = dézoome (perso plus petit, vue plus large).
+        #
+        # PIXEL ART CRISP — On utilise un facteur de zoom ENTIER pour le
+        # rendu. Raison : pygame.transform.scale() fait du nearest-neighbor ;
+        # avec un zoom fractionnaire (ex. 1.5×), certains pixels source
+        # deviennent 1 px à l'écran et d'autres 2 px → pixel art flou /
+        # irrégulier. En arrondissant à l'ENTIER le plus proche (1, 2, 3…),
+        # chaque pixel source devient exactement N pixels d'écran → sprite
+        # parfaitement net. La valeur float de `zoom` reste stockée et
+        # éditable (UI, save), elle est juste arrondie au moment du rendu.
         _real_screen = self.screen
         _zoom = getattr(self.camera, "zoom", 1.0) or 1.0
-        if _zoom != 1.0 and _zoom > 0:
+        _int_zoom = max(1, int(round(_zoom)))
+        if _int_zoom != 1:
             rw, rh = _real_screen.get_size()
-            bw = max(1, int(rw / _zoom))
-            bh = max(1, int(rh / _zoom))
+            bw = max(1, rw // _int_zoom)
+            bh = max(1, rh // _int_zoom)
             buf = getattr(self, "_zoom_buffer", None)
             if buf is None or buf.get_size() != (bw, bh):
                 self._zoom_buffer = pygame.Surface((bw, bh))
@@ -1924,10 +1934,31 @@ class Game:
         # 12. Éclairage (voile sombre + halos autour du joueur/torches).
         self.lumieres.render(self.screen, self.camera, self.joueur.rect)
 
-        # 13. Outils éditeur (aperçu + HUD éditeur + coords souris).
+        # 13a. Aperçu éditeur (monde-aligné : reste sur le buffer zoomé
+        # pour que la preview soit à la même échelle que le monde).
+        if self.editeur.active:
+            self.editeur.draw_preview(self.screen, pygame.mouse.get_pos())
+
+        # ── FIN DU ZOOM CAMÉRA (monde + lumières + aperçu) ────────────────
+        # On scale maintenant le buffer vers l'écran réel. TOUT ce qui est
+        # dessiné APRÈS (HUD, barre de vie, peur, éditeur HUD, inventaire,
+        # dialogues, aide, fondus…) est dessiné à LA RÉSOLUTION NATIVE,
+        # donc reste de taille "normale" quel que soit le zoom caméra.
+        # C'était la demande utilisateur : zoomer le monde et le perso,
+        # mais pas les éléments d'interface.
+        if _real_screen is not self.screen:
+            try:
+                pygame.transform.scale(
+                    self.screen, _real_screen.get_size(), _real_screen)
+            except (ValueError, pygame.error):
+                _real_screen.blit(
+                    pygame.transform.scale(self.screen, _real_screen.get_size()),
+                    (0, 0))
+            self.screen = _real_screen
+
+        # 13b. Outils éditeur en TAILLE NATIVE (texte, panneaux, coords souris).
         if self.editeur.active:
             draw_mouse_coords(self.screen, self.camera, y_start=110)
-            self.editeur.draw_preview(self.screen, pygame.mouse.get_pos())
             self.editeur.draw_hud(self.screen, self._dt)
             # Éditeurs overlays (cine + pnj) par-dessus tout
             cine = getattr(self.editeur, "cine_editor", None)
@@ -1978,21 +2009,6 @@ class Game:
 
         # 22. Fondu enchaîné (par-dessus absolument tout).
         self._dessiner_fondu()
-
-        # ── FIN DU ZOOM CAMÉRA ────────────────────────────────────────────
-        # Si on a rendu sur un buffer (zoom != 1.0), on scale ce buffer
-        # vers l'écran réel et on restaure self.screen pour que le code
-        # APRÈS _dessiner_monde (HUD, menus, voiles de transition) puisse
-        # dessiner à la résolution native.
-        if _real_screen is not self.screen:
-            try:
-                pygame.transform.scale(
-                    self.screen, _real_screen.get_size(), _real_screen)
-            except (ValueError, pygame.error):
-                _real_screen.blit(
-                    pygame.transform.scale(self.screen, _real_screen.get_size()),
-                    (0, 0))
-            self.screen = _real_screen
 
     def _dessiner_hint_skip_cinematique(self):
         """Petit hint discret 'Echap = passer' pendant une cinématique.
