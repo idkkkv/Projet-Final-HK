@@ -19,6 +19,10 @@
     {
       "nom": "54 45",
       "sprite_name": "objet_parlant_64x96.png"
+    },
+    {
+      "nom": "louis",
+      "sprite_name": "marchand"
     }
   ],
   "histoire": [
@@ -32,5 +36,5 @@
   ],
   "carte_debut": "map22",
   "hud_mode": "permanent",
-  "nb_compagnons": 0
+  "nb_compagnons": 5
 }

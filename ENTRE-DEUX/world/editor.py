@@ -156,6 +156,7 @@ from settings import *   # noqa: F401,F403  (BLANC, VIOLET, GROUND_Y, …)
 
 from entities.enemy          import Enemy, list_enemy_sprites
 from entities.npc            import PNJ, list_pnj_sprites, creer_sprite_invisible
+from entities.marchand       import Marchand
 from systems.hitbox_config   import (get_hitbox, set_hitbox,
                                       PLAYER_KEY,
                                       get_player_hitbox, set_player_hitbox)
@@ -3252,7 +3253,10 @@ class Editor:
         # PNJs.
         self.pnjs.clear()
         for p in data.get("pnjs", []):
-            self.pnjs.append(PNJ.from_dict(p))
+            if p.get("type") == "marchand":
+                self.pnjs.append(Marchand.from_dict(p))
+            else:
+                self.pnjs.append(PNJ.from_dict(p))
 
         # Trigger zones (cinématiques, téléportations scriptées, etc.).
         self.trigger_zones.clear()

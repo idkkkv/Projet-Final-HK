@@ -26,7 +26,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os
-
+os.environ["SDL_AUDIODRIVER"] = "dummy"  # Désactive le son (évite les erreurs sur Linux sans config audio)
 import sys
 import atexit
 

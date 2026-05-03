@@ -2,7 +2,10 @@
   "ground_y": 590,
   "ceiling_y": 0,
   "scene_width": 2400,
+  "scene_left": 0,
   "camera_y_offset": 150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
   "spawn": {
     "x": 100,
     "y": 100
@@ -88,6 +91,98 @@
             "nymbus"
           ]
         ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true
+    },
+    {
+      "type": "marchand",
+      "x": 430,
+      "y": 550,
+      "nom": "louis",
+      "sprite_name": "marchand",
+      "dialogues": [[["Bonjour, que puis-je pour toi ?", "louis"]]],
+      "inventaire": [
+        {
+          "nom": "Pomme",
+          "prix": 30,
+          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose à faire\ndonc NAN. D:<"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant (tkt est tres tres utile)"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        }
       ],
       "dialogue_mode": "boucle_dernier",
       "has_gravity": true

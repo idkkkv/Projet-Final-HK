@@ -208,7 +208,7 @@ class Enemy:
         self.nb_frame = {
             "mushroom": {"idle": 7, "run": 8, "walk": 8, "atk": 10, "die": 15},
             "flamur": {"idle": 1, "run": 15, "walk": 15, "atk": 1, "die": 1},
-            "monstre_perdu": {"idle": 1, "run": 1, "walk": 1, "atk": 1, "die": 1},
+            "monstre_perdu.png": {"idle": 1, "run": 1, "walk": 1, "atk": 1, "die": 1},
             "golem": {"idle": 1, "run": 10, "walk": 10, "atk": 11, "die": 13},
         }
 

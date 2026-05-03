@@ -67,6 +67,7 @@ from ui.items_effects import play_cassette
 from entities.boss import *
 from entities.player import Player
 from entities.enemy import Enemy
+from entities.marchand import Marchand
 
 # ── Monde (éditeur, plateformes, collisions)
 from world.editor import Editor
@@ -95,6 +96,7 @@ from ui.settings_screen import SettingsScreen
 from ui.inventory import Inventory
 from ui.fear_overlay import FearOverlay
 from ui.gestionnaire_histoire import GestionnaireHistoire
+from ui.boutique import Boutique
 
 # ── Utilitaires et audio
 from utils import draw_mouse_coords
@@ -328,6 +330,7 @@ class Game:
 
     def _creer_systemes(self):
         """Crée les systèmes transversaux (peur, particules, shake…)."""
+        self.boutique = Boutique()
         self.inventory = Inventory()
         self.inventory.add_item("Pomme")                      # pomme offerte au départ
         self.inventory.add_item("Cassette")                    # cassette offerte au départ
@@ -1011,6 +1014,7 @@ class Game:
         était quand même 'consommé'). À la place, on retient le PNJ actif
         dans self._pnj_actif ; quand la boîte se ferme (cf. update_play),
         on appelle pnj.passer_a_suivante() pour avancer proprement."""
+        print(f"PNJs dispo : {self.editeur.pnjs}")
         for pnj in self.editeur.pnjs:
             if pnj.peut_interagir(self.joueur.rect):
                 lignes = pnj.conversation_actuelle()
@@ -1228,6 +1232,25 @@ class Game:
         # Échap ferme l'aide en priorité si elle est ouverte.
         if self.aide.visible and key == pygame.K_ESCAPE:
             self.aide.close()
+            return
+        
+        # Si boutique est active : Espace/Entrée avance le texte.
+        
+        if self.boutique.actif :
+            item = self.boutique.handle_key(key)
+            if item:
+                nom = item["nom"]
+                self.inventory.add_item(item["nom"])
+                self.boutique._show_msg = f"{item['nom']} acheté !"
+                if nom in ITEMS:
+                    self.inventory.add_item(nom)
+                elif nom.capitalize() in ITEMS:
+                    self.inventory.add_item(nom.capitalize())
+                else:
+                    print(f"Item inconnu dans ITEMS : '{nom}'")
+                    print(f"Items disponibles : {list(ITEMS.keys())}")
+            if key == pygame.K_ESCAPE : 
+                self.boutique.fermer()
             return
 
         # Si un dialogue est actif : Espace/Entrée avance le texte.
@@ -1537,6 +1560,8 @@ class Game:
             # d'après).
             self._logger_dialogue(self._pnj_actif)
             self._pnj_actif.passer_a_suivante()
+            if isinstance(self._pnj_actif, Marchand):
+                self.boutique.ouvrir(self._pnj_actif.inventaire)
             self._pnj_actif = None
 
         # Zones-déclencheurs (téléportation / cinématiques) — front-montant
@@ -1928,6 +1953,7 @@ class Game:
             
         self.inventory.draw(self.screen, 6, 5)
         self.dialogue.draw(self.screen)
+        self.boutique.draw(self.screen)
         self.aide.draw(self.screen)
 
         # 22. Hint "Echap pour passer" pendant une cinématique. Discret,
