@@ -83,6 +83,7 @@ from settings import (
 from audio import sound_manager
 import random
 
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  1. RÉGLAGES (combien de PV par type de coup)
 # ═════════════════════════════════════════════════════════════════════════════
@@ -198,7 +199,13 @@ def infliger_degats(cible, montant, source_rect=None, knockback=0):
 # ═════════════════════════════════════════════════════════════════════════════
 #  4. ATTAQUES DU JOUEUR (appelée chaque frame)
 # ═════════════════════════════════════════════════════════════════════════════
-
+def on_side_hit(ennemi):
+        """Petit recul horizontal quand on touche un ennemi de côté."""
+        recul_force = 300  # ajuste cette valeur selon tes préférences
+        if ennemi.direction == 1: # si on regarde à droite, on recule à gauche
+            ennemi.vx = -recul_force
+        else: # Si on regarde à gauche, on recule à droite
+            ennemi.vx = recul_force
 def resoudre_attaques_joueur(joueur, ennemis):
     """Si le joueur tape, qui se prend le coup ?
 
@@ -240,6 +247,7 @@ def resoudre_attaques_joueur(joueur, ennemis):
                             DEGAT_ATTAQUE_JOUEUR,
                             source_rect=joueur.rect,
                             knockback=KNOCKBACK_ENEMY)
+            on_side_hit(ennemi)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

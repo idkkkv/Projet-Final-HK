@@ -202,7 +202,7 @@ class Enemy:
             "mushroom": 1,
             "flamur": 2,
             "monstre_perdu": 1,
-            "golem": 2
+            "golem": 4
         }.get(sprite_name, max_vie)
         self.hp = self.max_vie
 
@@ -585,6 +585,7 @@ class Enemy:
                 print(f"Frame manquante : {file}{i}.png")
                 # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
                 break
+        
 
         # Cas 1 : au moins une frame → on l'utilise.
         if frames:

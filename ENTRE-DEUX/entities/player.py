@@ -718,14 +718,14 @@ class Player:
         self._prev_d = keys[K_d]
         self._prev_q = keys[K_q]
 
-        if d_pressed or q_pressed or settings.manette.get_button(10) :
+        if d_pressed or q_pressed or (settings.manette and settings.manette.get_button(10)) :
             if now - self._last_d_press_time < self._double_tap_delay:
                 self.running = True
             self._last_d_press_time = now
             self._last_q_press_time = now
 
         # stop si plus de touche
-        if not keys[K_d] and not keys[K_q] and not settings.manette.get_button(10):
+        if not keys[K_d] and not keys[K_q] and not(settings.manette and settings.manette.get_button(10)):
             self.running = False
 
         return self.running
