@@ -19,6 +19,10 @@
     {
       "nom": "54 45",
       "sprite_name": "objet_parlant_64x96.png"
+    },
+    {
+      "nom": "louis",
+      "sprite_name": "marchand"
     }
   ],
   "histoire": [

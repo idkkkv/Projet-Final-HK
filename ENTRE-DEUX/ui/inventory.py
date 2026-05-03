@@ -49,7 +49,7 @@ from utils import find_file
 
 ITEMS = {
     "Pomme": {
-        "category": "Matériel",
+        "category": "Consommable",
         "image": "pomme.png"
     },
     "Cassette": {

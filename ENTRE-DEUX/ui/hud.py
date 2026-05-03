@@ -59,6 +59,7 @@ import pygame
 import settings
 from settings import BLANC
 
+from utils import find_file as ff 
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  1. STYLE (couleurs et géométrie)
@@ -218,17 +219,20 @@ class HUD:
     def _draw_hearts(self, surf, joueur, x, y):
         """Dessine les cœurs : remplis tant que i < joueur.hp, vides après."""
 
+        offset_x = 4
+        offset_y = 4
+            
+        heart_img = pygame.image.load(ff("heart.png")).convert_alpha()
+        sad_heart_img = pygame.image.load(ff("sadheart.png")).convert_alpha()
+            
         for i in range(joueur.max_hp):
             cx = x + i * (TAILLE_COEUR + ESPACE_COEUR)
             # Couleur selon l'état du i-ème cœur
             if i < joueur.hp:
-                color = COULEUR_COEUR_PLEIN
+                img = heart_img
             else:
-                color = COULEUR_COEUR_VIDE
-            pygame.draw.rect(surf, color, (cx, y, TAILLE_COEUR, TAILLE_COEUR))
-            # Bordure (épaisseur 2)
-            pygame.draw.rect(surf, COULEUR_BORD_COEUR,
-                             (cx, y, TAILLE_COEUR, TAILLE_COEUR), 2)
+                img = sad_heart_img
+            surf.blit(img, (cx + offset_x, y + offset_y))
 
     def _draw_fear_bar(self, surf, peur, x, y, largeur):
         """Dessine la jauge de peur : fond, remplissage proportionnel, bordure."""
