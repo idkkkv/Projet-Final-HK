@@ -194,6 +194,18 @@ class Enemy:
         }.get(sprite_name, 0)
         self.pieces_donnees = False
 
+        # -- Vie --
+        self.alive = True
+        self.invincible = False
+        self.invincible_timer = 0.0
+        self.max_vie = {
+            "mushroom": 1,
+            "flamur": 2,
+            "monstre_perdu": 1,
+            "golem": 2
+        }.get(sprite_name, max_vie)
+        self.hp = self.max_vie
+
         # ── Hitbox (lue depuis hitboxes.json, avec repli par défaut) ──
         hb = get_hitbox(sprite_name)
         self.hitbox_w  = hb["w"]
@@ -291,10 +303,6 @@ class Enemy:
         self.MEMORY_DURATION = 2.5          # s de "mémoire" du joueur perdu
         self.last_known_dir  = 1
         self.attack_cooldown = 0.0
-
-        # ──Santé ──
-        self.alive             = True
-        self.max_vie = max_vie
     
     # ═════════════════════════════════════════════════════════════════════════════
     #  Redimentionner
@@ -614,6 +622,10 @@ class Enemy:
             self._jump_lock = max(0.0, self._jump_lock - dt)
         if self._turn_cooldown > 0:
             self._turn_cooldown = max(0.0, self._turn_cooldown - dt)
+        if self.invincible_timer > 0:
+            self.invincible_timer = max(0.0, self.invincible_timer - dt)
+            if self.invincible_timer == 0:
+                self.invincible = False
 
         # ── 2. Murs proches (culling) ─────────────────────────────────────
         if walls:
