@@ -293,6 +293,8 @@ class Player:
         frames_jump_atk_x1 = self._charger_frames("shejumpsatkx1_00", 8)
         frames_jump_atk_x2 = self._charger_frames("shejumpsatkx2_00", 8)
 
+        frames_dodge_atk_x3 = self._charger_frames("dodge_atk3x_", 37)
+
         # heal -----------------------------
         frames_heal_merged = self._charger_frames("shehealsmerged_0", 18)
 
@@ -345,6 +347,8 @@ class Player:
         self.idle_anim_heal = Animation(frames_heal_merged, img_dur=5, loop=False)
         self.idle_anim_hurt_normal = Animation(frames_hurt_normal, img_dur=5, loop=False)
         self.idle_anim_hurt_hard = Animation(frames_hurt_hard, img_dur=5, loop=False)
+
+        self.idle_anim_dodge_atk_3x = Animation(frames_dodge_atk_x3, img_dur=5, loop=False)
 
         # Dash forward / back dodge : on lit DASH_DURATION/FPS pour caler la vitesse
         # de défilement à la durée du dash (sinon l'anim finit avant ou après).
@@ -699,6 +703,12 @@ class Player:
         if settings.manette and settings.manette.get_button(BTN_CARRE):
             return True
         return False
+    
+    def _input_super_atk(self, keys):
+        """True si F enfoncé"""
+        if keys[K_f]:
+            return True
+        return False
 
     def _input_dash(self, keys):
         """True si Shift (gauche ou droit) est enfoncée OU L1/R1."""
@@ -769,6 +779,7 @@ class Player:
         ay = self._input_axis_y(keys)
         jump_held   = self._input_jump(keys)
         attack_held = self._input_attack(keys)
+        sp_atk_held = self._input_super_atk(keys)
         dash_held   = self._input_dash(keys)
         run_held = self._input_run(keys)
 
@@ -777,6 +788,7 @@ class Player:
         # calculé les fronts, sinon on écrase la valeur précédente trop tôt.
         jump_pressed   = jump_held   and not self._prev_jump
         attack_pressed = attack_held and not self._prev_attack
+        sp_attack_pressed = sp_atk_held and not (self._prev_attack or attack_held)
         dash_pressed   = dash_held   and not self._prev_dash
         self.prev_dir = self.direction
         self._prev_jump   = jump_held
@@ -1014,7 +1026,7 @@ class Player:
             self.coyote_timer = COYOTE_TIME
 
         # ── 14. Attaque ───────────────────────────────────────────────────
-        self._gerer_attaque(dt, attack_pressed, ay)
+        self._gerer_attaque(dt, attack_pressed, ay, sp_attack_pressed)
 
         # ── 15. Sons de pas ───────────────────────────────────────────────
         self._gerer_son_pas(dt)
@@ -1250,7 +1262,7 @@ class Player:
                 return True
         return False
 
-    def _gerer_attaque(self, dt, attack_pressed, ay):
+    def _gerer_attaque(self, dt, attack_pressed, ay, sp_attack_pressed):
         """Déclenche et place la hitbox d'attaque.
 
         - attack_pressed = True → on lance une nouvelle attaque
@@ -1266,11 +1278,13 @@ class Player:
                 
         if not self.on_ground:
             self.anim_finie = (
+                (self.combo_step == 0 and self.idle_anim_dodge_atk_3x.done) or
                 (self.combo_step == 1 and self.idle_anim_1xjumpatk.done) or
                 (self.combo_step == 2 and self.idle_anim_2xjumpatk.done)
             )
         else:
             self.anim_finie = (
+                (self.combo_step == 0 and self.idle_anim_dodge_atk_3x.done) or
                 (self.combo_step == 1 and self.idle_anim_1xatk.done) or
                 (self.combo_step == 2 and self.idle_anim_2xatk_short.done) or
                 (self.combo_step == 3 and self.idle_anim_3xatk.done)
@@ -1278,6 +1292,11 @@ class Player:
         # fin atk
         if self.attacking and self.anim_finie:
             self.just_fallen = False
+            if self.combo_step == 0:
+                self.idle_anim_dodge_atk_3x.reset()
+                self.attacking = False
+                self._combo_queued = False
+                return
             if self.combo_step == 1:
                 self.idle_anim_1xatk.reset()
                 self.idle_anim_1xjumpatk.reset()
@@ -1300,21 +1319,29 @@ class Player:
                 self._combo_queued = False
 
         # pas combo, new atk
-        if attack_pressed and not self.attacking:
-            self.combo_step = 1
+        if (attack_pressed or sp_attack_pressed) and not self.attacking:
             self._combo_queued = False
             self.attacking = True
             self.attack_has_hit = False
             self.attack_timer = ATTACK_DURATION
             self.attack_dir = "down" if (ay > 0 and not self.on_ground) else "side"
-            if not self.on_ground:
-                self.idle_anim_1xjumpatk.reset()
-                self.idle_anim_2xjumpatk.reset()
-            else:
-                self.idle_anim_1xatk.reset()
-                self.idle_anim_2xatk_short.reset()
-                self.idle_anim_3xatk.reset()
-            sound_manager.jouer("attaque", volume=VOLUME_ATK)
+
+            if sp_attack_pressed:
+                self.combo_step = 0
+                self.idle_anim_dodge_atk_3x.reset() 
+                sound_manager.jouer("attaque", volume=VOLUME_ATK)
+
+            elif attack_pressed:
+                self.combo_step = 1
+                if not self.on_ground:
+                    self.idle_anim_1xjumpatk.reset()
+                    self.idle_anim_2xjumpatk.reset()
+                else:
+                    self.idle_anim_1xatk.reset()
+                    self.idle_anim_2xatk_short.reset()
+                    self.idle_anim_3xatk.reset()
+
+                sound_manager.jouer("attaque", volume=VOLUME_ATK)
 
         # inactif trop longtemps, reset combo
         if not self.attacking and now - self._last_f_press_time > self.combo_max_delay:
@@ -1574,7 +1601,11 @@ class Player:
 
         # atk ------------------------------
         elif self.attacking and not self.just_fallen:
-            if self.combo_step == 1:
+            if self.combo_step == 0:
+                anim = self.idle_anim_dodge_atk_3x
+                self.idle_anim_dodge_atk_3x.update()
+                img = self.idle_anim_dodge_atk_3x.img()
+            elif self.combo_step == 1:
                 anim = self.idle_anim_1xatk
                 self.idle_anim_1xatk.update()
                 img = self.idle_anim_1xatk.img()
@@ -1638,7 +1669,9 @@ class Player:
         # ── Compensation attaques ────────────────────────────────────────
         if self.attacking and self.attack_dir == "side" :
             if not self.just_fallen :
-                if self.combo_step == 1 :
+                if self.combo_step == 0 :
+                    sy += 92 
+                elif self.combo_step == 1 :
                     sx += 85 * self.direction
                 elif self.combo_step == 2 :
                     sx += 65 * self.direction
