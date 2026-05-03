@@ -706,7 +706,7 @@ class Player:
             return True
         if settings.manette:
             # On accepte L1 OU R1 (certains joueurs préfèrent l'une ou l'autre).
-            if settings.manette.get_button(BTN_L1) or settings.manette.get_button(BTN_R1):
+            if settings.manette.get_button(3) or settings.manette.get_button(9):
                 return True
         return False
 
@@ -718,14 +718,14 @@ class Player:
         self._prev_d = keys[K_d]
         self._prev_q = keys[K_q]
 
-        if d_pressed or q_pressed:
+        if d_pressed or q_pressed or settings.manette.get_button(10) :
             if now - self._last_d_press_time < self._double_tap_delay:
                 self.running = True
             self._last_d_press_time = now
             self._last_q_press_time = now
 
         # stop si plus de touche
-        if not keys[K_d] and not keys[K_q]:
+        if not keys[K_d] and not keys[K_q] and not settings.manette.get_button(10):
             self.running = False
 
         return self.running

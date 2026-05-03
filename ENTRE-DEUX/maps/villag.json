@@ -311,6 +311,16 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true
+    },
+    {
+      "x": 2383,
+      "y": 313,
+      "w": 63,
+      "h": 106,
+      "target_map": "bossseraphin",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
     }
   ],
   "decors": [
