@@ -80,13 +80,17 @@ HUD_Y            = 16     # marge haute
 TAILLE_COEUR     = 22     # côté du carré "cœur"
 ESPACE_COEUR     = 8      # gap entre deux cœurs
 HAUTEUR_PEUR     = 12     # hauteur de la jauge
-ESPACE_VERTICAL  = 10     # gap entre les cœurs et la jauge
+HAUTEUR_PIECES   = 20
+ESPACE_VERTICAL  = 20     # gap entre les cœurs et la jauge
 
 # ── Auto-hide (mode permanent) ──────────────────────────────────────────────
 DUREE_AVANT_FONDU = 4.0   # secondes d'inactivité avant que le HUD s'estompe
 DUREE_FONDU       = 1.0   # durée du fade-out
 ALPHA_MIN         = 60    # opacité minimum quand "endormi"
 
+# pieces
+DUREE_NOTIF_COIN     = 1.2 #duree pr l'anim
+MONTEE_NOTIF         = 30 #nb de px pr l'anim
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  2. CLASSE HUD
@@ -105,6 +109,10 @@ class HUD:
         self._derniere_hp     = None
         self._derniere_peur   = None
         self._timer_inactif   = 0.0
+
+        # pieces
+        self._police_pieces  = pygame.font.SysFont("Consolas", 16)
+        self._notifs_pieces  = [] 
 
     # ═════════════════════════════════════════════════════════════════════════
     #  3. UPDATE — détection d'inactivité (auto-hide en mode permanent)
@@ -131,6 +139,12 @@ class HUD:
         # On retient les nouvelles valeurs pour la prochaine frame.
         self._derniere_hp   = joueur.hp
         self._derniere_peur = peur_val
+
+        self._notifs_pieces = [
+            {**n, "timer": n["timer"] - dt}
+            for n in self._notifs_pieces
+            if n["timer"] - dt > 0
+        ]
 
     # ═════════════════════════════════════════════════════════════════════════
     #  4. CALCUL DE L'OPACITÉ (selon le mode et l'état)
@@ -192,7 +206,9 @@ class HUD:
         # de propager l'alpha à chaque draw.rect.
         largeur_coeurs = joueur.max_hp * (TAILLE_COEUR + ESPACE_COEUR) - ESPACE_COEUR
         largeur_jauge  = max(largeur_coeurs, 180)
-        h_total        = TAILLE_COEUR + ESPACE_VERTICAL + HAUTEUR_PEUR
+        h_total        = TAILLE_COEUR + ESPACE_VERTICAL*2 + HAUTEUR_PEUR + HAUTEUR_PIECES 
+        
+
         if peur is None:
             # Pas de peur → pas de jauge → hauteur réduite.
             h_total = TAILLE_COEUR
@@ -206,6 +222,12 @@ class HUD:
         if peur is not None:
             jy = TAILLE_COEUR + ESPACE_VERTICAL
             self._draw_fear_bar(surf, peur, 0, jy, largeur_jauge)
+
+        # ── Pieces sous la jauge de peur ─────────────────────────────────────
+        if hasattr(joueur, "coins"):
+            coin_y = TAILLE_COEUR + ESPACE_VERTICAL * 2 + HAUTEUR_PEUR
+            self.draw_coin(surf, joueur, 0, coin_y)
+
 
         # ── Application de l'alpha global puis collage à l'écran ─────────────
         if alpha < 255:
@@ -251,3 +273,28 @@ class HUD:
         # Bordure (épaisseur 1, par-dessus pour qu'elle reste visible).
         pygame.draw.rect(surf, COULEUR_PEUR_BORD,
                          (x, y, largeur, HAUTEUR_PEUR), 1)
+        
+    def add_coin(self, nb):
+        """nb : pieces à ajouter"""
+
+        self._notifs_pieces.append({"nb": nb, "timer": DUREE_NOTIF_COIN})
+        
+    def draw_coin(self, surf, joueur, x, y):
+        
+        """Dessine l'argent + animation""" 
+
+        texte = self._police_pieces.render(
+            f"money : {joueur.coins}", True, (230, 210, 255)
+        )
+        surf.blit(texte, (x, y))
+        
+        for notif in self._notifs_pieces:
+            ratio    = 1.0 - (notif["timer"] / DUREE_NOTIF_COIN) # 1 -> 0
+            alpha    = int(255 * (1.0 - ratio)) # fondu
+            offset_y = int(MONTEE_NOTIF * ratio) # monter
+
+            surf_notif = self._police_pieces.render(
+                f"+{notif['nb']}", True, (230, 210, 255)
+            )
+            surf_notif.set_alpha(alpha)
+            surf.blit(surf_notif, (x + 70, y - offset_y))

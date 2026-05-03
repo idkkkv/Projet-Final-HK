@@ -184,6 +184,15 @@ class Enemy:
                  can_turn_randomly=False,      # fait-il des demi-tours aléatoires ?
                  patrol_speed=120,             # vitesse en patrouille (px/s)
                  chase_speed=200):             # vitesse en poursuite (px/s)
+        
+        # -- Pieces recuperees --
+        self.pieces_recup = {
+            "mushroom": 10,
+            "flamur": 100,
+            "monstre_perdu": 5,
+            "golem": 15
+        }.get(sprite_name, 0)
+        self.pieces_donnees = False
 
         # ── Hitbox (lue depuis hitboxes.json, avec repli par défaut) ──
         hb = get_hitbox(sprite_name)

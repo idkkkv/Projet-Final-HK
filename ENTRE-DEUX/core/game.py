@@ -1272,7 +1272,7 @@ class Game:
         # Si boutique est active : Espace/Entrée avance le texte.
         
         if self.boutique.actif :
-            item = self.boutique.handle_key(key)
+            item = self.boutique.handle_key(key, self.joueur)
             if item:
                 nom = item["nom"]
                 self.inventory.add_item(item["nom"])
@@ -1547,7 +1547,7 @@ class Game:
         appliquer_plateformes(self.joueur, self.grille_plateformes)
 
         if not self.editeur.active:
-            resoudre_contacts_ennemis(self.joueur, self.ennemis)
+            resoudre_contacts_ennemis(self.joueur, self.ennemis, hud=self.hud)
 
         for mur in murs:
             mur.verifier_collision(self.joueur)

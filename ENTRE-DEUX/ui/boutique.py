@@ -1,10 +1,10 @@
 # modif taille de la fenetre : bw, bh
 # modif taille img : taille=(
 # split_x : separation coté img et produits
+# 
 
 
 import pygame 
-import ui.inventory as uii
 from utils import find_file
 
 class Boutique:
@@ -31,7 +31,7 @@ class Boutique:
     def fermer(self):
         self.actif = False
 
-    def handle_key(self, key):
+    def handle_key(self, key, player):
         """Retourne l'item acheté ou None."""
         if key == pygame.K_UP:
             self.selection = max(0, self.selection - 1)
@@ -40,7 +40,9 @@ class Boutique:
         elif key in (pygame.K_SPACE, pygame.K_RETURN):
             if self.inventaire:
                 item = self.inventaire[self.selection]
-                return item
+                if player.coins >= item.get("prix", 0):
+                    player.coins -= item.get("prix", 0)
+                    return item
         elif key == pygame.K_ESCAPE:
             self.fermer()
         return None
@@ -131,8 +133,6 @@ class Boutique:
         # Titre
         surf.blit(title_police.render("— SHOP —", True, title_color),
                   (bx + pad + int(10), by + int(20)))
-        
-        
         
         # Items
         if not self.inventaire:

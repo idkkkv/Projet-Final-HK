@@ -83,7 +83,6 @@ from settings import (
 from audio import sound_manager
 import random
 
-
 # ═════════════════════════════════════════════════════════════════════════════
 #  1. RÉGLAGES (combien de PV par type de coup)
 # ═════════════════════════════════════════════════════════════════════════════
@@ -247,7 +246,7 @@ def resoudre_attaques_joueur(joueur, ennemis):
 #  5. CONTACT JOUEUR ↔ ENNEMI (appelée chaque frame)
 # ═════════════════════════════════════════════════════════════════════════════
 
-def resoudre_contacts_ennemis(joueur, ennemis):
+def resoudre_contacts_ennemis(joueur, ennemis, hud=None):
     """Un ennemi colle le joueur ? Alors paf, le joueur perd un cœur.
 
     POURQUOI UN SEUL ENNEMI PAR FRAME ?
@@ -265,7 +264,14 @@ def resoudre_contacts_ennemis(joueur, ennemis):
 
     for ennemi in ennemis:
         # Ennemi mort, ou en cooldown (vient juste de frapper) → suivant.
-        if not ennemi.alive or ennemi.attack_cooldown > 0:
+        if not ennemi.alive :
+            if not ennemi.pieces_donnees:
+                ennemi.pieces_donnees = True
+                joueur.coins += ennemi.pieces_recup
+                if hud:
+                    hud.add_coin(ennemi.pieces_recup)
+            continue
+        if ennemi.attack_cooldown > 0:
             continue
         # Pas de contact physique → suivant.
         if not joueur.rect.colliderect(ennemi.rect):

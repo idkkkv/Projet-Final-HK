@@ -188,6 +188,9 @@ class Player:
         self.fear_wall_dir   = None
         self.fear_recul_mult = 1.0
 
+        # -- money -- 
+        self.coins = 0
+
         # ── Combat ──
         self.attack_has_hit   = False                 # True si on a touché un ennemi durant l'attaque actuelle
         self.attacking        = False                 # True pendant une attaque
@@ -556,6 +559,7 @@ class Player:
         self.dash_timer   = 0.0
         self.jumps_used   = 0
         self._idle_timer  = 0.0
+        self.coins  = 0
         self.regen_active = False
 
     def reload_hitbox(self):
