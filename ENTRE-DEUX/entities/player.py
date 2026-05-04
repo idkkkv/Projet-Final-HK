@@ -328,7 +328,7 @@ class Player:
         self.idle_anim_run = Animation(frames_run, img_dur=2, loop=True)
         self.idle_anim_run_stop = Animation(frames_run_stop, img_dur=3, loop=False)
         self.idle_anim_run_turn = Animation(frames_run_turn, img_dur=5, loop= False)
-        self.idle_anim_idle = Animation(frames_idle, img_dur=6, loop=True)
+        self.idle_anim_idle = Animation(frames_idle, img_dur=8, loop=True)
 
         # sauts
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
