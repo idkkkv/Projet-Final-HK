@@ -328,7 +328,7 @@ class Player:
         self.idle_anim_run = Animation(frames_run, img_dur=2, loop=True)
         self.idle_anim_run_stop = Animation(frames_run_stop, img_dur=3, loop=False)
         self.idle_anim_run_turn = Animation(frames_run_turn, img_dur=5, loop= False)
-        self.idle_anim_idle = Animation(frames_idle, img_dur=10, loop=True)
+        self.idle_anim_idle = Animation(frames_idle, img_dur=6, loop=True)
 
         # sauts
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
@@ -676,13 +676,13 @@ class Player:
         return 0
 
     def _input_axis_y(self, keys):
-        """Renvoie -1 (haut), 0 ou +1 (bas)."""
+        """Renvoie -1 (haut), 0 ou +1 (bas).
         if abs(settings.axis_y) > DEAD_ZONE:
             if settings.axis_y < 0:
                 return -1
             else:
-                return 1
-        if keys[K_z] or keys[K_UP]:
+                return 1"""
+        if keys[K_r] or keys[K_UP]:
             return -1
         if keys[K_s] or keys[K_DOWN]:
             return 1
