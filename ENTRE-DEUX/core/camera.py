@@ -141,7 +141,58 @@ class Camera:
     #  MISE À JOUR (chaque frame, en mode "suit le joueur")
     # ─────────────────────────────────────────────────────────────────────────
 
-    def update(self, target_rect):
+    def snap_to(self, target_rect):
+        """Centre la caméra INSTANTANÉMENT sur target_rect (pas de lerp).
+
+        À appeler quand on téléporte le joueur (chargement de sauvegarde,
+        nouvelle partie, changement de map). Sans ça, la caméra reste à
+        sa position précédente et "rattrape" le joueur en quelques frames
+        avec le lerp normal — l'utilisateur voit la map défiler.
+        """
+        # Cache de taille écran : update() le rafraîchit, mais ici on est
+        # appelé en dehors de update() (au chargement). On le pose à la
+        # main pour que le calcul de cible soit cohérent.
+        surf = pygame.display.get_surface()
+        if surf:
+            self._sw, self._sh = surf.get_size()
+
+        # Même logique que update() mais f=1 (saut direct, pas de lerp).
+        target_x = target_rect.centerx - self._sw // 2
+        target_y = target_rect.centery - self._sh // 2 + self.y_offset
+        self.offset_x = target_x
+        self.offset_y = target_y
+
+        # Clamp aux bornes du monde (réutilise la même logique que update).
+        largeur_monde = self.scene_width - settings.SCENE_LEFT
+        if largeur_monde < self._sw:
+            self.offset_x = settings.SCENE_LEFT - (self._sw - largeur_monde) // 2
+        else:
+            self.offset_x = max(settings.SCENE_LEFT,
+                                min(self.offset_x,
+                                    self.scene_width - self._sw))
+        max_y = settings.GROUND_Y + 40 - self._sh
+        min_y = settings.CEILING_Y - self._sh // 2
+        self.offset_y = max(min_y, min(self.offset_y, max(0, max_y)))
+
+    # Vitesse du lerp caméra. Plus c'est grand, plus la caméra rattrape
+    # vite le joueur. ~8 → 90 % rattrapé en ~0.3 s. Indépendant du FPS
+    # grâce à la formule (1 - exp(-rate*dt)).
+    _LERP_RATE = 8.0
+
+    def _facteur_lerp(self, dt, rate=None):
+        """Convertit un (rate, dt) en facteur de lerp dt-indépendant.
+
+        AVANT (factor=0.1 fixe) : à 80 fps caméra réactive, à 30 fps elle
+        traînait → mouvement irrégulier perçu comme du tremblement quand
+        le FPS variait. Maintenant, peu importe le FPS, le rattrapage
+        prend le même temps RÉEL.
+        """
+        import math
+        r = self._LERP_RATE if rate is None else rate
+        # dt borné pour éviter les sauts énormes (cf. cap dt = 0.05 dans game.py)
+        return 1.0 - math.exp(-r * max(0.0, min(0.05, dt)))
+
+    def update(self, target_rect, dt=1/60):
         """Recentre la caméra (en douceur) sur target_rect.
         En free_mode, ne fait que rafraîchir le cache taille écran."""
 
@@ -183,7 +234,13 @@ class Camera:
             cx, cy = self._cinematic_target
             target_x = cx - self._sw // 2
             target_y = cy - self._sh // 2
-            f = max(0.01, min(1.0, self._cinematic_speed))
+            # On convertit la vitesse cinématique (qui était un facteur
+            # par frame) en taux par seconde pour rester dt-indépendant.
+            # cinematic_speed = 0.05 → rate ~3.1 ; = 0.1 → rate ~6.3
+            import math
+            cs = max(0.001, min(1.0, self._cinematic_speed))
+            rate_cine = -math.log(1.0 - cs) * 60.0  # éq. comportement à 60 fps
+            f = self._facteur_lerp(dt, rate=rate_cine)
             self.offset_x += (target_x - self.offset_x) * f
             self.offset_y += (target_y - self.offset_y) * f
             # Clamp identique au mode joueur (cf. plus bas) : si le monde
@@ -210,7 +267,10 @@ class Camera:
         if self._cinematic_returning:
             target_x = target_rect.centerx - self._sw // 2
             target_y = target_rect.centery - self._sh // 2
-            f = max(0.01, min(1.0, self._cinematic_speed))
+            import math
+            cs = max(0.001, min(1.0, self._cinematic_speed))
+            rate_ret = -math.log(1.0 - cs) * 60.0
+            f = self._facteur_lerp(dt, rate=rate_ret)
             # Sortie de la phase quand on est très proche du centre joueur.
             if abs(target_x - self.offset_x) < 8 and abs(target_y - self.offset_y) < 8:
                 self._cinematic_returning = False
@@ -218,7 +278,10 @@ class Camera:
             # Mode joueur normal : on regarde 150 px AU-DESSUS du joueur.
             target_x = target_rect.centerx - self._sw // 2
             target_y = target_rect.centery - self._sh // 2 + self.y_offset
-            f = 0.1
+            # Lerp dt-aware → vitesse de rattrapage CONSTANTE en temps réel
+            # quel que soit le framerate (avant : factor=0.1 par frame,
+            # donc plus le fps variait, plus la caméra paraissait trembler).
+            f = self._facteur_lerp(dt)
         self.offset_x += (target_x - self.offset_x) * f
         self.offset_y += (target_y - self.offset_y) * f
 

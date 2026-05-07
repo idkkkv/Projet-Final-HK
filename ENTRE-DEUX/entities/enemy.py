@@ -202,7 +202,7 @@ class Enemy:
             "mushroom": 1,
             "flamur": 2,
             "monstre_perdu": 1,
-            "golem": 4
+            "golem": 1
         }.get(sprite_name, max_vie)
         self.hp = self.max_vie
 

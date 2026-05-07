@@ -3,7 +3,7 @@
   "ceiling_y": 0,
   "scene_width": 1700,
   "scene_left": 0,
-  "camera_y_offset": -190,
+  "camera_y_offset": 150,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
@@ -166,21 +166,21 @@
   "holes": [],
   "enemies": [
     {
-      "x": 759,
-      "y": 661,
+      "x": 848,
+      "y": 746,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "golem",
       "can_jump": false,
       "can_jump_patrol": false,
-      "jump_power": 400,
+      "jump_power": 500,
       "detect_range": 200,
       "detect_height": 80,
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": 402,
-      "patrol_right": 1002,
+      "patrol_left": 488,
+      "patrol_right": 1088,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
@@ -188,21 +188,43 @@
       "chase_speed": 200
     },
     {
-      "x": 709,
-      "y": 661,
+      "x": 591,
+      "y": 726,
       "has_gravity": true,
       "has_collision": true,
-      "sprite_name": "golem",
+      "sprite_name": "mushroom",
       "can_jump": false,
       "can_jump_patrol": false,
-      "jump_power": 400,
+      "jump_power": 500,
       "detect_range": 200,
       "detect_height": 80,
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": 349,
-      "patrol_right": 949,
+      "patrol_left": 407,
+      "patrol_right": 1007,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 591,
+      "y": 726,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 500,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 583,
+      "patrol_right": 1183,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
@@ -258,6 +280,158 @@
       "type": "torch",
       "flicker": false,
       "flicker_speed": 5
+    },
+    {
+      "x": 721,
+      "y": 898,
+      "radius": 235,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 1047,
+      "y": 894,
+      "radius": 257,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 1087,
+      "y": 447,
+      "radius": 239,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 601,
+      "y": 465,
+      "radius": 264,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 165,
+      "y": 575,
+      "radius": 233,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 1526,
+      "y": 569,
+      "radius": 203,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 838,
+      "y": 629,
+      "radius": 109,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 718,
+      "y": 666,
+      "radius": 55,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 938,
+      "y": 652,
+      "radius": 123,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 516,
+      "y": 658,
+      "radius": 99,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 457,
+      "y": 724,
+      "radius": 124,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 281,
+      "y": 759,
+      "radius": 119,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 209,
+      "y": 746,
+      "radius": 44,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 663,
+      "y": 706,
+      "radius": 132,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 821,
+      "y": 721,
+      "radius": 111,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 1023,
+      "y": 715,
+      "radius": 42,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 859,
+      "y": 710,
+      "radius": 56,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 873,
+      "y": 756,
+      "radius": 33,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
+    },
+    {
+      "x": 709,
+      "y": 657,
+      "radius": 14,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 9
     }
   ],
   "portals": [

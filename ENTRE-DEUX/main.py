@@ -26,7 +26,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os
-
+import gc
 import sys
 import atexit
 
@@ -106,5 +106,22 @@ def _desactiver_touches_remanentes():
 if __name__ == "__main__":
     _desactiver_touches_remanentes()
 
-    game = Game()
-    game.run()
+    # ── Garbage Collector ──────────────────────────────────────────────
+    # Au démarrage, Python crée + détruit beaucoup d'objets (chargement
+    # des assets, textures, sons). Le GC tourne souvent → micro-freezes
+    # qui font yo-yo le FPS pendant la première minute.
+    # Solution adoptée par plusieurs jeux Python (EVE Online, certains
+    # roguelikes pygame) : on flush UNE fois après l'init, puis on désactive
+    # la collecte AUTOMATIQUE pendant le jeu. Le reference counting de
+    # Python continue à libérer les objets éphémères (particules, etc.)
+    # → la mémoire reste maîtrisée. À la fermeture, on réactive le GC
+    # pour un nettoyage final propre.
+    gc.collect()
+    gc.disable()
+
+    try:
+        game = Game()
+        game.run()
+    finally:
+        gc.enable()
+        gc.collect()
