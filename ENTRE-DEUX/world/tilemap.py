@@ -178,13 +178,19 @@ class Decor:
 
     def __init__(self, x, y, chemin_image, nom_sprite, collision=False,
                  echelle=1.0, collision_box=None,
-                 parallax_x=1.0, parallax_y=1.0, foreground=False):
+                 parallax_x=1.0, parallax_y=1.0, foreground=False,
+                 is_save_point=False):
         self.nom_sprite = nom_sprite
         self.collision  = collision
         self.echelle    = echelle
         self.parallax_x = parallax_x
         self.parallax_y = parallax_y
         self.foreground = foreground
+        # Si True, l'interaction (E) près de ce décor ouvre le menu de
+        # sauvegarde au lieu de jouer un dialogue. Pratique quand on veut
+        # un BANC, une PANCARTE, un AUTEL etc. comme point de sauvegarde.
+        # Toggle dans l'éditeur : F3 sur le décor + B.
+        self.is_save_point = is_save_point
 
         # ── Chargement avec cache + conversion au format écran ───────────
         # Pourquoi convert / convert_alpha ? Sans ça pygame convertit le format
@@ -271,5 +277,7 @@ class Decor:
             d["parallax"] = [self.parallax_x, self.parallax_y]
         if self.foreground:
             d["foreground"] = True
+        if self.is_save_point:
+            d["is_save_point"] = True
 
         return d

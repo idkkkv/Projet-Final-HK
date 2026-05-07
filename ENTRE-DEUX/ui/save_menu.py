@@ -48,15 +48,17 @@ from systems.save_system import (
 #  CONSTANTES VISUELLES
 # ═════════════════════════════════════════════════════════════════════════════
 
-_BG_OVERLAY      = (10, 12, 20, 200)   # voile sombre semi-transparent
-_PANEL_BG        = (24, 28, 40, 230)
-_PANEL_BORDER    = (180, 190, 220)
+_BG_OVERLAY      = (10,  6, 22, 200)   # voile violet sombre
+_PANEL_BG        = (14, 10, 28, 235)   # panneau violet sombre presque opaque
+_PANEL_BORDER    = (110, 90, 200)      # bordure violette
+_PANEL_BORDER_2  = (50,  40,  90)      # bordure interne (double cadre)
+_ACCENT_GOLD     = (255, 215,  70)     # accent doré (coins, sélection)
 _TEXT_COLOR      = (230, 235, 245)
-_TEXT_DIM        = (140, 150, 170)
+_TEXT_DIM        = (140, 130, 175)
 _TEXT_RED        = (220, 90,  100)
-_SELECTION_BG    = (60, 80, 130, 200)
-_SELECTION_LINE  = (160, 200, 255)
-_CONFIRM_BG      = (50, 30, 30, 240)
+_SELECTION_BG    = (80,  60, 160, 130)
+_SELECTION_LINE  = (255, 215,  70)
+_CONFIRM_BG      = (50,  20,  35, 240)
 
 
 class SaveMenu:
@@ -168,15 +170,30 @@ class SaveMenu:
         voile.fill(_BG_OVERLAY)
         surf.blit(voile, (0, 0))
 
-        # ── Panneau central ──────────────────────────────────────────────
+        # ── Panneau central + double bordure violette + coins dorés ────
         panel_w = 580
         panel_h = 380
         panel_x = (w - panel_w) // 2
         panel_y = (h - panel_h) // 2
         panneau = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
         panneau.fill(_PANEL_BG)
-        pygame.draw.rect(panneau, _PANEL_BORDER, panneau.get_rect(), 2)
         surf.blit(panneau, (panel_x, panel_y))
+        # Double bordure
+        pygame.draw.rect(surf, _PANEL_BORDER,
+                         (panel_x, panel_y, panel_w, panel_h), 1)
+        pygame.draw.rect(surf, _PANEL_BORDER_2,
+                         (panel_x + 3, panel_y + 3, panel_w - 6, panel_h - 6), 1)
+        # Coins dorés (4 angles)
+        c = 14
+        for (ax, ay, dx, dy) in (
+                (panel_x,           panel_y,            +1, +1),
+                (panel_x + panel_w, panel_y,            -1, +1),
+                (panel_x,           panel_y + panel_h,  +1, -1),
+                (panel_x + panel_w, panel_y + panel_h,  -1, -1)):
+            pygame.draw.line(surf, _ACCENT_GOLD,
+                             (ax, ay), (ax + dx * c, ay), 2)
+            pygame.draw.line(surf, _ACCENT_GOLD,
+                             (ax, ay), (ax, ay + dy * c), 2)
 
         # ── Titre ────────────────────────────────────────────────────────
         titre_txt = "SAUVEGARDER" if self.mode == "save" else "CHARGER"

@@ -179,6 +179,13 @@ class PNJEditor:
             idx   = modes.index(cur) if cur in modes else 0
             self.pnj.dialogue_mode = modes[(idx + 1) % len(modes)]
             self._msg_show(f"Mode : {self.pnj.dialogue_mode}")
+        elif key == pygame.K_b:
+            # Toggle SAVE POINT : si activé, l'interaction (E) avec ce PNJ
+            # ouvrira le menu de sauvegarde au lieu de jouer un dialogue.
+            # Style banc Hollow Knight.
+            self.pnj.is_save_point = not getattr(self.pnj, "is_save_point", False)
+            etat = "ON" if self.pnj.is_save_point else "OFF"
+            self._msg_show(f"Save point : {etat}  (touche B pour basculer)")
         return True
 
     # ── Niveau 2 : lignes d'une conversation ─────────────────────────────────
@@ -299,16 +306,19 @@ class PNJEditor:
         # Aide contextuelle
         if self.niveau == "conv":
             aide = ("[↑↓] | [Entrée] ouvrir | [A] nouvelle conv | [D] supprimer | "
-                    "[W] mode | [Esc] fermer")
+                    "[W] mode | [B] save point | [Esc] fermer")
         else:
             aide = ("[↑↓] | [Entrée] éditer texte | [O] orateur | [A] +ligne | "
                     "[D] -ligne | [Maj+↑↓] reordonner | [Esc] retour")
         surf.blit(fontsm.render(aide, True, (140, 140, 140)),
                   (cadre.x + 16, cadre.y + 38))
 
-        # Mode info
-        info = f"Mode : {self.pnj.dialogue_mode}  |  {len(self._convs())} conversation(s)"
-        surf.blit(fontsm.render(info, True, (180, 200, 230)),
+        # Mode info + flag save point
+        save_pt = " | [SAVE POINT]" if getattr(self.pnj, "is_save_point", False) else ""
+        info = (f"Mode : {self.pnj.dialogue_mode}  |  "
+                f"{len(self._convs())} conversation(s){save_pt}")
+        couleur = (255, 220, 100) if save_pt else (180, 200, 230)
+        surf.blit(fontsm.render(info, True, couleur),
                   (cadre.x + 16, cadre.y + 60))
 
         # Contenu selon niveau

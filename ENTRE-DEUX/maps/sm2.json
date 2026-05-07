@@ -10,6 +10,7 @@
     "x": 777,
     "y": 286
   },
+  "named_spawns": {},
   "bg_color": [
     0,
     0,
@@ -147,11 +148,11 @@
   ],
   "portals": [
     {
-      "x": 764,
-      "y": 244,
-      "w": 57,
-      "h": 92,
-      "target_map": "sm1",
+      "x": 763,
+      "y": 236,
+      "w": 62,
+      "h": 114,
+      "target_map": "s ps2",
       "target_x": -1,
       "target_y": -1,
       "require_up": true
@@ -175,12 +176,10 @@
       "sprite_name": "objet_parlant_40x40.png",
       "dialogues": [
         [
-
           [
-            "L\u0027encre de ce vieux parchemin s\u0027est presque effac\u00e9e, ne laissant que de rares traces de texte",
+            "L'encre de ce vieux parchemin s'est presque effac\u00e9e, ne laissant que de rares traces de texte",
             "######"
           ],
-          
           [
             "...les \u00e2mes qui restent trop longtemps oublient pourquoi elles sont venues...",
             "Parchemin n\u00b001"
@@ -192,7 +191,8 @@
         ]
       ],
       "dialogue_mode": "boucle_dernier",
-      "has_gravity": false
+      "has_gravity": false,
+      "is_save_point": false
     },
     {
       "type": "pnj",
@@ -213,8 +213,10 @@
         ]
       ],
       "dialogue_mode": "boucle_dernier",
-      "has_gravity": false
+      "has_gravity": false,
+      "is_save_point": false
     }
   ],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": []
 }

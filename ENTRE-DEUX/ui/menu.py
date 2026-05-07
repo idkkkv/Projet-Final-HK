@@ -295,11 +295,15 @@ class Menu:
         # Initialisation paresseuse (lazy) : les particules, personnage et
         # polices sont créés à la première utilisation. Ça évite de consommer
         # de la mémoire pour des menus qu'on n'a pas encore ouverts.
-        self._particules    = []
-        self._personnage    = None
-        self._police_titre  = None
-        self._police_option = None
-        self._police_sous   = None
+        self._particules        = []
+        self._personnage        = None
+        self._police_titre      = None
+        self._police_option     = None
+        self._police_option_sel = None
+        self._police_sous       = None
+
+        # Animation : phase qui pulse (sin) pour glow + barre accent.
+        self._anim_t = 0.0
 
     # ═════════════════════════════════════════════════════════════════════════
     #  4. INITIALISATION PARESSEUSE (lazy init)
@@ -309,11 +313,19 @@ class Menu:
         """Charge les polices la première fois qu'on dessine le menu.
 
         On ne peut pas charger une police avant pygame.font.init(), c'est
-        pourquoi on le fait ici et pas dans __init__."""
+        pourquoi on le fait ici et pas dans __init__.
+
+        REFONTE V2 : on garde les mêmes attributs (compat) mais on
+        utilise des polices plus modernes et un peu plus rondes.
+        """
         if self._police_titre is None:
-            self._police_titre         = pygame.font.SysFont("Georgia",  72, bold=True)
-            self._police_titre_panneau = pygame.font.SysFont("Georgia",  38, bold=True)
-            self._police_option        = pygame.font.SysFont("Consolas", 22)
+            # Cambria/Constantia ont un rendu plus contemporain que Georgia
+            # tout en restant "sérieux/narratif". Si la police n'existe pas
+            # sur le système, pygame retombe sur la police par défaut.
+            self._police_titre         = pygame.font.SysFont("Cambria",  76, bold=True)
+            self._police_titre_panneau = pygame.font.SysFont("Cambria",  34, bold=True)
+            self._police_option        = pygame.font.SysFont("Consolas", 21)
+            self._police_option_sel    = pygame.font.SysFont("Consolas", 23, bold=True)
             self._police_sous          = pygame.font.SysFont("Consolas", 13)
 
     def _init_particules(self, w, h):
@@ -329,12 +341,13 @@ class Menu:
     # ═════════════════════════════════════════════════════════════════════════
 
     def update(self, dt):
-        """Avance les particules. dt = temps écoulé depuis la frame précédente."""
+        """Avance les particules + le timer d'animation."""
         surf = pygame.display.get_surface()
         if surf:
             self._init_particules(*surf.get_size())
         for p in self._particules:
             p.update(dt)
+        self._anim_t += dt
 
     # ═════════════════════════════════════════════════════════════════════════
     #  6. ENTRÉES CLAVIER
@@ -385,85 +398,120 @@ class Menu:
     # ═════════════════════════════════════════════════════════════════════════
 
     def _dessiner_ecran_titre(self, surf, w, h):
-        """Dessine le menu titre : fond sombre + particules + titre + options."""
+        """Menu titre — refonte V2 (violet).
 
-        # ── Fond très sombre — comme les profondeurs de l'Entremonde ─────────
-        # On passe par une Surface SRCALPHA pour avoir un léger alpha (245)
-        # et laisser passer un peu de lumière.
+        Esthétique : palette violet sombre + accent doré.
+          - fond très sombre (6, 6, 18) presque noir
+          - titre avec halo violet doux
+          - ligne décorative classique avec losanges aux extrémités
+          - sélection : glow doré pulsant + barre verticale dorée à gauche
+          - particules / lueurs conservées
+        """
+        import math
+
+        # ── Fond très sombre (style "profondeurs") ───────────────────────
         fond = pygame.Surface((w, h), pygame.SRCALPHA)
         fond.fill((6, 6, 18, 245))
         surf.blit(fond, (0, 0))
 
-        # ── Lueurs flottantes ────────────────────────────────────────────────
+        # ── Particules / Lueurs ─────────────────────────────────────────
         self._init_particules(w, h)
         for p in self._particules:
             p.draw(surf)
 
-        # Centre horizontal et position du titre (calculés une fois pour toutes)
         cx = w // 2 + self.offset_x
         cy_titre = int(h * self.title_y) + self.offset_y
 
-        # ── Titre avec effet de glow (ombre décalée + texte principal) ───────
+        # ── Titre avec halo violet ───────────────────────────────────────
         if self.title:
-            # Ombre décalée de 2 px en bas-droite → donne un relief léger.
-            ombre = self._police_titre.render(self.title, True, (60, 40, 120))
-            surf.blit(ombre, (cx - ombre.get_width() // 2 + 2, cy_titre + 2))
+            # 3 calques de halo à différents offsets/alphas pour un glow doux.
+            for offset, alpha in ((0, 80), (1, 50), (2, 25)):
+                halo = self._police_titre.render(self.title, True, (130, 100, 220))
+                halo.set_alpha(alpha)
+                surf.blit(halo,
+                          (cx - halo.get_width() // 2 - offset, cy_titre - offset))
+                surf.blit(halo,
+                          (cx - halo.get_width() // 2 + offset, cy_titre + offset))
 
             titre_surf = self._police_titre.render(self.title, True, (210, 190, 255))
             surf.blit(titre_surf, (cx - titre_surf.get_width() // 2, cy_titre))
 
-        # ── Ligne décorative sous le titre ───────────────────────────────────
+        # ── Ligne décorative sous le titre (style classique avec losanges) ─
         lx1 = cx - w // 4
         lx2 = cx + w // 4
         ly  = cy_titre + 95
         pygame.draw.line(surf, (80, 60, 160), (lx1, ly), (lx2, ly), 1)
-
-        # Petits losanges aux extrémités de la ligne (détail graphique)
+        # Petits losanges aux extrémités de la ligne
         for lx in (lx1, lx2):
             points = [(lx, ly - 4), (lx + 4, ly), (lx, ly + 4), (lx - 4, ly)]
             pygame.draw.polygon(surf, (130, 100, 220), points)
 
-        # ── Options — texte centré, indicateur ">" à gauche ──────────────────
+        # ── Options ──────────────────────────────────────────────────────
         debut_y = int(h * self.options_y) + self.offset_y
-
-        # Scroll : si trop d'options pour tenir à l'écran, on n'en montre
-        # qu'une fenêtre autour de la sélection courante.
-        max_h        = h - debut_y - 50
+        max_h        = h - debut_y - 60
         max_visible  = max(3, max_h // self.options_spacing)
         n            = len(self.options)
         if n <= max_visible:
-            scroll_start = 0
-            scroll_end   = n
+            scroll_start, scroll_end = 0, n
         else:
-            # Centre la sélection dans la fenêtre visible
             scroll_start = max(0, min(n - max_visible,
                                       self.selection - max_visible // 2))
-            scroll_end   = scroll_start + max_visible
+            scroll_end = scroll_start + max_visible
 
-        # Tronque l'affichage des noms trop longs (en gardant le centre)
-        max_text_w = w - 80
+        max_text_w = w - 100
+        # Pulse pour la sélection (utilisé pour la couleur du glow)
+        pulse = 0.5 + 0.5 * math.sin(self._anim_t * 3.5)
+
         for i in range(scroll_start, scroll_end):
             option = self.options[i]
-            # Option surlignée : doré ; autres : violet pâle.
-            if i == self.selection:
+            est_sel = (i == self.selection)
+
+            # Couleur + police selon état (palette violette restaurée)
+            if est_sel:
                 couleur = (255, 215, 70)
+                police  = self._police_option_sel
             else:
                 couleur = (150, 135, 200)
+                police  = self._police_option
 
-            opt_surf = self._police_option.render(option, True, couleur)
+            opt_surf = police.render(option, True, couleur)
             if opt_surf.get_width() > max_text_w:
-                # Tronque avec "…" si trop long
                 texte = option
-                while texte and self._police_option.size(texte + "…")[0] > max_text_w:
+                while texte and police.size(texte + "…")[0] > max_text_w:
                     texte = texte[:-1]
-                opt_surf = self._police_option.render(texte + "…", True, couleur)
+                opt_surf = police.render(texte + "…", True, couleur)
 
             ox = cx - opt_surf.get_width() // 2
             oy = debut_y + (i - scroll_start) * self.options_spacing
+
+            if est_sel:
+                # Glow doré pulsant derrière le texte
+                glow_alpha = int(80 + 60 * pulse)
+                glow = police.render(option, True, (255, 195, 90))
+                glow.set_alpha(glow_alpha)
+                surf.blit(glow, (ox - 1, oy - 1))
+                surf.blit(glow, (ox + 1, oy + 1))
+                # Barre verticale dorée à gauche du texte (signature "actif")
+                bar_h = opt_surf.get_height()
+                pygame.draw.rect(surf, (255, 215, 70),
+                                 (ox - 24, oy + 2, 3, bar_h - 4))
+
             surf.blit(opt_surf, (ox, oy))
-            if i == self.selection:
-                ind = self._police_option.render(">", True, couleur)
-                surf.blit(ind, (ox - ind.get_width() - 8, oy))
+
+        # Indicateurs scroll
+        if scroll_start > 0:
+            up = self._police_option.render("▲", True, (150, 135, 200))
+            surf.blit(up, (cx - up.get_width() // 2, debut_y - 26))
+        if scroll_end < n:
+            dn = self._police_option.render("▼", True, (150, 135, 200))
+            surf.blit(dn, (cx - dn.get_width() // 2,
+                           debut_y + (scroll_end - scroll_start)
+                           * self.options_spacing + 4))
+
+        # Aide en bas
+        aide = self._police_sous.render(
+            "↑↓  naviguer    ⏎  valider", True, (70, 60, 110))
+        surf.blit(aide, (cx - aide.get_width() // 2, h - 32))
 
         # Indicateurs "il y en a au-dessus / en-dessous"
         if scroll_start > 0:
@@ -483,14 +531,17 @@ class Menu:
     # ═════════════════════════════════════════════════════════════════════════
 
     def _dessiner_panneau(self, surf, w, h):
-        """Panneau flottant — le jeu reste visible en arrière-plan.
+        """Panneau flottant V2 — pause / fin (palette violette).
 
-        On dessine d'abord un voile très léger pour assombrir un peu,
-        puis le cadre centré avec le titre et les options."""
+        Refonte : double bordure violette + accents dorés aux coins +
+        glow doré pulsant sur la sélection. Plus moderne que la v1
+        sans dénaturer l'esprit "violet" du jeu.
+        """
+        import math
 
-        # ── Voile léger (laisse voir le décor derrière) ──────────────────────
+        # ── Voile légèrement violacé ─────────────────────────────────────
         voile = pygame.Surface((w, h), pygame.SRCALPHA)
-        voile.fill((0, 0, 0, 100))
+        voile.fill((10, 6, 22, 120))
         surf.blit(voile, (0, 0))
 
         # ── Dimensions du panneau — s'adaptent au texte le plus large ────────
@@ -511,41 +562,75 @@ class Menu:
         px = (w - panneau_w) // 2 + self.offset_x
         py = (h - panneau_h) // 2 + self.offset_y
 
-        # ── Fond du panneau ──────────────────────────────────────────────────
+        # ── Fond du panneau (violet sombre presque opaque) ────────────────
         panneau = pygame.Surface((panneau_w, panneau_h), pygame.SRCALPHA)
-        panneau.fill((10, 10, 22, 210))
+        panneau.fill((14, 10, 28, 230))
         surf.blit(panneau, (px, py))
 
-        # Double bordure : une extérieure + une intérieure fine (~3 px plus petite).
-        # Le dégradé de deux bordures donne un rendu "gravé" sobre.
-        pygame.draw.rect(surf, (110, 90, 200), (px, py, panneau_w, panneau_h), 1)
-        pygame.draw.rect(surf, (50, 40, 90),   (px + 3, py + 3, panneau_w - 6, panneau_h - 6), 1)
+        # Double bordure violette (style "gravé") + petits coins dorés.
+        pygame.draw.rect(surf, (110, 90, 200),
+                         (px, py, panneau_w, panneau_h), 1)
+        pygame.draw.rect(surf, (50, 40, 90),
+                         (px + 3, py + 3, panneau_w - 6, panneau_h - 6), 1)
+        # Coins dorés (signature visuelle — signe que la pause est un
+        # moment "important"). Petite équerre L à chaque angle.
+        c = 12
+        for (ax, ay, dx, dy) in (
+                (px,             py,             +1, +1),
+                (px + panneau_w, py,             -1, +1),
+                (px,             py + panneau_h, +1, -1),
+                (px + panneau_w, py + panneau_h, -1, -1)):
+            pygame.draw.line(surf, (255, 215, 70),
+                             (ax, ay), (ax + dx * c, ay), 2)
+            pygame.draw.line(surf, (255, 215, 70),
+                             (ax, ay), (ax, ay + dy * c), 2)
 
         y_courant = py + 18
 
-        # ── Titre du panneau — centré dans le panneau (pas dans l'écran) ─────
+        # ── Titre du panneau (violet clair) ───────────────────────────────
         centre_x = px + panneau_w // 2
         if self.title:
-            t = ft.render(self.title, True, (190, 170, 255))
+            t = ft.render(self.title, True, (210, 190, 255))
             surf.blit(t, (centre_x - t.get_width() // 2, y_courant))
             y_courant += t.get_height() + 12
 
-            # Ligne de séparation sous le titre
-            pygame.draw.line(surf, (70, 55, 140),
-                             (px + 20, y_courant - 6),
-                             (px + panneau_w - 20, y_courant - 6), 1)
+            # Séparateur dégradé violet sous le titre (plus joli qu'une
+            # ligne pleine).
+            sep_y = y_courant - 6
+            for i in range(60):
+                t1 = i / 60
+                ox = int(px + 20 + (panneau_w - 40) * t1)
+                w_seg = max(1, int((panneau_w - 40) / 60))
+                opacite = int(180 * math.sin(t1 * math.pi))
+                tmp = pygame.Surface((w_seg, 1), pygame.SRCALPHA)
+                tmp.fill((130, 100, 220, opacite))
+                surf.blit(tmp, (ox, sep_y))
 
-        # ── Options — centrées dans le panneau ───────────────────────────────
+        # ── Options ───────────────────────────────────────────────────────
+        pulse = 0.5 + 0.5 * math.sin(self._anim_t * 3.5)
         for i, option in enumerate(self.options):
-            if i == self.selection:
+            est_sel = (i == self.selection)
+            if est_sel:
                 couleur = (255, 215, 70)
+                police  = self._police_option_sel
             else:
                 couleur = (150, 135, 200)
+                police  = self._police_option
 
-            opt_surf = self._police_option.render(option, True, couleur)
+            opt_surf = police.render(option, True, couleur)
             ox = centre_x - opt_surf.get_width() // 2
             oy = y_courant + i * self.options_spacing
+
+            if est_sel:
+                # Glow doré pulsant
+                glow_alpha = int(80 + 60 * pulse)
+                glow = police.render(option, True, (255, 195, 90))
+                glow.set_alpha(glow_alpha)
+                surf.blit(glow, (ox - 1, oy - 1))
+                surf.blit(glow, (ox + 1, oy + 1))
+                # Barre verticale dorée à gauche
+                bar_h = opt_surf.get_height()
+                pygame.draw.rect(surf, (255, 215, 70),
+                                 (ox - 18, oy + 2, 3, bar_h - 4))
+
             surf.blit(opt_surf, (ox, oy))
-            if i == self.selection:
-                ind = self._police_option.render(">", True, couleur)
-                surf.blit(ind, (ox - ind.get_width() - 8, oy))

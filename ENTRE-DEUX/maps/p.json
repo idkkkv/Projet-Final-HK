@@ -7,9 +7,10 @@
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 53,
-    "y": 3067
+    "x": 49,
+    "y": 3098
   },
+  "named_spawns": {},
   "bg_color": [
     0,
     0,
@@ -1540,7 +1541,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 963,
+      "x": 1022,
       "y": 2994,
       "has_gravity": true,
       "has_collision": true,
@@ -1562,7 +1563,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1261,
+      "x": 1141,
       "y": 2716,
       "has_gravity": true,
       "has_collision": true,
@@ -1584,7 +1585,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1624,
+      "x": 1568,
       "y": 2716,
       "has_gravity": true,
       "has_collision": true,
@@ -1606,7 +1607,7 @@
       "chase_speed": 200
     },
     {
-      "x": 426,
+      "x": 420,
       "y": 1788,
       "has_gravity": true,
       "has_collision": true,
@@ -1628,7 +1629,7 @@
       "chase_speed": 200
     },
     {
-      "x": 928,
+      "x": 923,
       "y": 767,
       "has_gravity": true,
       "has_collision": true,
@@ -1650,7 +1651,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1367,
+      "x": 1445,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1672,7 +1673,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1551,
+      "x": 1481,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1694,7 +1695,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1961,
+      "x": 1899,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1716,7 +1717,7 @@
       "chase_speed": 200
     },
     {
-      "x": 512,
+      "x": 370,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1738,7 +1739,7 @@
       "chase_speed": 200
     },
     {
-      "x": 980,
+      "x": 1095,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1760,7 +1761,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1725,
+      "x": 1604,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1782,7 +1783,7 @@
       "chase_speed": 200
     },
     {
-      "x": 650,
+      "x": 528,
       "y": 71,
       "has_gravity": true,
       "has_collision": true,
@@ -1804,8 +1805,8 @@
       "chase_speed": 200
     },
     {
-      "x": 898,
-      "y": 555,
+      "x": 710,
+      "y": 505,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "golem",
@@ -2430,5 +2431,6 @@
     }
   ],
   "pnjs": [],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": []
 }

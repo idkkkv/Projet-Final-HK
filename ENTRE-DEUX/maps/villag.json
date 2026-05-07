@@ -10,6 +10,7 @@
     "x": -1036,
     "y": 400
   },
+  "named_spawns": {},
   "bg_color": [
     38,
     19,
@@ -364,7 +365,8 @@
       "y": 371,
       "sprite": "tiled_villag_d_cor_21_x2p90.png",
       "collision": false,
-      "echelle": 1.0
+      "echelle": 1.0,
+      "is_save_point": true
     },
     {
       "x": -603,
@@ -502,7 +504,8 @@
         ]
       ],
       "dialogue_mode": "boucle_dernier",
-      "has_gravity": false
+      "has_gravity": false,
+      "is_save_point": false
     }
   ],
   "trigger_zones": [],

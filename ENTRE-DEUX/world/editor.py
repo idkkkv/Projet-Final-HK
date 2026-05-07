@@ -456,8 +456,13 @@ class Editor:
         self._mode_names = [
             "Plateforme", "Mob", "Lumiere", "Spawn", "Portail",
             "Mur", "Hitbox", "Trou", "Copier/Coller", "Décor", "PNJ", "Blocs",
-            "Trigger", "Danger"
+            "Trigger", "Danger", "Spawn nommé",
         ]
+        # Dict {nom: [x, y]} des spawns nommés placés sur la carte. Utilisé
+        # par les portails dont target_map vaut "carte spawn_nom" : à
+        # l'arrivée, on cherche le spawn portant ce nom et on s'y téléporte.
+        # Persisté dans le JSON de la map (cf. _build_save_data / _apply_state).
+        self.named_spawns = {}
 
         # ── Copier/Coller ──
         self._copy_rect           = None
@@ -640,6 +645,25 @@ class Editor:
                 best = p
         return best
 
+    def _decor_le_plus_proche(self, max_dist=200):
+        """Décor (objet) le plus proche du curseur (ou None).
+
+        Sert au toggle save point en mode 9/11 : on appuie B et on prend
+        le décor sous (ou très près de) la souris.
+        """
+        mx, my = pygame.mouse.get_pos()
+        wx = int(mx + self.camera.offset_x)
+        wy = int(my + self.camera.offset_y)
+        best, bd = None, max_dist * max_dist
+        for d in self.decors:
+            cx = d.rect.centerx if hasattr(d, "rect") else d.x
+            cy = d.rect.centery if hasattr(d, "rect") else d.y
+            dist2 = (cx - wx) ** 2 + (cy - wy) ** 2
+            if dist2 < bd:
+                bd   = dist2
+                best = d
+        return best
+
     def _trigger_sous_curseur(self):
         """Renvoie la zone-déclencheur sous le curseur, ou None.
 
@@ -802,6 +826,12 @@ class Editor:
             "scene_width": settings.SCENE_WIDTH,
             "scene_left":  settings.SCENE_LEFT,
             "spawn":       {"x": self.spawn_x, "y": self.spawn_y},
+            # Spawns NOMMÉS (optionnels). Permet à un portail d'arriver à
+            # un endroit précis via syntaxe "mapname spawnname".
+            # Exemple : sortie de maison → portail.target_map = "village porte_maison"
+            # → le joueur réapparaît à la position du spawn nommé "porte_maison"
+            # défini dans village.json (au lieu du spawn par défaut).
+            "named_spawns": dict(getattr(self, "named_spawns", {})),
             "bg_color":    list(self.bg_color),
             "platforms":   [{"x": p.rect.x, "y": p.rect.y,
                              "w": p.rect.width, "h": p.rect.height}
@@ -1039,6 +1069,19 @@ class Editor:
             self.player.spawn_x = self.player.spawn_y = 100
             self.player.respawn()
             self._show_msg("Spawn réinitialisé à (100, 100)")
+        elif key == pygame.K_b and self.mode in (9, 11):
+            # B (mode 9 Décor / 11 Blocs) : toggle SAVE POINT sur le décor
+            # le plus proche du curseur. Permet de transformer n'importe
+            # quel objet du monde (pancarte, banc, autel, ou même un décor
+            # invisible) en point de sauvegarde — l'interaction (E) en jeu
+            # ouvre alors le menu sauvegarde au lieu de rien faire.
+            d = self._decor_le_plus_proche(max_dist=200)
+            if d is None:
+                self._show_msg("Aucun décor proche — survole-en un et appuie B")
+            else:
+                d.is_save_point = not getattr(d, "is_save_point", False)
+                etat = "ON (point de sauvegarde)" if d.is_save_point else "OFF"
+                self._show_msg(f"Décor '{d.nom_sprite}' : save point = {etat}")
         elif key == pygame.K_F5:
             # F5 : caméra libre / suivi du joueur.
             self.camera.free_mode = not self.camera.free_mode
@@ -1370,6 +1413,16 @@ class Editor:
                 self._new_map(bg_color=color or tuple(VIOLET))
                 return "done"
 
+            if mode == "named_spawn":
+                # Mode 14 : enregistre la position cliquée sous le nom donné.
+                # Le nom sert ensuite dans les portails : target_map = "carte nom".
+                if name and getattr(self, "_pending_spawn_pos", None):
+                    x, y = self._pending_spawn_pos
+                    self.named_spawns[name] = [int(x), int(y)]
+                    self._show_msg(f"Spawn '{name}' placé en ({x}, {y})")
+                self._pending_spawn_pos = None
+                return "done"
+
             if mode == "pnj_nom":
                 # Renomme le PNJ + enregistre au registre.
                 if self._pnj_edit_target:
@@ -1547,11 +1600,17 @@ class Editor:
                 if len(char) == 1 and (char.isalnum() or char in ",.#"):
                     self._text_input += char
                 elif char == "space":
-                    # Modes qui ont besoin du VRAI espace (multi-valeurs
-                    # sur une même ligne). Pour les autres modes (noms de
-                    # fichiers de save, etc.), on convertit en "_".
-                    if self._text_mode in ("import_tiled", "scale_zoom",
-                                           "pnj_invisible_taille"):
+                    # Modes qui ont besoin du VRAI espace (multi-valeurs,
+                    # ou syntaxe "mapname spawnname" pour les portails).
+                    # Pour les autres modes (noms de fichiers de save…),
+                    # on convertit en "_" pour éviter les espaces dans
+                    # les chemins.
+                    if self._text_mode in (
+                            "import_tiled", "scale_zoom",
+                            "pnj_invisible_taille",
+                            "named_spawn",        # nom de spawn (peut contenir espaces)
+                            "portal_name",        # "carte spawn_nom" (espace = séparateur)
+                    ):
                         self._text_input += " "
                     else:
                         self._text_input += "_"
@@ -1782,6 +1841,12 @@ class Editor:
                 self._click_danger_respawn(wx, wy)
             else:
                 self._click_rect(wx, wy, "danger")
+        elif self.mode == 14:
+            # Mode "Spawn nommé" : clic gauche → demande un nom puis
+            # enregistre la position. Le nom servira dans les portails
+            # (target_map = "carte spawn_nom").
+            self._pending_spawn_pos = (wx, wy)
+            self._ask_text("named_spawn", "Nom du spawn (ex: porte_maison) :")
 
     def handle_right_click(self, mouse_pos):
         """Clic droit : supprimer l'objet sous le curseur (selon le mode)."""
@@ -1822,6 +1887,21 @@ class Editor:
             self.trigger_zones[:] = [z for z in self.trigger_zones if not z.rect.colliderect(pt)]
         elif self.mode == 13:
             self.danger_zones[:] = [z for z in self.danger_zones if not z["rect"].colliderect(pt)]
+        elif self.mode == 14:
+            # Mode "Spawn nommé" : clic droit supprime le spawn LE PLUS PROCHE
+            # du curseur (rayon 32 px). Plus simple qu'un test rect parce que
+            # un spawn est juste un point (pas de surface).
+            if self.named_spawns:
+                meilleur = None
+                meilleure_d2 = 32 * 32
+                for nom, (sx, sy) in self.named_spawns.items():
+                    d2 = (sx - wx) ** 2 + (sy - wy) ** 2
+                    if d2 < meilleure_d2:
+                        meilleure_d2 = d2
+                        meilleur     = nom
+                if meilleur is not None:
+                    del self.named_spawns[meilleur]
+                    self._show_msg(f"Spawn '{meilleur}' supprimé")
     # ═════════════════════════════════════════════════════════════════════════
     # 9.  ACTIONS DE CLIC (placer plateforme / mob / lumière / décor / …)
     # ═════════════════════════════════════════════════════════════════════════
@@ -1854,8 +1934,14 @@ class Editor:
         elif kind == "portal":
             self._pending_portal_rect = (x, y, w, h)
             maps = self._list_maps()
-            self._ask_text("portal_name",
-                           "Map cible :" + (f"  ({', '.join(maps)})" if maps else ""))
+            # Syntaxe : "nom_map" → arrivée au spawn par défaut
+            #          "nom_map nom_spawn" → arrivée au spawn nommé (mode 14
+            #          "Spawn nommé" pour les placer)
+            self._ask_text(
+                "portal_name",
+                "Map cible (ou 'map spawn') :"
+                + (f"  ({', '.join(maps)})" if maps else "")
+            )
         elif kind == "trigger":
             self._pending_trigger_rect = (x, y, w, h)
             if self._pending_trigger_is_fear:
@@ -2826,6 +2912,23 @@ class Editor:
             # 3. ligne de liaison (pour savoir quel point va avec quel bloc)
             pygame.draw.line(surf, (255, 255, 255), draw_rect.center, (rx, ry), 1)
 
+        # ── Spawns nommés (visible TOUT LE TEMPS pour pouvoir les
+        #    retrouver, mais plus voyant en mode 14 dédié) ─────────────
+        if self.named_spawns:
+            font_small = self._font_small if hasattr(self, "_font_small") else None
+            actif = (self.mode == 14)
+            for nom, (sx, sy) in self.named_spawns.items():
+                cx = int(sx - self.camera.offset_x)
+                cy = int(sy - self.camera.offset_y)
+                couleur = (60, 220, 255) if actif else (60, 220, 255, 120)
+                # Petit cercle bleu ciel + croix au centre.
+                pygame.draw.circle(surf, (60, 220, 255), (cx, cy), 8, 2)
+                pygame.draw.line(surf, (60, 220, 255), (cx-4, cy), (cx+4, cy), 1)
+                pygame.draw.line(surf, (60, 220, 255), (cx, cy-4), (cx, cy+4), 1)
+                if font_small and actif:
+                    label = font_small.render(nom, True, (60, 220, 255))
+                    surf.blit(label, (cx - label.get_width() // 2, cy + 12))
+
     def draw_hud(self, surf, dt=0.016):
         """Bandeau d'information en haut + message éphémère en bas."""
         font  = self._get_font()
@@ -3144,6 +3247,10 @@ class Editor:
             "camera_zoom":     getattr(self.camera, "zoom", 1.0),
             "player_scale":    getattr(settings, "PLAYER_SCALE", 1.0),
             "spawn":           {"x": self.spawn_x, "y": self.spawn_y},
+            # Spawns NOMMÉS placés dans le mode 14 "Spawn nommé".
+            # Format : { "nom": [x, y] }. Lus dans _apply_state.
+            # Utilisés par les portails via la syntaxe "mapname spawnname".
+            "named_spawns":    dict(getattr(self, "named_spawns", {})),
             "bg_color":        self.bg_color,
             "wall_color":      self.wall_color,
             "platforms": [{"x": p.rect.x, "y": p.rect.y,
@@ -3239,6 +3346,10 @@ class Editor:
             self.spawn_y = data["spawn"]["y"]
             self.player.spawn_x = self.spawn_x
             self.player.spawn_y = self.spawn_y
+        # Spawns nommés (peut être édité à la main dans le JSON, ou
+        # rempli plus tard par un mode éditeur dédié).
+        # Format : { "nom_du_spawn": [x, y], ... }
+        self.named_spawns = dict(data.get("named_spawns", {}))
         if "bg_color"   in data: self.bg_color   = data["bg_color"]
         if "wall_color" in data: self.wall_color = data["wall_color"]
 
@@ -3364,6 +3475,7 @@ class Editor:
                     d.get("echelle", 1.0),
                     collision_box=cb,
                     parallax_x=px, parallax_y=py, foreground=fg,
+                    is_save_point=bool(d.get("is_save_point", False)),
                 )
             except TypeError:
                 # Ancien Decor sans params parallax — fallback défensif.
@@ -3375,6 +3487,7 @@ class Editor:
                 )
                 decor.parallax_x = px
                 decor.parallax_y = py
+                decor.is_save_point = bool(d.get("is_save_point", False))
                 decor.foreground = fg
             self.decors.append(decor)
 

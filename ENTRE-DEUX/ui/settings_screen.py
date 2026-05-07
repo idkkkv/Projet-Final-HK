@@ -116,9 +116,11 @@ CONTROLES_EDITEUR = [
 #  Les noms C_* commencent tous par C (pour Couleur) afin qu'elles se
 #  groupent automatiquement dans l'auto-complétion.
 
-C_FOND     = (10,  10,  22, 230)   # fond du panneau (RGBA, 230 = presque opaque)
-C_BORD     = (110,  90, 200)       # bordure du panneau
-C_TITRE    = (210, 190, 255)       # couleur du titre de la page
+C_FOND     = (14,  10,  28, 235)   # fond panneau violet sombre presque opaque
+C_BORD     = (110,  90, 200)       # bordure violette principale
+C_BORD_INT = (50,   40,  90)       # bordure interne (effet "gravé")
+C_ACCENT   = (255, 215,  70)       # accent doré (coins, sélection, barre)
+C_TITRE    = (210, 190, 255)       # titre violet pâle
 C_OPT      = (150, 135, 200)       # option non sélectionnée
 C_OPT_SEL  = (255, 215,  70)       # option sélectionnée (doré)
 C_KEY      = (180, 220, 255)       # nom de touche dans l'aide
@@ -598,15 +600,31 @@ class SettingsScreen:
         px      = (w - panel_w) // 2
         py      = (h - panel_h) // 2
 
-        # ── Voile assombrissant + fond du panneau ────────────────────────────
+        # ── Voile assombrissant légèrement violacé ───────────────────────────
         voile = pygame.Surface((w, h), pygame.SRCALPHA)
-        voile.fill((0, 0, 0, 140))
+        voile.fill((10, 6, 22, 140))
         screen.blit(voile, (0, 0))
 
+        # ── Fond du panneau + double bordure violette + coins dorés ──────────
         panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
         panel.fill(C_FOND)
-        pygame.draw.rect(panel, C_BORD, (0, 0, panel_w, panel_h), 2)
         screen.blit(panel, (px, py))
+
+        # Double bordure (style "gravé")
+        pygame.draw.rect(screen, C_BORD, (px, py, panel_w, panel_h), 1)
+        pygame.draw.rect(screen, C_BORD_INT,
+                         (px + 3, py + 3, panel_w - 6, panel_h - 6), 1)
+        # Coins dorés (4 angles, équerres en L)
+        c = 14
+        for (ax, ay, dx, dy) in (
+                (px,           py,            +1, +1),
+                (px + panel_w, py,            -1, +1),
+                (px,           py + panel_h,  +1, -1),
+                (px + panel_w, py + panel_h,  -1, -1)):
+            pygame.draw.line(screen, C_ACCENT,
+                             (ax, ay), (ax + dx * c, ay), 2)
+            pygame.draw.line(screen, C_ACCENT,
+                             (ax, ay), (ax, ay + dy * c), 2)
 
         # ── Titre selon la page (dictionnaire page → titre) ──────────────────
         titres = {
@@ -618,7 +636,21 @@ class SettingsScreen:
             "aide_edit":  "AIDE — MODE ÉDITEUR",
         }
         titre_surf = self._font_titre.render(titres.get(self.page, "?"), True, C_TITRE)
-        screen.blit(titre_surf, (px + (panel_w - titre_surf.get_width()) // 2, py + 18))
+        tx = px + (panel_w - titre_surf.get_width()) // 2
+        ty = py + 18
+        screen.blit(titre_surf, (tx, ty))
+
+        # Séparateur dégradé sous le titre (cohérent avec menu pause)
+        import math
+        sep_y = ty + titre_surf.get_height() + 8
+        for i in range(60):
+            t1 = i / 60
+            ox = int(px + 25 + (panel_w - 50) * t1)
+            w_seg = max(1, int((panel_w - 50) / 60))
+            opacite = int(180 * math.sin(t1 * math.pi))
+            tmp = pygame.Surface((w_seg, 1), pygame.SRCALPHA)
+            tmp.fill((130, 100, 220, opacite))
+            screen.blit(tmp, (ox, sep_y))
 
         # ── Contenu : aiguillage selon la page ───────────────────────────────
         zone_y = py + 80

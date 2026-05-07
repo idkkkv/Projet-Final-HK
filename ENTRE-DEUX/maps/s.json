@@ -10,6 +10,16 @@
     "x": 1834,
     "y": 864
   },
+  "named_spawns": {
+    "ps": [
+      1052,
+      876
+    ],
+    "ps2": [
+      405,
+      883
+    ]
+  },
   "bg_color": [
     0,
     0,
@@ -180,8 +190,10 @@
         ]
       ],
       "dialogue_mode": "boucle_dernier",
-      "has_gravity": false
+      "has_gravity": false,
+      "is_save_point": false
     }
   ],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": []
 }

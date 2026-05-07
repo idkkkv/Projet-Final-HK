@@ -172,6 +172,30 @@ REGEN_INTERVAL        = 1.0   # intervalle entre deux PV récupérés (s)
 # 5b. CAPACITÉS "HOLLOW KNIGHT"
 # ═════════════════════════════════════════════════════════════════════════════
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  COMPÉTENCES DÉBLOQUÉES (mode histoire)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Au début du jeu, le joueur ne peut QUE sauter. Les autres compétences
+#  s'obtiennent au fil de l'aventure (via quêtes, dialogues, objets).
+#  Chaque compétence a un flag booléen ici.
+#
+#  Ces flags sont :
+#    - lus par entities/player.py (gates les capacités correspondantes)
+#    - sauvegardés dans le slot de save (cf. game._construire_save_data)
+#    - TOUS forcés à True en mode éditeur (l'éditeur a tout pour tester)
+#
+#  Pour débloquer une compétence en jeu, n'importe quel script peut faire :
+#       settings.skill_double_jump = True
+#  ... et c'est sauvegardé à la prochaine sauvegarde du joueur.
+
+skill_double_jump   = False   # 2e saut en l'air
+skill_dash          = False   # dash horizontal (Shift en l'air)
+skill_back_dodge    = False   # esquive arrière (Shift + direction opposée)
+skill_wall_jump     = False   # wall slide + wall jump
+skill_attack        = False   # attaque (F / Carré)
+skill_pogo          = False   # rebond sur ennemi (S+F en l'air)
+
+
 # ── Dash (touche Shift / L1) ────────────────────────────────────────────────
 #  Impulsion horizontale rapide, ignore la gravité pendant sa durée.
 #  DASH_DURATION calé pour que les 17-20 frames de slide / back dodge aient

@@ -458,9 +458,11 @@ class Game:
         # style="panneau" → cadre sur le jeu en arrière-plan
         self.menu_titre = Menu(self._options_menu_titre(), title=TITLE,
                                 style="titre")
+        # Plus de bouton "Sauvegarder" : le jeu sauvegarde uniquement via
+        # des objets/PNJ interactifs dans le monde (style Hollow Knight).
         self.menu_pause = Menu(
             ["Reprendre", "Paramètres",
-             "Sauvegarder", "Charger",
+             "Charger",
              "Menu principal", "Quitter"],
             title="PAUSE",
             style="panneau",
@@ -799,6 +801,16 @@ class Game:
                 portail.target_x,
                 portail.target_y,
             )
+            # Pour les portails AUTO (pas require_up), on mémorise la
+            # vélocité courante du joueur → la transition est plus fluide
+            # (le joueur "continue son saut/sa chute" à l'arrivée au lieu
+            # de s'arrêter pile dans le vide).
+            if not getattr(portail, "require_up", False):
+                self._portail_keep_vy = self.joueur.vy
+                self._portail_keep_vx = self.joueur.vx
+            else:
+                self._portail_keep_vy = 0
+                self._portail_keep_vx = 0
             # Durée du fondu pour CETTE transition. Les PORTES ont un
             # fondu plus long (plus rituel) que les portails classiques.
             if getattr(portail, "require_up", False):
@@ -839,24 +851,58 @@ class Game:
                 self._fondu_etat  = "none"
 
     def _effectuer_transition_carte(self):
-        """Charge la carte cible, place le joueur, reset les caches."""
+        """Charge la carte cible, place le joueur, reset les caches.
+
+        Le champ `target_map` du portail peut prendre 2 formes :
+            "village"            → carte village, spawn par défaut
+            "village porte_haut" → carte village, spawn nommé "porte_haut"
+
+        Le 2e format permet d'avoir plusieurs points d'arrivée par carte
+        (ex: en sortant d'une maison, on apparaît devant la porte de la
+        maison, pas au spawn principal). Les spawns nommés sont stockés
+        dans le JSON de chaque map (champ "named_spawns").
+        """
         if not self._portail_en_attente:
             return
 
         carte, tx, ty = self._portail_en_attente
+
+        # On parse "mapname spawnname" : 1er mot = vraie carte, reste = spawn.
+        nom_spawn = None
+        if isinstance(carte, str) and " " in carte:
+            morceaux = carte.split(" ", 1)
+            carte    = morceaux[0]
+            nom_spawn = morceaux[1].strip() or None
+
         if self.editeur.load_map_for_portal(carte):
             self.carte_actuelle = carte
             self._reconstruire_grille()
             self._murs_modifies()
-            # Destination : (tx, ty) si valides, sinon spawn par défaut.
-            if tx >= 0 and ty >= 0:
+
+            # Priorité de placement (du plus précis au plus général) :
+            #   1. Spawn nommé (si défini dans le portail ET dans la map)
+            #   2. Coords explicites (tx, ty) du portail si > 0
+            #   3. Spawn par défaut de la map
+            named = getattr(self.editeur, "named_spawns", {}) or {}
+            if nom_spawn and nom_spawn in named:
+                pos = named[nom_spawn]
+                self.joueur.rect.x = int(pos[0])
+                self.joueur.rect.y = int(pos[1])
+            elif tx >= 0 and ty >= 0:
                 self.joueur.rect.x = tx
                 self.joueur.rect.y = ty
             else:
                 self.joueur.respawn()
-            # Reset vitesses pour ne pas "propulser" le joueur dans la nouvelle carte.
-            self.joueur.vy           = 0
+
+            # Vélocité à l'arrivée :
+            #   - portail AUTO : on REPREND la vélocité capturée à l'entrée
+            #     (le joueur continue son saut/chute → effet fluide)
+            #   - PORTE : tout à 0 (l'entrée est volontaire et statique)
             self.joueur.knockback_vx = 0
+            self.joueur.vy = getattr(self, "_portail_keep_vy", 0)
+            self.joueur.vx = getattr(self, "_portail_keep_vx", 0)
+            self._portail_keep_vy = 0
+            self._portail_keep_vx = 0
 
         self._portail_en_attente = None
         self._sync_triggers()
@@ -983,6 +1029,17 @@ class Game:
         # Reset du journal des dialogues : nouvelle partie = nouveau journal.
         self.historique_dialogues = {}
 
+        # Reset des compétences en mode histoire : le joueur démarre avec
+        # SEULEMENT le saut. Les autres compétences (double saut, dash,
+        # esquive, wall jump, attaque, pogo) se débloqueront via quêtes /
+        # dialogues / objets en cours d'aventure.
+        # En mode éditeur, on garde tout débloqué (les flags ne sont pas
+        # consultés grâce à _in_editor_mode dans Player._skill_unlocked).
+        if self.mode == "histoire":
+            for nom in ("double_jump", "dash", "back_dodge",
+                        "wall_jump", "attack", "pogo"):
+                setattr(settings, f"skill_{nom}", False)
+
         # Mode histoire → l'éditeur est désactivé (le joueur ne doit pas y accéder).
         if self.mode == "histoire":
             self.editeur.active = False
@@ -1104,6 +1161,18 @@ class Game:
             "enemies": {
                 "killed_per_map": ennemis_morts,
             },
+            # ── Compétences débloquées (mode histoire) ─────────────────
+            # Toutes les compétences (saut2, dash, dodge, wall jump, attaque,
+            # pogo) → flag par skill. À chaque sauvegarde, on capture l'état
+            # courant. À la restauration, on remet ces flags dans settings.
+            "skills": {
+                "double_jump": bool(getattr(settings, "skill_double_jump", False)),
+                "dash":        bool(getattr(settings, "skill_dash",        False)),
+                "back_dodge":  bool(getattr(settings, "skill_back_dodge",  False)),
+                "wall_jump":   bool(getattr(settings, "skill_wall_jump",   False)),
+                "attack":      bool(getattr(settings, "skill_attack",      False)),
+                "pogo":        bool(getattr(settings, "skill_pogo",        False)),
+            },
         }
 
     def _appliquer_save_data(self, data):
@@ -1175,6 +1244,16 @@ class Game:
         # changement de map (cf. _ennemis_morts_par_map).
         ennemis = data.get("enemies", {})
         self._ennemis_morts_par_map = dict(ennemis.get("killed_per_map", {}))
+
+        # ── Restauration des compétences débloquées ───────────────────
+        # On remet les flags settings.skill_* à leur valeur sauvegardée.
+        # Si la save n'a pas la section "skills" (vieille save), on garde
+        # les valeurs courantes (par défaut tout False = début de partie).
+        skills = data.get("skills", {})
+        for nom in ("double_jump", "dash", "back_dodge",
+                    "wall_jump", "attack", "pogo"):
+            if nom in skills:
+                setattr(settings, f"skill_{nom}", bool(skills[nom]))
         # Ré-applique sur la map courante si pertinent.
         morts = self._ennemis_morts_par_map.get(self.carte_actuelle, [])
         for i, e in enumerate(self.ennemis):
@@ -1218,23 +1297,53 @@ class Game:
     # ═════════════════════════════════════════════════════════════════════════
 
     def _tenter_interaction(self):
-        """Cherche un PNJ proche et démarre son dialogue.
+        """Cherche un objet interactif proche et déclenche son action.
 
-        Appelé quand le joueur appuie sur E en mode histoire.
+        Priorité :
+          1. SAVE POINT le plus proche (décor OU PNJ avec is_save_point=True)
+             → ouvre le menu de sauvegarde
+          2. PNJ classique (avec dialogues) → démarre son dialogue
 
-        On NE FAIT PLUS avancer l'index de conversation ici (c'était le
-        bug : l'index avançait à l'ouverture, donc un dialogue interrompu
-        était quand même 'consommé'). À la place, on retient le PNJ actif
-        dans self._pnj_actif ; quand la boîte se ferme (cf. update_play),
-        on appelle pnj.passer_a_suivante() pour avancer proprement."""
-        print(f"PNJs dispo : {self.editeur.pnjs}")
+        Pour les save points sur DÉCORS : on prend le 1er décor avec le
+        flag is_save_point dans un rayon de 80 px du joueur. Permet de
+        transformer une pancarte / un banc / un autel / un décor invisible
+        en point de sauvegarde, sans utiliser un PNJ.
+        """
+        # ── 1) Save point sur DÉCOR proche ────────────────────────────
+        if self.mode == "histoire":
+            jc = self.joueur.rect
+            for d in getattr(self.editeur, "decors", []) or []:
+                if not getattr(d, "is_save_point", False):
+                    continue
+                # Distance entre le centre du joueur et celui du décor.
+                dx = abs(d.rect.centerx - jc.centerx)
+                dy = abs(d.rect.centery - jc.centery)
+                if dx < 80 and dy < 80:
+                    self._ouvrir_save_point()
+                    return
+
+        # ── 2) PNJ proche (save point ou dialogue normal) ─────────────
         for pnj in self.editeur.pnjs:
-            if pnj.peut_interagir(self.joueur.rect):
-                lignes = pnj.conversation_actuelle()
-                if lignes:
-                    self.dialogue.demarrer(lignes)
-                    self._pnj_actif = pnj
+            if not pnj.peut_interagir(self.joueur.rect):
+                continue
+
+            if getattr(pnj, "is_save_point", False) and self.mode == "histoire":
+                self._ouvrir_save_point()
                 return
+
+            # PNJ normal : on démarre son dialogue.
+            lignes = pnj.conversation_actuelle()
+            if lignes:
+                self.dialogue.demarrer(lignes)
+                self._pnj_actif = pnj
+            return
+
+    def _ouvrir_save_point(self):
+        """Bascule en pause + ouvre le SaveMenu (commun PNJ et décor)."""
+        self.etats.switch(PAUSE)
+        self.menu_pause.selection = 0
+        self.save_menu.open(mode="save")
+        self._save_point_actif = True
 
     # ═════════════════════════════════════════════════════════════════════════
     # 8.  LOGIQUE PAR ÉTAT (MENU, PAUSE, GAME_OVER)
@@ -1373,12 +1482,19 @@ class Game:
                     if action == "save":
                         from systems.save_system import sauvegarder_slot
                         sauvegarder_slot(slot, self._construire_save_data())
-                        self.save_menu._refresh()    # re-affiche les nouvelles métadonnées
+                        self.save_menu._refresh()
                     elif action == "load":
                         from systems.save_system import charger_slot
                         donnees = charger_slot(slot)
                         if donnees is not None:
                             self._appliquer_save_data(donnees)
+                            self.etats.switch(GAME)
+                    # Si on est venu d'un SAVE POINT (interaction PNJ
+                    # sauvegarde), on renvoie direct en GAME au lieu de
+                    # rester bloqué dans le menu pause après la save.
+                    if getattr(self, "_save_point_actif", False):
+                        self._save_point_actif = False
+                        if not self.save_menu.visible:
                             self.etats.switch(GAME)
                 continue
 
@@ -1392,8 +1508,6 @@ class Game:
                 self.etats.switch(GAME)
             elif choix == "Paramètres":
                 self.parametres.open()
-            elif choix == "Sauvegarder":
-                self.save_menu.open(mode="save")
             elif choix == "Charger":
                 self.save_menu.open(mode="load")
             elif choix == "Menu principal":
@@ -1421,8 +1535,29 @@ class Game:
 
             choix = self.menu_fin.handle_key(event.key)
             if choix == "Recommencer":
-                music.arreter(fadeout_ms=400)
-                self._nouvelle_partie()
+                # Recommencer = respawn sur la MAP COURANTE (pas retour
+                # à la map de début). Avant on appelait _nouvelle_partie()
+                # qui rechargeait la carte_debut → le joueur était puni
+                # de mort en perdant TOUTE sa progression de map.
+                # Maintenant : on remet juste les PV, on respawn au point
+                # de spawn de la map courante, on revive les ennemis. La
+                # progression (objets ramassés, ennemis tués, dialogues)
+                # est conservée comme dans la plupart des metroidvanias.
+                self.joueur.hp           = self.joueur.max_hp
+                self.joueur.dead         = False
+                self.joueur.vx           = 0
+                self.joueur.vy           = 0
+                self.joueur.knockback_vx = 0
+                self.joueur.invincible   = False
+                self.joueur.rect.x       = self.editeur.spawn_x
+                self.joueur.rect.y       = self.editeur.spawn_y
+                self.camera.snap_to(self.joueur.rect)
+                # Réveille les ennemis de la map courante.
+                for e in self.ennemis:
+                    e.alive = True
+                self.compagnons.respawn(self.joueur)
+                self._gameover_fade_alpha = 0.0
+                self.etats.switch(GAME)
             elif choix == "Menu principal":
                 self._menu_fondu_etat  = "none"
                 self._menu_fondu_alpha = 0
@@ -1481,6 +1616,9 @@ class Game:
         if self.joueur.dead:
             self.etats.switch(GAME_OVER)
             self.menu_fin.selection = 0
+            # Démarre le fondu d'entrée vers l'écran de mort (alpha 0 → 255).
+            # Sinon le passage du jeu au menu de mort était brutal (cut net).
+            self._gameover_fade_alpha = 0.0
 
         # Drag-and-drop dans l'inventaire
         self.inventory.drag_drop(events)
@@ -1780,6 +1918,10 @@ class Game:
         mouvement_bloque = (self._fondu_etat != "none"
                             or self.dialogue.actif
                             or self.cutscene is not None)
+        # Drapeau "mode éditeur" pour le gating des compétences (toutes
+        # débloquées en mode éditeur, restrictif en mode histoire).
+        self.joueur._in_editor_mode = (self.mode == "editeur")
+
         if not mouvement_bloque:
             self.joueur.mouvement(phys_dt, keys, holes=trous)
 
@@ -1802,9 +1944,13 @@ class Game:
                 # Logique ennemi simple 
                 entite.update(phys_dt, self.platforms, murs, self.joueur.rect, holes=trous)
 
-            # 2. Gestion des collisions (Dégâts reçus par le joueur) - UNIQUEMENT si l'entité est vivante
-            if entite.alive and self.joueur.rect.colliderect(entite.rect):
-                # On utilise ta fonction de recul/dégâts
+            # 2. Gestion des collisions (Dégâts reçus par le joueur)
+            # Skip total si invincible : le joueur PASSE À TRAVERS l'ennemi
+            # (pas de re-déclenchement de hit, et indirectement ça évite tout
+            # effet collatéral de la collision pendant la phase de recul).
+            if (entite.alive
+                    and not self.joueur.invincible
+                    and self.joueur.rect.colliderect(entite.rect)):
                 self.joueur.hit_by_enemy(entite.rect)
                 
             # 3. Cas spécial pour le Boss Tempête - UNIQUEMENT si le boss est vivant
@@ -2870,10 +3016,28 @@ class Game:
         self.save_menu.draw(self.screen)
 
     def _frame_game_over(self, events):
-        """Un frame dans l'état GAME_OVER."""
+        """Un frame dans l'état GAME_OVER : fondu progressif vers le noir
+        puis affichage du menu de mort.
+
+        Le fondu (~1 s) évite la transition brutale "jeu → écran noir" qu'on
+        avait avant. L'alpha grimpe de 0 à 255 par incréments de 255 * dt.
+        """
         self._gerer_fin(events)
         self._dessiner_monde()
-        self.menu_fin.draw(self.screen)
+
+        # Avance le fondu : 1 seconde pour passer de 0 à 255.
+        VITESSE = 255.0
+        self._gameover_fade_alpha = min(
+            255.0,
+            getattr(self, "_gameover_fade_alpha", 0.0) + VITESSE * self._dt
+        )
+        self._dessiner_voile_noir(self._gameover_fade_alpha)
+
+        # Le menu de mort n'apparaît que quand le voile est complètement
+        # opaque (sinon on le voit s'estomper en transparence sur le jeu,
+        # peu lisible). Apparition nette une fois le noir total atteint.
+        if self._gameover_fade_alpha >= 255:
+            self.menu_fin.draw(self.screen)
 
     def _dessiner_voile_noir(self, alpha):
         """Dessine un rectangle noir semi-transparent sur tout l'écran.

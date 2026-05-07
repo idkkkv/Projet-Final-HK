@@ -7,9 +7,10 @@
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 1161,
-    "y": 284
+    "x": 1154,
+    "y": 312
   },
+  "named_spawns": {},
   "bg_color": [
     0,
     0,
@@ -177,11 +178,11 @@
   ],
   "portals": [
     {
-      "x": 1130,
-      "y": 242,
-      "w": 100,
-      "h": 105,
-      "target_map": "s",
+      "x": 1111,
+      "y": 233,
+      "w": 111,
+      "h": 139,
+      "target_map": "s ps",
       "target_x": -1,
       "target_y": -1,
       "require_up": true
@@ -197,5 +198,6 @@
     }
   ],
   "pnjs": [],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": []
 }

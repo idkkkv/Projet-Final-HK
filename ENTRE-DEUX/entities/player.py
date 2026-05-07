@@ -544,6 +544,32 @@ class Player:
         # Va vers le mur → multiplicateur sévère habituel.
         return base
 
+    def _skill_unlocked(self, name):
+        """True si la compétence `name` est utilisable maintenant.
+
+        Règle :
+          - en mode éditeur (game.mode == "editeur") → toujours True
+            (l'éditeur a TOUT pour tester librement)
+          - sinon, on lit settings.skill_<name> (False par défaut)
+
+        Compétences gérées : "double_jump", "dash", "back_dodge", "wall_jump",
+        "attack", "pogo". En cas de nom inconnu, on renvoie True (sécurité,
+        ne casse rien).
+
+        Pour DÉBLOQUER une compétence en cours de jeu (après une quête, un
+        dialogue, un objet ramassé), n'importe quel script peut faire :
+            import settings
+            settings.skill_double_jump = True
+        """
+        # Éditeur ouvert ? → toutes les compétences disponibles.
+        # On regarde un attribut éventuel posé sur le joueur par game.py.
+        # Si pas posé (cas hors-jeu), on retombe sur les flags settings.
+        if getattr(self, "_in_editor_mode", False):
+            return True
+
+        attr = f"skill_{name}"
+        return bool(getattr(settings, attr, True))
+
     def respawn(self):
         """Fait réapparaître le joueur à son point de spawn avec PV pleins.
 
@@ -606,8 +632,21 @@ class Player:
             self.knockback_vx = -KNOCKBACK_PLAYER
         else:
             self.knockback_vx = KNOCKBACK_PLAYER
-        # Petit bond vertical pour donner un effet "ouch" dynamique.
-        self.vy = -150
+
+        # ── Comportement vertical ────────────────────────────────────────
+        # AU SOL : petit bond vers le haut pour le feedback "ouch".
+        # EN L'AIR (cas typique : on saute SUR un ennemi) : on FORCE la vy
+        # vers le BAS pour que le joueur traverse l'ennemi et continue sa
+        # chute. Sans ça, même avec la collision désactivée pendant
+        # l'invincibilité, certains setups (ennemi qui bouge vers le haut,
+        # micro-collisions résiduelles) faisaient flotter le joueur au
+        # sommet de l'ennemi pendant toute l'invincibilité.
+        if self.on_ground:
+            self.vy = -150
+        else:
+            # Si le joueur tombait déjà → on amplifie un peu pour passer net.
+            # Si le joueur montait → on force à descendre quand même.
+            self.vy = max(self.vy, 250)
 
         # On annule un dash en cours : un joueur ne peut pas à la fois
         # dasher (invincible) ET se faire toucher. Cohérence visuelle.
@@ -981,7 +1020,11 @@ class Player:
                         self.dash_timer = 0.0
 
             # ── 8. Dash ───────────────────────────────────────────────────────
-            if dash_pressed and self.dash_cooldown <= 0 and not self.dashing:
+            # Gating : le dash est utilisable seulement si la compétence est
+            # débloquée (settings.skill_dash). En mode éditeur on s'en fout
+            # (l'éditeur a tout par défaut, cf. _skill_unlocked).
+            if (dash_pressed and self.dash_cooldown <= 0 and not self.dashing
+                    and self._skill_unlocked("dash")):
                 self._declencher_dash(ax, facing_before)
 
             # ── 9. Gravité ────────────────────────────────────────────────────
@@ -1171,11 +1214,12 @@ class Player:
             sound_manager.jouer("saut", volume=0.7)
             return True
 
-        # 2. Wall-jump : contre un mur, en l'air.
+        # 2. Wall-jump : contre un mur, en l'air. Gated par skill_wall_jump.
         # On NE DÉCOLLE PAS tout de suite : on entre en phase de wind-up
         # (l'anim de prep joue, le perso reste collé au mur), puis à la fin
         # on applique la physique du saut (cf. _appliquer_wall_jump_physics).
-        if self.against_wall != 0 and not self.on_ground:
+        if (self.against_wall != 0 and not self.on_ground
+                and self._skill_unlocked("wall_jump")):
             self.wall_jump_dir          = -self.against_wall   # mémorise dir
             # Pendant le windup le perso FACE LE MUR (à dos de la jump dir).
             # Le sprite natif est dessiné dans cette convention.
@@ -1189,8 +1233,8 @@ class Player:
             sound_manager.jouer("saut", volume=0.7)
             return True
 
-        # 3. Double-saut.
-        if self.jumps_used < 2:
+        # 3. Double-saut. Gated par skill_double_jump (mode histoire).
+        if self.jumps_used < 2 and self._skill_unlocked("double_jump"):
             self.vy         = -DOUBLE_JUMP_POWER
             self.jumps_used = 2
             # On retient si le joueur tenait une direction (Q ou D / stick)

@@ -241,7 +241,8 @@ class PNJ:
     # ═════════════════════════════════════════════════════════════════════════
 
     def __init__(self, x, y, nom, dialogues, sprite_name=None,
-                 dialogue_mode="boucle_dernier", has_gravity=True):
+                 dialogue_mode="boucle_dernier", has_gravity=True,
+                 is_save_point=False):
         self.nom           = nom
         self.sprite_name   = sprite_name
         self._dialogues    = dialogues
@@ -263,6 +264,13 @@ class PNJ:
         self.vy          = 0
         self.on_ground   = False
         self.has_gravity = has_gravity
+
+        # Point de SAUVEGARDE : si True, l'interaction avec ce PNJ ouvre
+        # le menu de sauvegarde (au lieu de jouer un dialogue). Style
+        # "banc Hollow Knight" : un objet du monde où le joueur s'arrête
+        # pour sauvegarder. Le bouton "Sauvegarder" du menu pause ayant
+        # été retiré, c'est la SEULE façon de sauvegarder en mode histoire.
+        self.is_save_point = is_save_point
 
         # ── Chargement des sprites (multi-états ou mono) ─────────────────────
         # Animations multi-états (idle/walk) si la convention de dossier est
@@ -539,14 +547,15 @@ class PNJ:
     def to_dict(self):
         """Convertit le PNJ en dict prêt pour le JSON [D35]."""
         return {
-            "type":          "pnj",
-            "x":             self.rect.x,
-            "y":             self.rect.y,
-            "nom":           self.nom,
-            "sprite_name":   self.sprite_name,
-            "dialogues":     self._dialogues,
-            "dialogue_mode": self.dialogue_mode,
-            "has_gravity":   self.has_gravity,
+            "type":           "pnj",
+            "x":              self.rect.x,
+            "y":              self.rect.y,
+            "nom":            self.nom,
+            "sprite_name":    self.sprite_name,
+            "dialogues":      self._dialogues,
+            "dialogue_mode":  self.dialogue_mode,
+            "has_gravity":    self.has_gravity,
+            "is_save_point":  self.is_save_point,
         }
 
     @staticmethod
@@ -563,4 +572,5 @@ class PNJ:
             sprite_name=data.get("sprite_name"),
             dialogue_mode=data.get("dialogue_mode", "boucle_dernier"),
             has_gravity=data.get("has_gravity", True),
+            is_save_point=data.get("is_save_point", False),
         )
