@@ -346,8 +346,8 @@ class Player:
         self.idle_anim_2xjumpatk = Animation(frames_jump_atk_x2, img_dur=3, loop=False)
 
         self.idle_anim_heal = Animation(frames_heal_merged, img_dur=5, loop=False)
-        self.idle_anim_hurt_normal = Animation(frames_hurt_normal, img_dur=5, loop=False)
-        self.idle_anim_hurt_hard = Animation(frames_hurt_hard, img_dur=5, loop=False)
+        self.idle_anim_hurt_normal = Animation(frames_hurt_normal, img_dur=4, loop=False)
+        self.idle_anim_hurt_hard = Animation(frames_hurt_hard, img_dur=4, loop=False)
 
         self.idle_anim_dodge_atk_3x = Animation(frames_dodge_atk_x3, img_dur=5, loop=False)
 
