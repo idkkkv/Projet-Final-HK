@@ -101,6 +101,16 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": false
+    },
+    {
+      "x": 373,
+      "y": 829,
+      "w": 67,
+      "h": 98,
+      "target_map": "sm2",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
     }
   ],
   "decors": [

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="24" height="35" tilewidth="32" tileheight="32" infinite="0" nextlayerid="4" nextobjectid="291">
  <tileset firstgid="1" source="parcoursvert.tsx"/>
- <imagelayer id="3" name="bg_end" offsetx="-523.333" offsety="-527.333" mode="multiply">
+ <imagelayer id="3" name="bg_end" offsetx="-522.333" offsety="-537.833" mode="multiply">
   <image source="bigé.png" width="2240" height="2240"/>
  </imagelayer>
  <objectgroup id="2" name="collisions">

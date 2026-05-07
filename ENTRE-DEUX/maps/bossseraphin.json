@@ -3,7 +3,7 @@
   "ceiling_y": 0,
   "scene_width": 1700,
   "scene_left": 0,
-  "camera_y_offset": 150,
+  "camera_y_offset": -190,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
@@ -164,7 +164,52 @@
     }
   ],
   "holes": [],
-  "enemies": [],
+  "enemies": [
+    {
+      "x": 759,
+      "y": 661,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "golem",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 402,
+      "patrol_right": 1002,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 709,
+      "y": 661,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "golem",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 349,
+      "patrol_right": 949,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    }
+  ],
   "lights": [
     {
       "x": 607,

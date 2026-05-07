@@ -328,7 +328,7 @@ class Player:
         self.idle_anim_run = Animation(frames_run, img_dur=2, loop=True)
         self.idle_anim_run_stop = Animation(frames_run_stop, img_dur=3, loop=False)
         self.idle_anim_run_turn = Animation(frames_run_turn, img_dur=5, loop= False)
-        self.idle_anim_idle = Animation(frames_idle, img_dur=10, loop=True)
+        self.idle_anim_idle = Animation(frames_idle, img_dur=8, loop=True)
 
         # sauts
         self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
@@ -676,13 +676,13 @@ class Player:
         return 0
 
     def _input_axis_y(self, keys):
-        """Renvoie -1 (haut), 0 ou +1 (bas)."""
+        """Renvoie -1 (haut), 0 ou +1 (bas).
         if abs(settings.axis_y) > DEAD_ZONE:
             if settings.axis_y < 0:
                 return -1
             else:
-                return 1
-        if keys[K_z] or keys[K_UP]:
+                return 1"""
+        if keys[K_r] or keys[K_UP]:
             return -1
         if keys[K_s] or keys[K_DOWN]:
             return 1
@@ -728,14 +728,14 @@ class Player:
         self._prev_d = keys[K_d]
         self._prev_q = keys[K_q]
 
-        if d_pressed or q_pressed or settings.manette.get_button(10) :
+        if d_pressed or q_pressed or (settings.manette and settings.manette.get_button(10)) :
             if now - self._last_d_press_time < self._double_tap_delay:
                 self.running = True
             self._last_d_press_time = now
             self._last_q_press_time = now
 
         # stop si plus de touche
-        if not keys[K_d] and not keys[K_q] and not settings.manette.get_button(10):
+        if not keys[K_d] and not keys[K_q] and not(settings.manette and settings.manette.get_button(10)):
             self.running = False
 
         return self.running
