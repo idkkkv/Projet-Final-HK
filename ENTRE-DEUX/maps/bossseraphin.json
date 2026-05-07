@@ -3,7 +3,7 @@
   "ceiling_y": 0,
   "scene_width": 1700,
   "scene_left": 0,
-  "camera_y_offset": 150,
+  "camera_y_offset": -250,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
@@ -166,8 +166,8 @@
   "holes": [],
   "enemies": [
     {
-      "x": 848,
-      "y": 746,
+      "x": 777,
+      "y": 696,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "golem",
@@ -188,7 +188,7 @@
       "chase_speed": 200
     },
     {
-      "x": 591,
+      "x": 696,
       "y": 726,
       "has_gravity": true,
       "has_collision": true,
@@ -210,7 +210,7 @@
       "chase_speed": 200
     },
     {
-      "x": 591,
+      "x": 758,
       "y": 726,
       "has_gravity": true,
       "has_collision": true,
@@ -477,5 +477,6 @@
     }
   ],
   "pnjs": [],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": []
 }

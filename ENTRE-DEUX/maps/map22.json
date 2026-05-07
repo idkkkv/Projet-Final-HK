@@ -335,7 +335,18 @@
       "h": 180,
       "target_map": "villag",
       "target_x": -1,
-      "target_y": -1
+      "target_y": -1,
+      "require_up": false
+    },
+    {
+      "x": 1468,
+      "y": 2493,
+      "w": 508,
+      "h": 259,
+      "target_map": "villag",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
     }
   ],
   "decors": [
@@ -418,5 +429,6 @@
       "direction_mur": "d",
       "texte": "Vous avez trop peur pour avancer|Rebrousser chemin.."
     }
-  ]
+  ],
+  "danger_zones": []
 }
