@@ -154,11 +154,11 @@ POGO_BOUNCE_VY        = -550  # impulsion verticale après un pogo réussi
 
 # Points de vie et invincibilité
 PLAYER_MAX_HP         = 5     # PV max du joueur
-INVINCIBLE_DURATION   = 1.0   # invincibilité après dégât (s)
+INVINCIBLE_DURATION   = 2.0   # invincibilité après dégât (s)
 HP_DISPLAY_DURATION   = 2.0   # durée d'affichage des cœurs au-dessus du joueur
 
 # Knockback (recul quand on prend / donne un coup)
-KNOCKBACK_PLAYER      = 300   # vitesse de recul du joueur
+KNOCKBACK_PLAYER      = 200   # vitesse de recul du joueur
 KNOCKBACK_ENEMY       = 200   # vitesse de recul de l'ennemi
 KNOCKBACK_DECAY       = 0.85  # freinage appliqué chaque frame (× 0.85)
 

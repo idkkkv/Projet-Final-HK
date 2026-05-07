@@ -193,6 +193,10 @@ def infliger_degats(cible, montant, source_rect=None, knockback=0):
         else:
             cible.knockback_vx = knockback    # cible à droite → pousse à droite
 
+    if hasattr(cible, "hit"):
+        cible.hit = True
+        print("true")
+
     return True
 
 
@@ -247,6 +251,7 @@ def resoudre_attaques_joueur(joueur, ennemis):
                             DEGAT_ATTAQUE_JOUEUR,
                             source_rect=joueur.rect,
                             knockback=KNOCKBACK_ENEMY)
+            
             on_side_hit(ennemi)
 
 

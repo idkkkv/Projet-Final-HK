@@ -213,6 +213,7 @@ class Player:
         self.dead             = False
         self.invincible       = False
         self.invincible_timer = 0.0      # secondes restantes d'invincibilité
+        self.cannot_move      = False
         self.show_hp_timer    = 0.0      # secondes restantes d'affichage des cœurs
         self.hitted_normal    = False
         self.hitted_hard      = False
@@ -768,274 +769,300 @@ class Player:
     # Les collisions avec les plateformes sont gérées APRÈS par collision.py.
 
     def mouvement(self, dt, keys, holes=None):
-        # On mémorise la direction du regard AVANT de lire les inputs.
-        # Sert pour distinguer dash AVANT (input dans le sens du regard ou
-        # rien) vs BACK DODGE (input opposé au regard) — sinon, étape 4
-        # remplace self.direction par ax et on ne saurait plus.
-        facing_before = self.direction
 
-        # ── 1. Lecture des entrées ────────────────────────────────────────
-        ax = self._input_axis_x(keys)          # -1, 0, +1
-        ay = self._input_axis_y(keys)
-        jump_held   = self._input_jump(keys)
-        attack_held = self._input_attack(keys)
-        sp_atk_held = self._input_super_atk(keys)
-        dash_held   = self._input_dash(keys)
-        run_held = self._input_run(keys)
+        # pour le joueur quand il est hurt il peut plus bouger 
+        if self.cannot_move:
+            ax = 0
+            jump_held = False
+            attack_held = False
+            sp_atk_held = False
+            dash_held = False
+            run_held = False
 
-        # Fronts montants : "juste pressé CE frame-ci" (voir __init__ pour
-        # l'explication). On met à jour les mémoires _prev_* APRÈS avoir
-        # calculé les fronts, sinon on écrase la valeur précédente trop tôt.
-        jump_pressed   = jump_held   and not self._prev_jump
-        attack_pressed = attack_held and not self._prev_attack
-        sp_attack_pressed = sp_atk_held and not (self._prev_attack or attack_held)
-        dash_pressed   = dash_held   and not self._prev_dash
-        self.prev_dir = self.direction
-        self._prev_jump   = jump_held
-        self._prev_attack = attack_held
-        self._prev_dash   = dash_held
+            jump_pressed = False
+            attack_pressed = False
+            sp_attack_pressed = False
+            dash_pressed = False
 
-        # ── 1b. Détection back dodge (buffer de tolérance) ────────────────
-        # Si le joueur appuie sur la direction opposée à son regard, on
-        # arme un buffer : pendant BACK_DODGE_INPUT_WINDOW secondes, un
-        # appui Shift sera traité comme back dodge même si le joueur a
-        # déjà commencé à se retourner. Évite d'avoir à presser pile au
-        # même frame Shift+direction-opposée.
-        if ax != 0 and ax != facing_before:
-            # 1er frame de l'input opposé → on mémorise le regard d'avant.
-            # Sinon (déjà dans le buffer), on garde la mémoire et on
-            # rafraîchit juste le timer.
-            if self._back_dodge_buffer <= 0:
-                self._pre_back_dodge_facing = facing_before
-            self._back_dodge_buffer = BACK_DODGE_INPUT_WINDOW
-
-        # ── 2. Décrémentation des timers d'état ───────────────────────────
-        self._tick_state_timers(dt)
-
-        # ── 3. Wall-lock : après un wall-jump, on ignore l'input opposé ──
-        # Pourquoi ? Le joueur vient de se propulser dans un sens ; s'il
-        # maintient la direction vers le mur, il reviendrait coller dessus
-        # tout de suite. On lui "refuse" cette direction pendant WALL_JUMP_LOCK.
-        if self.wall_lock_timer > 0:
-            # ax * self.direction < 0 = l'input va DANS L'AUTRE SENS que la
-            # direction actuelle (celle donnée par le wall-jump).
-            if ax * self.direction < 0:
-                ax = 0
-
-        # ── 4. Calcul de la vitesse horizontale ───────────────────────────
-
-        if self.dashing:
-            # Pendant un dash, la vitesse est fixée (ignore l'input).
-            # Back dodge : vitesse réduite + arrêt du mouvement pendant la
-            # phase de récupération (frames 14-20 = perso se relève, ne
-            # doit plus reculer physiquement).
-            #
-            # speed_multiplier : appliqué AUSSI au dash et au back dodge.
-            # C'est volontaire : les fear_zones ralentissent "de toutes les
-            # manières possibles" (cf. settings.py / world/triggers.py). Si
-            # le dash gardait sa pleine vitesse, le joueur pourrait esquiver
-            # le ralentissement → on perdrait l'effet de la zone.
-            #
-            # MAIS : on utilise _mult_horizontal(self.dash_dir) — donc si
-            # on dash dans le sens OPPOSÉ au mur (= on s'enfuit), on a le
-            # bonus de recul (~75 %). Logique : un dash de fuite reste
-            # efficace, un dash vers le mur est étouffé.
-            if self.dash_back:
-                progress = 1.0 - (self.dash_timer / BACK_DODGE_DURATION)
-                if progress >= BACK_DODGE_MOVE_FRACTION:
-                    # Phase recovery : le perso reste sur place, l'anim
-                    # continue (touche la tête / se relève).
-                    self.vx = 0
-                else:
-                    # Phase recoil : le perso recule.
-                    self.vx = BACK_DODGE_SPEED * self.dash_dir * \
-                              self._mult_horizontal(self.dash_dir)
-            else:
-                self.vx = DASH_SPEED * self.dash_dir * \
-                          self._mult_horizontal(self.dash_dir)
             self.walking = False
-            self.idle = False
-        else:
-            if self.running :
-                if self.run_state == "idle":
-                    self.run_state = "start"
-                    self.idle_anim_run_start.reset()
+            self.running = False
+            self.looking_up = False
 
-                # animation run_turn
-                if ax != 0 and ax != self.prev_dir and self.prev_dir != 0 :
-                    self.run_state = "turn"
-                    self.idle_anim_run_turn.reset()
+            self._prev_jump = False
+            self._prev_attack = False
+            self._prev_dash = False
+        else :
+        
+            # On mémorise la direction du regard AVANT de lire les inputs.
+            # Sert pour distinguer dash AVANT (input dans le sens du regard ou
+            # rien) vs BACK DODGE (input opposé au regard) — sinon, étape 4
+            # remplace self.direction par ax et on ne saurait plus.
+            facing_before = self.direction
+
+            # ── 1. Lecture des entrées ────────────────────────────────────────
+            ax = self._input_axis_x(keys)          # -1, 0, +1
+            ay = self._input_axis_y(keys)
+            jump_held   = self._input_jump(keys)
+            attack_held = self._input_attack(keys)
+            sp_atk_held = self._input_super_atk(keys)
+            dash_held   = self._input_dash(keys)
+            run_held = self._input_run(keys)
+
+            # Fronts montants : "juste pressé CE frame-ci" (voir __init__ pour
+            # l'explication). On met à jour les mémoires _prev_* APRÈS avoir
+            # calculé les fronts, sinon on écrase la valeur précédente trop tôt.
+            jump_pressed   = jump_held   and not self._prev_jump
+            attack_pressed = attack_held and not self._prev_attack
+            sp_attack_pressed = sp_atk_held and not (self._prev_attack or attack_held)
+            dash_pressed   = dash_held   and not self._prev_dash
+            self.prev_dir = self.direction
+            self._prev_jump   = jump_held
+            self._prev_attack = attack_held
+            self._prev_dash   = dash_held
+
+            # ── 1b. Détection back dodge (buffer de tolérance) ────────────────
+            # Si le joueur appuie sur la direction opposée à son regard, on
+            # arme un buffer : pendant BACK_DODGE_INPUT_WINDOW secondes, un
+            # appui Shift sera traité comme back dodge même si le joueur a
+            # déjà commencé à se retourner. Évite d'avoir à presser pile au
+            # même frame Shift+direction-opposée.
+            if ax != 0 and ax != facing_before:
+                # 1er frame de l'input opposé → on mémorise le regard d'avant.
+                # Sinon (déjà dans le buffer), on garde la mémoire et on
+                # rafraîchit juste le timer.
+                if self._back_dodge_buffer <= 0:
+                    self._pre_back_dodge_facing = facing_before
+                self._back_dodge_buffer = BACK_DODGE_INPUT_WINDOW
+
+            # ── 2. Décrémentation des timers d'état ───────────────────────────
+            self._tick_state_timers(dt)
+
+            # ── 3. Wall-lock : après un wall-jump, on ignore l'input opposé ──
+            # Pourquoi ? Le joueur vient de se propulser dans un sens ; s'il
+            # maintient la direction vers le mur, il reviendrait coller dessus
+            # tout de suite. On lui "refuse" cette direction pendant WALL_JUMP_LOCK.
+            if self.wall_lock_timer > 0:
+                # ax * self.direction < 0 = l'input va DANS L'AUTRE SENS que la
+                # direction actuelle (celle donnée par le wall-jump).
+                if ax * self.direction < 0:
+                    ax = 0
+
+            # ── 4. Calcul de la vitesse horizontale ───────────────────────────
+
+            if self.dashing:
+                # Pendant un dash, la vitesse est fixée (ignore l'input).
+                # Back dodge : vitesse réduite + arrêt du mouvement pendant la
+                # phase de récupération (frames 14-20 = perso se relève, ne
+                # doit plus reculer physiquement).
+                #
+                # speed_multiplier : appliqué AUSSI au dash et au back dodge.
+                # C'est volontaire : les fear_zones ralentissent "de toutes les
+                # manières possibles" (cf. settings.py / world/triggers.py). Si
+                # le dash gardait sa pleine vitesse, le joueur pourrait esquiver
+                # le ralentissement → on perdrait l'effet de la zone.
+                #
+                # MAIS : on utilise _mult_horizontal(self.dash_dir) — donc si
+                # on dash dans le sens OPPOSÉ au mur (= on s'enfuit), on a le
+                # bonus de recul (~75 %). Logique : un dash de fuite reste
+                # efficace, un dash vers le mur est étouffé.
+                if self.dash_back:
+                    progress = 1.0 - (self.dash_timer / BACK_DODGE_DURATION)
+                    if progress >= BACK_DODGE_MOVE_FRACTION:
+                        # Phase recovery : le perso reste sur place, l'anim
+                        # continue (touche la tête / se relève).
+                        self.vx = 0
+                    else:
+                        # Phase recoil : le perso recule.
+                        self.vx = BACK_DODGE_SPEED * self.dash_dir * \
+                                self._mult_horizontal(self.dash_dir)
+                else:
+                    self.vx = DASH_SPEED * self.dash_dir * \
+                            self._mult_horizontal(self.dash_dir)
+                self.walking = False
+                self.idle = False
+            else:
+                if self.running :
+                    if self.run_state == "idle":
+                        self.run_state = "start"
+                        self.idle_anim_run_start.reset()
+
+                    # animation run_turn
+                    if ax != 0 and ax != self.prev_dir and self.prev_dir != 0 :
+                        self.run_state = "turn"
+                        self.idle_anim_run_turn.reset()
+                        self.direction = ax
+
+                    self.vx = ax * self.run_speed * self._mult_horizontal(ax)
+                    self.run_duree += dt
+                else:
+                    if self.run_state in ["run", "start"]:
+                        self.run_state = "stop"
+                        self.idle_anim_run_stop.reset()
+                    self.vx = ax * self.speed * self._mult_horizontal(ax)
+
+                # ── Override wall-jump push ──────────────────────────────────
+                # Pendant la phase de push (juste après un wall jump), on FORCE
+                # le vx à WALL_JUMP_VX dans la direction opposée au mur. Ça
+                # garantit que le perso s'éloigne franchement du mur même si
+                # le joueur ne presse rien — sinon vx serait à 0 (idle) ou à
+                # ax*speed (réduit) et la poussée serait perdue.
+                if self.wall_jump_timer > 0:
+                    self.vx = self.wall_jump_dir * WALL_JUMP_VX
+
+                # ── Override wall-jump WIND-UP ───────────────────────────────
+                # Pendant la phase de prep, le perso est figé contre le mur :
+                # vx=0 et l'anim de wind-up joue. La physique du saut sera
+                # appliquée à la fin du wind-up (cf. _appliquer_wall_jump_physics).
+                if self.wall_jump_windup_timer > 0:
+                    self.vx = 0
+                    self.walking = False
+
+                self.walking = (ax != 0)
+                # On ne change la direction "regardée" que si on bouge vraiment
+                # ET que les verrous (back dodge, wall jump windup) sont
+                # inactifs. Sinon le perso garde sa direction face — sinon la
+                # 1ère frame de wall jump apparaissait dans le mauvais sens
+                # parce que step 4 réécrasait direction à chaque frame du
+                # windup avec ax (qui pointait toujours vers le mur).
+                if (ax != 0
+                        and self.back_dodge_lock_timer <= 0
+                        and self.wall_jump_windup_timer <= 0):
                     self.direction = ax
 
-                self.vx = ax * self.run_speed * self._mult_horizontal(ax)
-                self.run_duree += dt
+            """if self.attacking and not self.dashing:
+                if self.combo_step == 1:
+                    self.vx = self.direction * 80
+                elif self.combo_step == 2:
+                    self.vx = self.direction * 200
+                else:  # x3
+                    self.vx = self.direction * 160"""
+
+            # Si on ne fait rien, on prend l'animation idle
+            if not self.walking and not self.dashing:
+                self.idle_anim_idle
+
+            # ── 5. Knockback (recul après avoir pris un coup) ─────────────────
+            # On l'ajoute à la vitesse courante, puis on l'amortit (× 0.85).
+            # Quand il devient tout petit, on le met à zéro "net".
+            self.vx += self.knockback_vx
+            if abs(self.knockback_vx) > 1:
+                self.knockback_vx *= KNOCKBACK_DECAY
             else:
-                if self.run_state in ["run", "start"]:
-                    self.run_state = "stop"
-                    self.idle_anim_run_stop.reset()
-                self.vx = ax * self.speed * self._mult_horizontal(ax)
+                self.knockback_vx = 0
 
-            # ── Override wall-jump push ──────────────────────────────────
-            # Pendant la phase de push (juste après un wall jump), on FORCE
-            # le vx à WALL_JUMP_VX dans la direction opposée au mur. Ça
-            # garantit que le perso s'éloigne franchement du mur même si
-            # le joueur ne presse rien — sinon vx serait à 0 (idle) ou à
-            # ax*speed (réduit) et la poussée serait perdue.
-            if self.wall_jump_timer > 0:
-                self.vx = self.wall_jump_dir * WALL_JUMP_VX
+            # ── 6. Regard vers le haut → afficher les cœurs ────────────────────
+            # Dans Hollow Knight, regarder vers le haut affiche l'état. On fait
+            # pareil : on reset le timer → les cœurs restent visibles tant qu'on
+            # regarde en l'air.
+            self.looking_up = (ay < 0)
+            if self.looking_up:
+                self.show_hp_timer = HP_DISPLAY_DURATION
 
-            # ── Override wall-jump WIND-UP ───────────────────────────────
-            # Pendant la phase de prep, le perso est figé contre le mur :
-            # vx=0 et l'anim de wind-up joue. La physique du saut sera
-            # appliquée à la fin du wind-up (cf. _appliquer_wall_jump_physics).
+            # ── 7. Saut (jump buffer + coyote + double-saut + wall-jump) ──────
+            # Si on vient d'appuyer sur saut : on "mémorise" l'appui pendant
+            # JUMP_BUFFER secondes. À chaque frame, on retente de sauter tant
+            # que le buffer est actif. C'est ce qui rend les sauts "généreux".
+            if jump_pressed:
+                self.jump_buffer = JUMP_BUFFER
+
+            if self.jump_buffer > 0:
+                if self._tenter_saut():
+                    # Saut réussi → on consomme le buffer.
+                    self.jump_buffer = 0.0
+                    self.idle_anim_jump.frame = 0
+                    # PRIORITÉ DU SAUT SUR LE DASH : si on était en plein dash
+                    # (au sol ou aérien) au moment de l'appui Espace, on coupe
+                    # le dash net pour laisser le saut prendre effet. Sinon vy
+                    # serait écrasé à 0 par l'étape 9 (gravité = 0 pendant dash)
+                    # et l'impulsion du saut serait perdue → le perso roulerait
+                    # sans monter.
+                    if self.dashing:
+                        self.dashing    = False
+                        self.dash_timer = 0.0
+
+            # ── 8. Dash ───────────────────────────────────────────────────────
+            if dash_pressed and self.dash_cooldown <= 0 and not self.dashing:
+                self._declencher_dash(ax, facing_before)
+
+            # ── 9. Gravité ────────────────────────────────────────────────────
             if self.wall_jump_windup_timer > 0:
-                self.vx = 0
-                self.walking = False
-
-            self.walking = (ax != 0)
-            # On ne change la direction "regardée" que si on bouge vraiment
-            # ET que les verrous (back dodge, wall jump windup) sont
-            # inactifs. Sinon le perso garde sa direction face — sinon la
-            # 1ère frame de wall jump apparaissait dans le mauvais sens
-            # parce que step 4 réécrasait direction à chaque frame du
-            # windup avec ax (qui pointait toujours vers le mur).
-            if (ax != 0
-                    and self.back_dodge_lock_timer <= 0
-                    and self.wall_jump_windup_timer <= 0):
-                self.direction = ax
-
-        """if self.attacking and not self.dashing:
-            if self.combo_step == 1:
-                self.vx = self.direction * 80
-            elif self.combo_step == 2:
-                self.vx = self.direction * 200
-            else:  # x3
-                self.vx = self.direction * 160"""
-
-        # Si on ne fait rien, on prend l'animation idle
-        if not self.walking and not self.dashing:
-            self.idle_anim_idle
-
-        # ── 5. Knockback (recul après avoir pris un coup) ─────────────────
-        # On l'ajoute à la vitesse courante, puis on l'amortit (× 0.85).
-        # Quand il devient tout petit, on le met à zéro "net".
-        self.vx += self.knockback_vx
-        if abs(self.knockback_vx) > 1:
-            self.knockback_vx *= KNOCKBACK_DECAY
-        else:
-            self.knockback_vx = 0
-
-        # ── 6. Regard vers le haut → afficher les cœurs ────────────────────
-        # Dans Hollow Knight, regarder vers le haut affiche l'état. On fait
-        # pareil : on reset le timer → les cœurs restent visibles tant qu'on
-        # regarde en l'air.
-        self.looking_up = (ay < 0)
-        if self.looking_up:
-            self.show_hp_timer = HP_DISPLAY_DURATION
-
-        # ── 7. Saut (jump buffer + coyote + double-saut + wall-jump) ──────
-        # Si on vient d'appuyer sur saut : on "mémorise" l'appui pendant
-        # JUMP_BUFFER secondes. À chaque frame, on retente de sauter tant
-        # que le buffer est actif. C'est ce qui rend les sauts "généreux".
-        if jump_pressed:
-            self.jump_buffer = JUMP_BUFFER
-
-        if self.jump_buffer > 0:
-            if self._tenter_saut():
-                # Saut réussi → on consomme le buffer.
-                self.jump_buffer = 0.0
-                self.idle_anim_jump.frame = 0
-                # PRIORITÉ DU SAUT SUR LE DASH : si on était en plein dash
-                # (au sol ou aérien) au moment de l'appui Espace, on coupe
-                # le dash net pour laisser le saut prendre effet. Sinon vy
-                # serait écrasé à 0 par l'étape 9 (gravité = 0 pendant dash)
-                # et l'impulsion du saut serait perdue → le perso roulerait
-                # sans monter.
-                if self.dashing:
-                    self.dashing    = False
-                    self.dash_timer = 0.0
-
-        # ── 8. Dash ───────────────────────────────────────────────────────
-        if dash_pressed and self.dash_cooldown <= 0 and not self.dashing:
-            self._declencher_dash(ax, facing_before)
-
-        # ── 9. Gravité ────────────────────────────────────────────────────
-        if self.wall_jump_windup_timer > 0:
-            # Phase de prep avant décollage : le perso est COLLÉ au mur,
-            # ni gravité ni mouvement vertical (immobile pendant l'anim).
-            self.vy = 0
-        elif not self.dashing:
-            if self.wall_sliding:
-                # Chute UNIFORME et CONTINUE pendant le wall slide :
-                # vy figé à WALL_SLIDE_SPEED sans accumulation gravitaire.
-                # Évite que le perso "remonte un peu / redescend" si vy
-                # avait une composante upward résiduelle (juste après un
-                # saut contre le mur par exemple).
-                self.vy = WALL_SLIDE_SPEED
+                # Phase de prep avant décollage : le perso est COLLÉ au mur,
+                # ni gravité ni mouvement vertical (immobile pendant l'anim).
+                self.vy = 0
+            elif not self.dashing:
+                if self.wall_sliding:
+                    # Chute UNIFORME et CONTINUE pendant le wall slide :
+                    # vy figé à WALL_SLIDE_SPEED sans accumulation gravitaire.
+                    # Évite que le perso "remonte un peu / redescend" si vy
+                    # avait une composante upward résiduelle (juste après un
+                    # saut contre le mur par exemple).
+                    self.vy = WALL_SLIDE_SPEED
+                else:
+                    self.vy += self.gravity * dt
             else:
-                self.vy += self.gravity * dt
-        else:
-            # Pendant un dash, on flotte à la même hauteur (pas de gravité).
-            self.vy = 0
+                # Pendant un dash, on flotte à la même hauteur (pas de gravité).
+                self.vy = 0
 
-        # ── 10. Détection du wall-slide ────────────────────────────────────
-        # On glisse seulement si :
-        #   - on est EN L'AIR
-        #   - on est COLLÉ à un mur (against_wall calculé dans post_physics)
-        #   - on APPUIE vers ce mur (sinon on décroche)
-        self.wall_sliding = (
-            not self.on_ground
-            and self.against_wall != 0
-            and ax == self.against_wall
-            and self.wall_jump_windup_timer <= 0   # désactive pendant wind-up
-        )
+            # ── 10. Détection du wall-slide ────────────────────────────────────
+            # On glisse seulement si :
+            #   - on est EN L'AIR
+            #   - on est COLLÉ à un mur (against_wall calculé dans post_physics)
+            #   - on APPUIE vers ce mur (sinon on décroche)
+            self.wall_sliding = (
+                not self.on_ground
+                and self.against_wall != 0
+                and ax == self.against_wall
+                and self.wall_jump_windup_timer <= 0   # désactive pendant wind-up
+            )
 
-        # ── 11. Application du déplacement ────────────────────────────────
-        # int(...) sert à convertir la valeur en entier (rect ne gère que
-        # des entiers). Les pertes de précision sont négligeables à 80 FPS.
-        was_on_ground = self.on_ground
-        self.rect.x += int(self.vx * dt)
-        self.rect.y += int(self.vy * dt)
+            # ── 11. Application du déplacement ────────────────────────────────
+            # int(...) sert à convertir la valeur en entier (rect ne gère que
+            # des entiers). Les pertes de précision sont négligeables à 80 FPS.
+            was_on_ground = self.on_ground
+            self.rect.x += int(self.vx * dt)
+            self.rect.y += int(self.vy * dt)
 
-        # On mémorise la X qu'on "voulait" atteindre. Si les collisions vont
-        # nous pousser, on détectera la différence dans post_physics().
-        self._intended_x = self.rect.x
+            # On mémorise la X qu'on "voulait" atteindre. Si les collisions vont
+            # nous pousser, on détectera la différence dans post_physics().
+            self._intended_x = self.rect.x
 
-        # ── 12. Sol et plafond (ignorés si on est au-dessus d'un trou) ────
-        in_hole = self._dans_un_trou(holes)
+            # ── 12. Sol et plafond (ignorés si on est au-dessus d'un trou) ────
+            in_hole = self._dans_un_trou(holes)
 
-        if not in_hole and self.rect.bottom > settings.GROUND_Y:
-            self.rect.bottom = settings.GROUND_Y
-            self.vy          = 0
-            self.on_ground   = True
-        if not in_hole and self.rect.top < settings.CEILING_Y:
-            self.rect.top = settings.CEILING_Y
-            self.vy       = 0
+            if not in_hole and self.rect.bottom > settings.GROUND_Y:
+                self.rect.bottom = settings.GROUND_Y
+                self.vy          = 0
+                self.on_ground   = True
+            if not in_hole and self.rect.top < settings.CEILING_Y:
+                self.rect.top = settings.CEILING_Y
+                self.vy       = 0
 
-        # ── 13. Au contact du sol → reset des sauts ───────────────────────
-        if self.on_ground:
-            self.just_fallen = False
-            self.jumps_used   = 0
-            self.coyote_timer = COYOTE_TIME
-            self.against_wall = 0
-            self.wall_sliding = False
-        elif was_on_ground:
-            # Frame où on vient de quitter le sol (marche dans le vide,
-            # sauté, tombé). On lance le coyote timer : on peut encore
-            # sauter "comme si on était au sol" pendant COYOTE_TIME.
-            self.coyote_timer = COYOTE_TIME
+            # ── 13. Au contact du sol → reset des sauts ───────────────────────
+            if self.on_ground:
+                self.just_fallen = False
+                self.jumps_used   = 0
+                self.coyote_timer = COYOTE_TIME
+                self.against_wall = 0
+                self.wall_sliding = False
+            elif was_on_ground:
+                # Frame où on vient de quitter le sol (marche dans le vide,
+                # sauté, tombé). On lance le coyote timer : on peut encore
+                # sauter "comme si on était au sol" pendant COYOTE_TIME.
+                self.coyote_timer = COYOTE_TIME
 
-        # ── 14. Attaque ───────────────────────────────────────────────────
-        self._gerer_attaque(dt, attack_pressed, ay, sp_attack_pressed)
+            # ── 14. Attaque ───────────────────────────────────────────────────
+            self._gerer_attaque(dt, attack_pressed, ay, sp_attack_pressed)
 
-        # ── 15. Sons de pas ───────────────────────────────────────────────
-        self._gerer_son_pas(dt)
+            # ── 15. Sons de pas ───────────────────────────────────────────────
+            self._gerer_son_pas(dt)
+
+            
+
+            # ── 17. Régénération passive ──────────────────────────────────────
+            self._gerer_regen(dt, ax, ay, jump_held, attack_held, dash_held)
 
         # ── 16. Timers de combat (invincibilité, durée de l'attaque) ──────
         self._tick_combat_timers(dt)
-
-        # ── 17. Régénération passive ──────────────────────────────────────
-        self._gerer_regen(dt, ax, ay, jump_held, attack_held, dash_held)
 
     def post_physics(self):
         """Appelé par game.py APRÈS la résolution des collisions.
@@ -1112,6 +1139,12 @@ class Player:
             self.invincible_timer -= dt
             if self.invincible_timer <= 0:
                 self.invincible = False
+                self.cannot_move = False
+
+        if self.invincible:
+            self.cannot_move = (self.hitted_hard or self.hitted_normal)
+        else:
+            self.cannot_move = False
 
         if self.show_hp_timer > 0:
             self.show_hp_timer -= dt
@@ -1510,7 +1543,6 @@ class Player:
 
         # hurt -----------------------------
         if self.hitted_hard:
-            print("outch D:<")
             self.idle_anim_hurt_hard.update()
             img = self.idle_anim_hurt_hard.img()
             if self.idle_anim_hurt_hard.done:

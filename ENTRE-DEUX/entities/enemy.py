@@ -164,9 +164,9 @@ class Enemy:
 
     def __init__(self, x, y, 
                  nb_frames=1,
-                 sprite_name="golem",
+                 sprite_name="boss",
                  scale_factor = 2,
-                 max_vie = 3,
+                 max_vie = 1,
                  has_gravity=True,             # False = vole (fantôme, oiseau)
                  has_collision=True,
                  can_jump=False,               # peut-il sauter au-dessus des murs ?
@@ -188,9 +188,10 @@ class Enemy:
         # -- Pieces recuperees --
         self.pieces_recup = {
             "mushroom": 10,
-            "flamur": 100,
+            "flamur": 15,
             "monstre_perdu": 5,
-            "golem": 15
+            "golem": 15,
+            "boss":50
         }.get(sprite_name, 0)
         self.pieces_donnees = False
 
@@ -198,11 +199,13 @@ class Enemy:
         self.alive = True
         self.invincible = False
         self.invincible_timer = 0.0
+        self.hit = False
         self.max_vie = {
             "mushroom": 1,
-            "flamur": 2,
+            "flamur": 4,
             "monstre_perdu": 1,
-            "golem": 4
+            "golem": 2,
+            "boss": 1
         }.get(sprite_name, max_vie)
         self.hp = self.max_vie
 
@@ -219,7 +222,8 @@ class Enemy:
             "mushroom": 2,
             "flamur": 1,
             "monstre_perdu": 1,
-            "golem": 3
+            "golem": 3,
+            "boss":2
         }.get(sprite_name, scale_factor)
 
         frames = self._charger_frames(sprite_name, nb_frames)
@@ -227,10 +231,11 @@ class Enemy:
         self.sprite_h = frames[0].get_height()
 
         self.nb_frame = {
-            "mushroom": {"idle": 7, "run": 8, "walk": 8, "atk": 10, "die": 15},
-            "flamur": {"idle": 1, "run": 15, "walk": 15, "atk": 1, "die": 1},
-            "monstre_perdu.png": {"idle": 1, "run": 1, "walk": 1, "atk": 1, "die": 1},
-            "golem": {"idle": 1, "run": 10, "walk": 10, "atk": 11, "die": 13},
+            "mushroom": {"idle": 7, "run": 8, "walk": 8, "atk": 10, "die": 15, "hit":1},
+            "flamur": {"idle": 1, "run": 15, "walk": 15, "atk": 1, "die": 1, "hit":1},
+            "monstre_perdu.png": {"idle": 1, "run": 1, "walk": 1, "atk": 1, "die": 1, "hit":1},
+            "golem": {"idle": 1, "run": 10, "walk": 10, "atk": 11, "die": 13, "hit":1},
+            "boss": {"idle": 14, "run": 14, "walk": 14, "atk": 10, "die": 33, "hit":1}
         }
 
         self.animations = {
@@ -239,6 +244,7 @@ class Enemy:
             "walk": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", self.nb_frame[sprite_name]["walk"])), img_dur=4),
             "atk": Animation(self._scale_frames(self._charger_frames(sprite_name + "atk", self.nb_frame[sprite_name]["atk"])), img_dur=4),
             "die": Animation(self._scale_frames(self._charger_frames(sprite_name + "die", self.nb_frame[sprite_name]["die"])), img_dur=4, loop=False),
+            "hit": Animation(self._scale_frames(self._charger_frames(sprite_name + "hit", self.nb_frame[sprite_name]["hit"])), img_dur=100, loop=False)
         }
         self.current_anim = "idle"
         self.sprite_name = sprite_name
@@ -582,10 +588,13 @@ class Enemy:
                 surf = pygame.image.load(find_file(f"{file}{i}.png")).convert_alpha()
                 frames.append(surf)
             except FileNotFoundError:
-                print(f"Frame manquante : {file}{i}.png")
-                # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
-                break
-        
+                if i == start:
+                    # si la premiere n'est pas la azy l'action n'existe pas 
+                    pass
+                else :
+                    print(f"Frame manquante : {file}{i}.png")
+                    # Dès qu'une frame manque, on arrête (on garde celles qu'on a).
+                    break
 
         # Cas 1 : au moins une frame → on l'utilise.
         if frames:
@@ -688,7 +697,12 @@ class Enemy:
         self._gerer_collisions_verticales(holes)
 
         # changer d'animation
-        if self.atk_active:
+        if self.hit:
+            print("yas")
+            self.current_anim = "hit"
+            self.hit = False
+            print(self.current_anim, self.hit)
+        elif self.atk_active:
             self.current_anim = "atk"
         elif self.chasing:
             self.current_anim = "run"
