@@ -1,0 +1,18 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  LIMINAL (ENTRE-DEUX) — Dépendances Python
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#  Pour installer toutes les dépendances :
+#       py -3.11 -m pip install -r requirements.txt
+#
+#  ou (selon ton OS / version) :
+#       pip install -r requirements.txt
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Moteur de jeu (sprites, sons, fenêtre, événements)
+pygame>=2.5,<3.0
+
+# Chargement des cartes Tiled (.tmx / .tmj). Utilisé par world/tiled_importer.py.
+# pytmx gère nativement les tuiles animées, les calques d'objets, le parallax,
+# les image layers, etc. — c'est l'outil standard Pygame + Tiled.
+pytmx>=3.32

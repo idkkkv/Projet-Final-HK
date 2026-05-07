@@ -303,7 +303,7 @@ def resoudre_contacts_ennemis(joueur, ennemis, hud=None):
                 joueur.hitted_hard = True
             else :
                 joueur.hitted_normal = True
-
+"""
             infliger_degats(
                 joueur,
                 degats,
@@ -316,3 +316,4 @@ def resoudre_contacts_ennemis(joueur, ennemis, hud=None):
 
         # On sort APRÈS le premier ennemi (cf. règle plus haut).
         return
+"""

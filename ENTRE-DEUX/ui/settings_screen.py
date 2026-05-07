@@ -236,14 +236,13 @@ class SettingsScreen:
         elif key in (pygame.K_RETURN, pygame.K_SPACE):
             self._activer(options[self.selection])
         elif key in (pygame.K_LEFT, pygame.K_RIGHT):
-            # ←/→ : ajustement direct sur les options de la page compagnons.
-            #   - "Nombre"               → +/- 1 luciole
-            #   - "Luciole N — Couleur"  → couleur précédente / suivante
-            #   - "Luciole N — Taille"   → taille précédente / suivante
-            #   - "Luciole N — Intensité"→ intensité précédente / suivante
+            # ←/→ : ajustement direct sur certaines pages.
             if self.page == "compagnons":
                 delta = 1 if key == pygame.K_RIGHT else -1
                 self._ajuster_option_compagnons(options[self.selection], delta)
+            elif self.page == "av":
+                delta = +0.05 if key == pygame.K_RIGHT else -0.05
+                self._ajuster_slider(options[self.selection], delta)
         return None
 
     # ═════════════════════════════════════════════════════════════════════════
@@ -261,7 +260,7 @@ class SettingsScreen:
             # "Compagnons" n'apparaît qu'en mode éditeur — voir docstring
             # de la classe (RÈGLE PRODUIT). En jeu normal, le joueur ne
             # règle pas ses Lueurs : il les gagne au fil de l'aventure.
-            entrees = ["Affichage"]
+            entrees = ["Affichage", "Son & Image"]
             if self._en_mode_editeur():
                 entrees.append("Compagnons")
             entrees += ["Aide — Jeu", "Aide — Mode éditeur", "Retour"]
@@ -276,6 +275,16 @@ class SettingsScreen:
             else:
                 label_hud = "HUD : Immersion"
             return [label_hud, "Retour"]
+
+        if self.page == "av":
+            # Page Son & Image : 3 sliders. Les chaînes sont affichées
+            # avec un slider à droite par _dessiner_options (cf. SLIDER_*).
+            return [
+                f"SLIDER:Volume musique:{settings.volume_musique}:0.0:1.0",
+                f"SLIDER:Volume effets:{settings.volume_sfx}:0.0:1.0",
+                f"SLIDER:Luminosité:{settings.luminosite}:0.5:1.5",
+                "Retour",
+            ]
 
         if self.page == "compagnons":
             return self._options_compagnons()
@@ -303,6 +312,9 @@ class SettingsScreen:
         if self.page == "main":
             if option == "Affichage":
                 self.page      = "affichage"
+                self.selection = 0
+            elif option == "Son & Image":
+                self.page      = "av"
                 self.selection = 0
             elif option == "Compagnons":
                 self.page      = "compagnons"
@@ -458,6 +470,50 @@ class SettingsScreen:
         cfg["lucioles_intensites_idx"] = list(settings.lucioles_intensites_idx)
         ecrire_config(cfg)
 
+    # ─── Sliders Son & Image ───────────────────────────────────────────────
+
+    def _ajuster_slider(self, option_str, delta):
+        """Ajuste un slider de la page Son & Image.
+
+        L'option_str a la forme "SLIDER:nom:valeur:min:max". On parse, on
+        clamp, on applique en runtime (settings module + pygame.mixer),
+        et on persiste dans game_config.json pour que le réglage survive
+        à un redémarrage.
+        """
+        if not option_str.startswith("SLIDER:"):
+            return
+        parts = option_str.split(":")
+        if len(parts) < 5:
+            return
+        nom    = parts[1]
+        try:
+            valeur = float(parts[2])
+            vmin   = float(parts[3])
+            vmax   = float(parts[4])
+        except ValueError:
+            return
+
+        valeur = max(vmin, min(vmax, valeur + delta))
+        # Snap au pas de 0.05 pour éviter les valeurs floues type 0.34999
+        valeur = round(valeur * 20) / 20
+
+        # ── Application + persistance ──────────────────────────────────
+        cfg = lire_config()
+        if nom == "Volume musique":
+            settings.volume_musique = valeur
+            cfg["volume_musique"]   = valeur
+            try:
+                pygame.mixer.music.set_volume(valeur)
+            except Exception:
+                pass
+        elif nom == "Volume effets":
+            settings.volume_sfx     = valeur
+            cfg["volume_sfx"]       = valeur
+        elif nom == "Luminosité":
+            settings.luminosite     = valeur
+            cfg["luminosite"]       = valeur
+        ecrire_config(cfg)
+
     def _ajuster_option_compagnons(self, option, delta):
         """Aiguillage : selon l'intitulé de l'option, on cycle la bonne valeur.
 
@@ -556,6 +612,7 @@ class SettingsScreen:
         titres = {
             "main":       "PARAMÈTRES",
             "affichage":  "AFFICHAGE",
+            "av":         "SON & IMAGE",
             "compagnons": "COMPAGNONS",
             "aide_jeu":   "AIDE — COMMANDES DU JEU",
             "aide_edit":  "AIDE — MODE ÉDITEUR",
@@ -565,7 +622,7 @@ class SettingsScreen:
 
         # ── Contenu : aiguillage selon la page ───────────────────────────────
         zone_y = py + 80
-        if self.page in ("main", "affichage"):
+        if self.page in ("main", "affichage", "av"):
             self._dessiner_options(screen, px, zone_y, panel_w)
         elif self.page == "compagnons":
             self._dessiner_compagnons(screen, px, zone_y, panel_w)
@@ -593,21 +650,80 @@ class SettingsScreen:
         """Dessine la liste des options centrées dans le panneau.
 
         L'option sélectionnée est en doré et précédée de ">".
-        line_height = espacement vertical entre les options (34 par défaut,
-        plus serré sur la page compagnons quand il y a beaucoup d'entrées)."""
+        Les options qui commencent par "SLIDER:" sont rendues comme un
+        slider horizontal (cf. _dessiner_slider) au lieu d'un simple texte.
+        """
 
         options = self._options_courantes()
         for i, opt in enumerate(options):
-            if i == self.selection:
-                couleur = C_OPT_SEL
-            else:
-                couleur = C_OPT
+            couleur = C_OPT_SEL if i == self.selection else C_OPT
+            ligne_y = y + i * line_height
+
+            # Slider ?
+            if opt.startswith("SLIDER:"):
+                self._dessiner_slider(screen, px, ligne_y, panel_w, opt, couleur,
+                                      selectionne=(i == self.selection))
+                continue
+
+            # Option texte normale
             surf = self._font_opt.render(opt, True, couleur)
             ox   = px + (panel_w - surf.get_width()) // 2
-            screen.blit(surf, (ox, y + i * line_height))
+            screen.blit(surf, (ox, ligne_y))
             if i == self.selection:
                 ind = self._font_opt.render(">", True, couleur)
-                screen.blit(ind, (ox - ind.get_width() - 8, y + i * line_height))
+                screen.blit(ind, (ox - ind.get_width() - 8, ligne_y))
+
+    def _dessiner_slider(self, screen, px, y, panel_w, option_str,
+                          couleur, selectionne):
+        """Dessine un slider horizontal pour une option "SLIDER:nom:val:min:max".
+
+        Layout (centré dans le panneau) :
+            [Nom : XX%]            [────●────]
+
+        - Le nom + pourcentage est à gauche
+        - Une barre de 220 px à droite avec une "boule" à la position courante
+        """
+        parts  = option_str.split(":")
+        nom    = parts[1]
+        try:
+            valeur = float(parts[2]); vmin = float(parts[3]); vmax = float(parts[4])
+        except (ValueError, IndexError):
+            return
+
+        # Texte (nom + pourcentage)
+        pct = int(round((valeur - vmin) / (vmax - vmin) * 100))
+        label = self._font_opt.render(f"{nom} : {pct}%", True, couleur)
+
+        bar_w  = 220
+        bar_h  = 6
+        gap    = 24
+        bloc_w = label.get_width() + gap + bar_w
+        ox     = px + (panel_w - bloc_w) // 2
+
+        screen.blit(label, (ox, y))
+
+        # Barre de fond
+        bar_x = ox + label.get_width() + gap
+        bar_y = y + (label.get_height() - bar_h) // 2
+        pygame.draw.rect(screen, (60, 50, 90), (bar_x, bar_y, bar_w, bar_h),
+                         border_radius=3)
+
+        # Barre remplie (jusqu'à la position courante)
+        ratio    = max(0.0, min(1.0, (valeur - vmin) / max(1e-6, (vmax - vmin))))
+        fill_w   = int(bar_w * ratio)
+        fill_col = C_OPT_SEL if selectionne else C_OPT
+        pygame.draw.rect(screen, fill_col, (bar_x, bar_y, fill_w, bar_h),
+                         border_radius=3)
+
+        # Boule (knob)
+        knob_x = bar_x + fill_w
+        knob_y = bar_y + bar_h // 2
+        pygame.draw.circle(screen, fill_col, (knob_x, knob_y), 8)
+
+        # Indicateur ">" si sélectionné
+        if selectionne:
+            ind = self._font_opt.render(">", True, couleur)
+            screen.blit(ind, (ox - ind.get_width() - 8, y))
 
     def _dessiner_compagnons(self, screen, px, y, panel_w):
         """Petit texte d'explication + options de la page compagnons.
