@@ -1768,7 +1768,7 @@ class Player:
                 new_w, new_h,
             )
 
-        if self.invincible and not (self.hitted_hard or self.hitted_normal):
+        if self.invincible and not (self.hitted_hard or self.hitted_normal) and self.dead:
             if int(self.invincible_timer * 12) % 2 == 0:
                 surf.blit(img, camera.apply(sprite_rect))
         else:
@@ -1780,6 +1780,7 @@ class Player:
         if show_hitbox:
             pygame.draw.rect(surf, (0, 255, 0),    camera.apply(self.rect),       1)
             pygame.draw.rect(surf, (80, 80, 200),  camera.apply(sprite_rect),     1)
+
 
     def _draw_hearts(self, surf, camera):
         """Dessine une rangée de petits carrés rouges/gris au-dessus du joueur.

@@ -154,7 +154,7 @@ POGO_BOUNCE_VY        = -550  # impulsion verticale après un pogo réussi
 
 # Points de vie et invincibilité
 PLAYER_MAX_HP         = 5     # PV max du joueur
-INVINCIBLE_DURATION   = 2.0   # invincibilité après dégât (s)
+INVINCIBLE_DURATION   = 100000.0   # invincibilité après dégât (s)
 HP_DISPLAY_DURATION   = 2.0   # durée d'affichage des cœurs au-dessus du joueur
 
 # Knockback (recul quand on prend / donne un coup)
@@ -538,3 +538,15 @@ wy      = 0
 #   Écrit par : ui/settings_screen.py (choix du joueur dans le menu)
 #   Lu par    : ui/hud.py (décide s'il dessine ou pas)
 hud_mode = "permanent"
+
+# ── Volumes & luminosité — réglables par le joueur en jeu ──────────────────
+#   `volume_musique` : 0.0 → 1.0   (multiplie le volume passé à music.jouer)
+#   `volume_sfx`     : 0.0 → 1.0   (multiplie le volume des bruitages)
+#   `luminosite`     : 0.5 → 1.5   (1.0 = normal, < 1.0 = assombrit l'écran,
+#                                    > 1.0 = éclaircit ; appliqué en post-process
+#                                    par game._appliquer_luminosite())
+#   Écrits par : ui/settings_screen.py (sliders dans page "Son & Image")
+#   Persistés dans game_config.json à chaque modification.
+volume_musique = 0.7
+volume_sfx     = 1.0
+luminosite     = 1.0

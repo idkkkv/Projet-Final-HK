@@ -456,7 +456,7 @@ class Editor:
         self._mode_names = [
             "Plateforme", "Mob", "Lumiere", "Spawn", "Portail",
             "Mur", "Hitbox", "Trou", "Copier/Coller", "Décor", "PNJ", "Blocs",
-            "Trigger",
+            "Trigger", "Danger"
         ]
 
         # ── Copier/Coller ──
@@ -519,6 +519,9 @@ class Editor:
         self._pending_trigger_is_fear = False
         self._editing_trigger      = None   # zone en cours de rename ([R])
         self.trigger_zones         = []
+        self.danger_zones           = []
+        self._pending_danger_rect      = None 
+        self._pending_danger_rect = None
 
         # Éditeur de cinématiques (overlay activé par [F2]).
         self.cine_editor = CinematiqueEditor()
@@ -1774,6 +1777,11 @@ class Editor:
         elif self.mode == 10: self._click_pnj(wx, wy)
         elif self.mode == 11: self._click_bloc(wx, wy)
         elif self.mode == 12: self._click_rect(wx, wy, "trigger")
+        if self.mode == 13:
+            if self._pending_danger_rect:
+                self._click_danger_respawn(wx, wy)
+            else:
+                self._click_rect(wx, wy, "danger")
 
     def handle_right_click(self, mouse_pos):
         """Clic droit : supprimer l'objet sous le curseur (selon le mode)."""
@@ -1812,7 +1820,8 @@ class Editor:
             self.decors[:]       = [d for d in self.decors       if not d.rect.colliderect(pt)]
         elif self.mode == 12:
             self.trigger_zones[:] = [z for z in self.trigger_zones if not z.rect.colliderect(pt)]
-
+        elif self.mode == 13:
+            self.danger_zones[:] = [z for z in self.danger_zones if not z["rect"].colliderect(pt)]
     # ═════════════════════════════════════════════════════════════════════════
     # 9.  ACTIONS DE CLIC (placer plateforme / mob / lumière / décor / …)
     # ═════════════════════════════════════════════════════════════════════════
@@ -1869,6 +1878,9 @@ class Editor:
         elif kind == "copy_select":
             self._copy_rect = pygame.Rect(x, y, w, h)
             self._show_msg(f"Zone ({w}x{h}) — [C] copier")
+        elif kind == "danger":
+            self._pending_danger_rect = pygame.Rect(x, y, w, h)
+            self._show_msg("Rectangle de mort placé. Cliquez là où le joueur doit réapparaître.")
 
     def _click_mob(self, wx, wy):
         """Clic en mode 1 : ajoute un ennemi (sauf si dans une plateforme)."""
@@ -1967,6 +1979,18 @@ class Editor:
                     flicker_speed=self.light_flicker_speed,
                 )
             self.light_first_point = None
+
+    def _click_danger_respawn(self, wx, wy):
+        """3ème étape du mode danger : on place le point de respawn."""
+        if self._pending_danger_rect:
+            # On stocke un dictionnaire avec le Rect et le point (x, y)
+            new_zone = {
+                "rect": self._pending_danger_rect,
+                "respawn_pos": (wx, wy)
+            }
+            self.danger_zones.append(new_zone)
+            self._pending_danger_rect = None # On reset pour la suite
+            self._show_msg("Zone de danger et Respawn liés avec succès !")
 
     def _do_copy(self):
         """Mode 8 : copie plateformes + murs de la zone sélectionnée."""
@@ -2400,14 +2424,18 @@ class Editor:
     def draw_preview(self, surf, mouse_pos):
         """Aperçu de l'action en cours sous le curseur."""
         # Modes qui dessinent un rectangle 2 points.
-        if self.mode in (0, 4, 5, 7, 8):
-            colors = {0: (100, 200, 255), 4: (0, 120, 255), 5: (180, 180, 180),
-                      7: (255, 80, 80),   8: (255, 200, 0)}
+        if self.mode in (0, 4, 5, 7, 8, 12, 13):
+            colors = {
+                0: (100, 200, 255), 4: (0, 120, 255), 5: (180, 180, 180),
+                7: (255, 80, 80),   8: (255, 200, 0), 
+                12: (200, 100, 255), 13: (255, 0, 0)
+            }
             if self.first_point:
                 wx = int(mouse_pos[0] + self.camera.offset_x)
                 wy = int(mouse_pos[1] + self.camera.offset_y)
                 x = min(self.first_point[0], wx) - int(self.camera.offset_x)
                 y = min(self.first_point[1], wy) - int(self.camera.offset_y)
+                
                 pygame.draw.rect(surf, colors.get(self.mode, (255, 255, 255)),
                                  (x, y,
                                   abs(wx - self.first_point[0]),
@@ -2459,6 +2487,9 @@ class Editor:
         # Modes avec leur propre méthode d'aperçu.
         elif self.mode == 6:
             self._draw_hitbox_editor(surf, mouse_pos)
+        
+        # Note : On utilise des 'if' ici car certains modes peuvent se chevaucher 
+        # ou avoir des comportements spécifiques (comme le mode 8 copier/coller).
         if self.mode == 8:
             self._draw_copy_paste_preview(surf, mouse_pos)
         if self.mode == 9:
@@ -2771,6 +2802,29 @@ class Editor:
             portal.draw(surf, self.camera, font)
         for zone in self.trigger_zones:
             zone.draw_debug(surf, self.camera, font)
+
+        #dessine les zones de danger (je t'ai mis max de com pour comprendre Julien)
+        for zone in self.danger_zones:
+            # On récupère les données du dictionnaire
+            rect_objet = zone["rect"]
+            respawn_pt = zone["respawn_pos"]
+
+            # 1. Dessin du rectangle rouge (mort)
+            draw_rect = self.camera.apply(rect_objet)
+            s = pygame.Surface((draw_rect.width, draw_rect.height), pygame.SRCALPHA)
+            s.fill((255, 0, 0, 80)) 
+            surf.blit(s, (draw_rect.x, draw_rect.y))
+            pygame.draw.rect(surf, (255, 0, 0), draw_rect, 1)
+
+            # 2. Dessin du point de respawn (petit cercle vert)
+            # on applique l'offset caméra manuellement car c'est un point (x, y)
+            rx = int(respawn_pt[0] - self.camera.offset_x)
+            ry = int(respawn_pt[1] - self.camera.offset_y)
+            pygame.draw.circle(surf, (0, 255, 100), (rx, ry), 6)
+            pygame.draw.circle(surf, (255, 255, 255), (rx, ry), 6, 1) # Contour blanc pour le voir partout
+
+            # 3. ligne de liaison (pour savoir quel point va avec quel bloc)
+            pygame.draw.line(surf, (255, 255, 255), draw_rect.center, (rx, ry), 1)
 
     def draw_hud(self, surf, dt=0.016):
         """Bandeau d'information en haut + message éphémère en bas."""
@@ -3123,6 +3177,17 @@ class Editor:
             "decors":        [d.to_dict() for d in self.decors],
             "pnjs":          [p.to_dict() for p in self.pnjs],
             "trigger_zones": [z.to_dict() for z in self.trigger_zones],
+            "trigger_zones": [z.to_dict() for z in self.trigger_zones],
+            "danger_zones": [
+            {
+                "x": z["rect"].x, 
+                "y": z["rect"].y, 
+                "w": z["rect"].width, 
+                "h": z["rect"].height,
+                "rx": z["respawn_pos"][0], 
+                "ry": z["respawn_pos"][1]
+            } for z in self.danger_zones
+        ],
         }
 
     def save(self, name="map"):
@@ -3187,6 +3252,12 @@ class Editor:
         self.custom_walls.clear()
         for w in data.get("custom_walls", []):
             self.custom_walls.append(Wall(w["x"], w["y"], w["w"], w["h"], visible=True))
+        self.danger_zones.clear()
+        for d in data.get("danger_zones", []):
+            self.danger_zones.append({
+                "rect": pygame.Rect(d["x"], d["y"], d["w"], d["h"]),
+                "respawn_pos": (d["rx"], d["ry"])
+            })
 
         # Segments de bordure : soit chargés, soit reconstruits par défaut.
         def _segs(key, is_border=False):

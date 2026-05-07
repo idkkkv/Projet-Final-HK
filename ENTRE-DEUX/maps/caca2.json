@@ -1,0 +1,110 @@
+{
+  "ground_y": 590,
+  "ceiling_y": 0,
+  "scene_width": 2400,
+  "camera_y_offset": 150,
+  "spawn": {
+    "x": 100,
+    "y": 100
+  },
+  "bg_color": [
+    38,
+    19,
+    46
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 590,
+      "w": 2400,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 2400,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2190
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2400,
+      "y": -800,
+      "w": 800,
+      "h": 2190
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [],
+  "portals": [],
+  "decors": [
+    {
+      "x": 558,
+      "y": 352,
+      "sprite": "buisson-1.png",
+      "collision": false,
+      "echelle": 4.0
+    }
+  ],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 373,
+      "y": 537,
+      "nom": "nimbus",
+      "sprite_name": null,
+      "dialogues": [
+        [
+          [
+            "dfgdfgdfgdfgdfg",
+            "nimbus"
+          ]
+        ],
+        [
+          [
+            "frfr",
+            "nimbus"
+          ],
+          [
+            "frfr",
+            "nimbus"
+          ],
+          [
+            "yoyo",
+            "nimbus"
+          ],
+          [
+            "popo",
+            "nimbus"
+          ]
+        ]
+      ]
+    },
+    {
+      "type": "pnj",
+      "x": 1121,
+      "y": 535,
+      "nom": "baba",
+      "sprite_name": null,
+      "dialogues": []
+    }
+  ]
+}

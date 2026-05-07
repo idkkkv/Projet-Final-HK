@@ -93,6 +93,7 @@ from ui.dialogue_box import BoiteDialogue
 from ui.hud import HUD
 from ui.help_overlay import HelpOverlay
 from ui.settings_screen import SettingsScreen
+from ui.save_menu       import SaveMenu
 from ui.inventory import Inventory
 from ui.fear_overlay import FearOverlay
 from ui.gestionnaire_histoire import GestionnaireHistoire
@@ -175,6 +176,10 @@ class Game:
         mode_hud = cfg.get("hud_mode", "permanent")
         if mode_hud in ("permanent", "immersion"):
             settings.hud_mode = mode_hud
+        # Volumes + luminosité (réglés par les sliders dans les paramètres).
+        settings.volume_musique = float(cfg.get("volume_musique", settings.volume_musique))
+        settings.volume_sfx     = float(cfg.get("volume_sfx",     settings.volume_sfx))
+        settings.luminosite     = float(cfg.get("luminosite",     settings.luminosite))
         # Nombre de compagnons choisi par le joueur dans le menu Paramètres.
         nb_compagnons = int(cfg.get("nb_compagnons", 0))
 
@@ -307,8 +312,43 @@ class Game:
         # ── 1.14 Menus (titre, pause, fin) ──
         self._creer_menus()
 
-        # ── 1.15 Musique du menu titre + effet de réveil ──
-        self._init_audio_menu()
+        # ── 1.15 Hot reload : on détecte un éventuel state file AVANT
+        #         de lancer la musique du menu, pour ne pas l'entendre
+        #         dans le jeu après un Ctrl+R.
+        from core.hot_reload import HOT_STATE_PATH, consommer_state_si_present
+        en_hot_reload = os.path.exists(HOT_STATE_PATH)
+
+        # ── 1.16 Musique du menu titre + effet de réveil ──
+        # Skip TOTAL si on est en hot reload : le joueur était en jeu, il
+        # ne doit ni entendre la musique du menu, ni voir l'effet_reveil.
+        # On instancie quand même un EffetReveil VIDE (intensite=0) pour
+        # ne pas casser les références plus tard dans le code.
+        if en_hot_reload:
+            from systems.effet_reveil import EffetReveil
+            self._musique_menu = ""               # pas de musique de menu
+            self.effet_reveil  = EffetReveil(debut_s=99999, duree_cycle_s=1)
+            self.effet_reveil.intensite = 0.0     # extinction totale immédiate
+            self.effet_reveil.forcer_extinction()
+        else:
+            self._init_audio_menu()
+
+        # ── 1.17 Application de l'état hot reload ──
+        if en_hot_reload:
+            try:
+                # Lance directement une partie (charge la carte de départ),
+                # puis _consommer_state remplacera la map et la position
+                # par celles sauvées avant le reload.
+                self.mode = "histoire"
+                self._nouvelle_partie()
+                consommer_state_si_present(self)
+                # Sécurité : on coupe net tout ce qui aurait pu se relancer
+                # pendant _nouvelle_partie (musique titre, etc.).
+                try:
+                    pygame.mixer.music.stop()
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"[HotReload] Restauration auto échouée : {e}")
 
     # ─── Sous-routines de __init__ (pour aérer le constructeur) ──────────────
 
@@ -374,8 +414,9 @@ class Game:
 
         # Fondu lent quand on lance une partie depuis le menu.
         self._menu_fondu_alpha  = 0
-        self._menu_fondu_etat   = "none"                # "none" / "out" / "in"
-        self._menu_fondu_action = None                  # callback quand alpha = 255
+        self._menu_fondu_etat   = "none"        # none / out / loading / in
+        self._menu_fondu_action = None          # callback quand alpha = 255
+        self._chargement_timer  = 0.0           # décompte phase "loading"
 
         # Overlay de sélection de carte (menu éditeur)
         self._menu_choix_carte = None
@@ -386,23 +427,46 @@ class Game:
         self._murs_cache        = None
         self._murs_cache_perime = True                  # True = à recalculer
 
+    def _options_menu_titre(self):
+        """Retourne la liste des options du menu titre (recalculée à chaque fois).
+
+        L'option "Continuer" n'apparaît que si AU MOINS un slot de
+        sauvegarde manuel existe (pas seulement slot 1 — n'importe lequel
+        des 3). On la recalcule dynamiquement pour qu'après avoir sauvé
+        en jeu et être revenu au menu, le bouton apparaisse.
+        """
+        from systems.save_system import au_moins_une_save
+        options = []
+        if au_moins_une_save():
+            options.append("Continuer")
+        options += ["Nouvelle partie", "Mode éditeur", "Quitter"]
+        return options
+
+    def _rafraichir_menu_titre(self):
+        """Reconstruit le menu titre avec ses options à jour.
+
+        À appeler quand on revient au menu (ex : "Menu principal" depuis
+        la pause). Sans ça, "Continuer" reste invisible jusqu'au prochain
+        lancement complet du jeu.
+        """
+        self.menu_titre = Menu(self._options_menu_titre(), title=TITLE,
+                                style="titre")
+
     def _creer_menus(self):
         """Crée les 3 menus : titre, pause, fin."""
-        # L'option "Continuer" n'apparaît que si une sauvegarde existe.
-        save = charger()
-        options_titre = []
-        if save:
-            options_titre.append("Continuer")
-        options_titre += ["Nouvelle partie", "Mode éditeur", "Quitter"]
-
         # style="titre"   → fond sombre + particules
         # style="panneau" → cadre sur le jeu en arrière-plan
-        self.menu_titre = Menu(options_titre, title=TITLE, style="titre")
+        self.menu_titre = Menu(self._options_menu_titre(), title=TITLE,
+                                style="titre")
         self.menu_pause = Menu(
-            ["Reprendre", "Paramètres", "Sauvegarder", "Menu principal", "Quitter"],
+            ["Reprendre", "Paramètres",
+             "Sauvegarder", "Charger",
+             "Menu principal", "Quitter"],
             title="PAUSE",
             style="panneau",
         )
+        # Overlay multi-slots ouvert par "Sauvegarder" / "Charger"
+        self.save_menu = SaveMenu()
         self.menu_fin = Menu(
             ["Recommencer", "Menu principal"],
             title="FIN",
@@ -959,31 +1023,105 @@ class Game:
         # Placer les compagnons autour du joueur.
         self.compagnons.respawn(self.joueur)
 
+        # SNAP la caméra sur le joueur AVANT le 1er rendu : sinon la caméra
+        # part de sa position antérieure (souvent (0,0)) et fait un défilé
+        # visible vers le joueur pendant le fade-in.
+        self.camera.snap_to(self.joueur.rect)
+
         # Passer à l'état GAME.
         self.etats.switch(GAME)
 
-    def _charger_partie(self):
-        """Charge save.json et replace le joueur où il était."""
-        donnees = charger()
-        if not donnees:
-            # Pas de sauvegarde → on lance une nouvelle partie à la place.
-            self._nouvelle_partie()
+    # ═════════════════════════════════════════════════════════════════════════
+    # 6.  SAUVEGARDE / CHARGEMENT (multi-slots, état complet)
+    # ═════════════════════════════════════════════════════════════════════════
+    #
+    #  Le dict produit par _construire_save_data() / consommé par
+    #  _appliquer_save_data() contient TOUT ce que le joueur a fait :
+    #       - position / hp / direction
+    #       - inventaire (items + slots)
+    #       - peur courante
+    #       - lucioles + sources obtenues
+    #       - ennemis tués (par map)
+    #       - cinématiques jouées + historique dialogues
+    #       - map courante + mode + temps de jeu
+    #
+    #  Ces 2 méthodes sont aussi utilisées par le hot reload (Ctrl+R) :
+    #  → garantit que TOUT est restauré pareil après le reload.
+
+    def _construire_save_data(self):
+        """Capture l'état complet du jeu dans un dict sérialisable JSON.
+
+        Format : voir l'en-tête de systems/save_system.py.
+        Toute donnée qui doit survivre à une fermeture / un reload doit
+        figurer ici.
+        """
+        j = self.joueur
+
+        # Inventaire : on sauve UNIQUEMENT le nom des items par slot
+        # (les images seront re-résolues à la restauration via ITEMS).
+        inv_slots = []
+        for slot in getattr(self.inventory, "slots", []):
+            inv_slots.append(slot.name if slot is not None else None)
+
+        # Ennemis tués : pour chaque map où on a tué qqn, on retient
+        # les indices d'ennemis morts. Sauve dict {map → [idx1, idx2…]}.
+        # On fusionne avec un dict accumulateur qu'on construit au fur
+        # et à mesure des changements de map.
+        ennemis_morts = dict(getattr(self, "_ennemis_morts_par_map", {}))
+        morts_actuels = [i for i, e in enumerate(self.ennemis) if not e.alive]
+        if self.carte_actuelle and morts_actuels:
+            ennemis_morts[self.carte_actuelle] = morts_actuels
+
+        return {
+            "_meta": {
+                "play_time_s": int(getattr(self, "play_time_s", 0)),
+            },
+            "story": {
+                "mode":                 self.mode,
+                "current_map":          self.carte_actuelle,
+                "cinematics_played":    self.cinematiques_jouees,
+                "dialog_history":       self.historique_dialogues,
+            },
+            "player": {
+                "x":         int(j.rect.x),
+                "y":         int(j.rect.y),
+                "hp":        int(j.hp),
+                "max_hp":    int(j.max_hp),
+                "direction": int(j.direction),
+            },
+            "inventory": {
+                "slots": inv_slots,
+            },
+            "fear": {
+                "current": float(getattr(self.peur, "current", 0)),
+                "target":  float(getattr(self.peur, "_target", 0)),
+            },
+            "companions": {
+                "count":            len(self.compagnons.compagnons),
+                "sources_obtained": list(getattr(self,
+                                          "lucioles_sources_obtenues", set())),
+            },
+            "enemies": {
+                "killed_per_map": ennemis_morts,
+            },
+        }
+
+    def _appliquer_save_data(self, data):
+        """Restaure l'état complet du jeu depuis un dict produit par
+        _construire_save_data(). Symétrique de la méthode précédente."""
+        if not data:
             return
 
-        self.mode        = donnees.get("mode", "histoire")
-        self.joueur.hp   = donnees.get("hp", self.joueur.max_hp)
-        self.joueur.dead = False
-        self.joueur.vy   = 0
-        # Restaure le compteur de cinématiques jouées (cinématiques uniques).
-        self.cinematiques_jouees = dict(donnees.get("cinematiques_jouees", {}))
-        # Restaure le journal des dialogues.
-        self.historique_dialogues = dict(donnees.get("historique_dialogues", {}))
+        # ── Story / map / mode ─────────────────────────────────────────
+        story = data.get("story", {})
+        self.mode                  = story.get("mode", "histoire")
+        self.cinematiques_jouees   = dict(story.get("cinematics_played",  {}))
+        self.historique_dialogues  = dict(story.get("dialog_history",     {}))
 
         if self.mode == "histoire":
             self.editeur.active = False
 
-        # Chargement de la carte sauvegardée.
-        carte = donnees.get("map", "")
+        carte = story.get("current_map", "")
         if carte:
             self.editeur.load_map_for_portal(carte)
             self.carte_actuelle = carte
@@ -991,49 +1129,89 @@ class Game:
             self._murs_modifies()
             self._sync_triggers()
 
-        self.joueur.rect.x = donnees.get("x", self.joueur.spawn_x)
-        self.joueur.rect.y = donnees.get("y", self.joueur.spawn_y)
+        # ── Player ─────────────────────────────────────────────────────
+        j = self.joueur
+        p = data.get("player", {})
+        j.rect.x      = p.get("x", j.spawn_x)
+        j.rect.y      = p.get("y", j.spawn_y)
+        j.hp          = p.get("hp", j.max_hp)
+        j.direction   = p.get("direction", j.direction)
+        j.dead        = False
+        j.vx = j.vy   = 0
+        j.knockback_vx = 0
 
-        # ── Restauration du nombre de LUCIOLES gagnées ─────────────────
-        # Sans ça, à chaque "Continuer" on repartirait avec la valeur du
-        # menu Paramètres (game_config.json), donc une partie à 4 lucioles
-        # gagnées via boss/villageois retomberait à 0 après quit/restart.
-        # Si la clé est absente (vieille save), on garde le nb actuel.
-        if "nb_compagnons" in donnees:
-            self.compagnons.set_nb(int(donnees["nb_compagnons"]))
+        # ── Inventaire ─────────────────────────────────────────────────
+        try:
+            from ui.inventory import ITEMS, InventoryItem
+            inv_slots = data.get("inventory", {}).get("slots", [])
+            # Reset puis re-place chaque item à son ancien index.
+            self.inventory.slots = [None] * len(self.inventory.slots)
+            for i, name in enumerate(inv_slots):
+                if name and name in ITEMS and i < len(self.inventory.slots):
+                    info = ITEMS[name]
+                    img  = self.inventory.images.get(name) if hasattr(self.inventory, "images") else None
+                    self.inventory.slots[i] = InventoryItem(
+                        name, img, info.get("category", "Consommable")
+                    )
+        except Exception as e:
+            print(f"[Save] Restauration inventaire échouée : {e}")
 
-        # ── Restauration des sources de lucioles déjà obtenues ─────────
-        # Évite que tuer 2 fois le même boss (rejouer après reload) ne
-        # redonne une luciole en double. Cf. compagnons.gagner_luciole().
-        self.lucioles_sources_obtenues = set(
-            donnees.get("lucioles_sources_obtenues", [])
-        )
+        # ── Peur ───────────────────────────────────────────────────────
+        fear = data.get("fear", {})
+        if hasattr(self.peur, "current"):
+            self.peur.current = float(fear.get("current", self.peur.current))
+        if hasattr(self.peur, "_target"):
+            self.peur._target = float(fear.get("target",  self.peur._target))
 
+        # ── Compagnons / lucioles ──────────────────────────────────────
+        comps = data.get("companions", {})
+        if "count" in comps:
+            self.compagnons.set_nb(int(comps["count"]))
+        self.lucioles_sources_obtenues = set(comps.get("sources_obtained", []))
         self.compagnons.respawn(self.joueur)
+
+        # ── Ennemis tués ───────────────────────────────────────────────
+        # On stocke le dict complet pour pouvoir réappliquer à chaque
+        # changement de map (cf. _ennemis_morts_par_map).
+        ennemis = data.get("enemies", {})
+        self._ennemis_morts_par_map = dict(ennemis.get("killed_per_map", {}))
+        # Ré-applique sur la map courante si pertinent.
+        morts = self._ennemis_morts_par_map.get(self.carte_actuelle, [])
+        for i, e in enumerate(self.ennemis):
+            e.alive = i not in morts
+
+        # ── Temps de jeu ───────────────────────────────────────────────
+        self.play_time_s = float(data.get("_meta", {}).get("play_time_s", 0))
+
+        # ── SNAP CAMÉRA ────────────────────────────────────────────────
+        # Sans ça, la caméra reste à sa position précédente (souvent (0, 0)
+        # au tout 1er chargement) et "rattrape" le joueur en lerpant. On
+        # voit la map défiler depuis un coin → on a un aperçu de la map
+        # avant l'apparition du perso. snap_to() la positionne pile sur
+        # le joueur d'un coup.
+        self.camera.snap_to(self.joueur.rect)
+
+    def _charger_partie(self):
+        """Charge le slot le plus récent (= bouton "Continuer" du menu).
+
+        Convention type Hollow Knight / Celeste : "Continuer" = ta partie
+        la plus fraîche, sans choix à faire. Pour switcher entre slots,
+        utilise le menu Charger pendant la pause.
+        """
+        from systems.save_system import charger_slot, slot_le_plus_recent
+        slot = slot_le_plus_recent()
+        donnees = charger_slot(slot) if slot else None
+        if not donnees:
+            self._nouvelle_partie()
+            return
+
+        self._appliquer_save_data(donnees)
         self.etats.switch(GAME)
 
     def _sauvegarder(self):
-        """Écrit la partie courante dans save.json."""
-        sauvegarder({
-            "mode":                       self.mode,
-            "hp":                         self.joueur.hp,
-            "map":                        self.carte_actuelle,
-            "x":                          self.joueur.rect.x,
-            "y":                          self.joueur.rect.y,
-            "cinematiques_jouees":        self.cinematiques_jouees,
-            "historique_dialogues":       self.historique_dialogues,
-            # ── Lucioles ─────────────────────────────────────────────────
-            # Nombre courant de lucioles dans le groupe (incluant celles
-            # gagnées en jeu via gagner_luciole). Lu au "Continuer" pour
-            # restaurer le bon nombre.
-            "nb_compagnons":              len(self.compagnons.compagnons),
-            # Liste des sources déjà utilisées (ex: "boss_miroir",
-            # "villageois_anna"). Sert à éviter le double-don sur reload.
-            # On convertit en list car JSON ne sait pas sérialiser un set.
-            "lucioles_sources_obtenues":  list(getattr(self,
-                                                "lucioles_sources_obtenues",
-                                                set())),
-        })
+        """Sauvegarde la partie dans le slot 1 (bouton sauvegarde par défaut)."""
+        from systems.save_system import sauvegarder_slot
+        sauvegarder_slot(1, self._construire_save_data())
 
     # ═════════════════════════════════════════════════════════════════════════
     # 7.  INTERACTION AVEC LES PNJ
@@ -1065,24 +1243,50 @@ class Game:
     def _lancer_fondu_menu(self, action):
         """Lance un fondu noir depuis le menu, puis exécute `action()`.
 
-        Pourquoi ? Pour ne pas avoir de passage brutal du menu titre au
-        jeu. La musique du menu s'éteint en 4 s, l'effet "rayons de
-        lumière" (effet_reveil) commence à s'estomper IMMÉDIATEMENT
-        (forcer_extinction) — l'utilisateur garde un petit halo de
-        l'écran-titre pendant qu'il entre dans le jeu / l'éditeur, qui
-        disparaît sur ~8 s.
+        On veut une SÉPARATION NETTE entre le menu et le jeu :
+          - musique du menu : fade-out rapide (~1.5s) pour ne pas dépasser
+            sur le jeu (avant : 4s → on l'entendait encore en jeu)
+          - effet de réveil : descente forcée + hard-cut au switch GAME
+            (cf. _wrap_action) → pas de halo qui traîne en jeu
+          - quand le voile est noir (alpha=255), action() s'exécute, on
+            cale tout à zéro proprement, puis fondu entrant.
         """
         self._menu_fondu_etat   = "out"
         self._menu_fondu_alpha  = 0
-        self._menu_fondu_action = action
-        # Fadeout musique 4 s → laisse l'ambiance "bonne nuit" s'estomper
-        # progressivement plutôt que se couper sec.
-        music.arreter(fadeout_ms=4000)
-        # Effet de réveil : commence à descendre TOUT DE SUITE (sans
-        # attendre que la musique se coupe). Vitesse 0.12 → ~8 s avant
-        # disparition complète, donc on garde un halo pendant les
-        # premières secondes en éditeur / jeu.
+        self._menu_fondu_action = self._wrap_action(action)
+        # Fadeout musique du menu : court (1.5s) pour qu'elle soit
+        # silencieuse au moment où le voile noir est plein → on ne
+        # l'entend pas dans le jeu.
+        music.arreter(fadeout_ms=1500)
+        # Effet de réveil : descente forcée pour qu'il atteigne 0
+        # avant qu'on entre vraiment en jeu.
         self.effet_reveil.forcer_extinction()
+
+    def _wrap_action(self, action):
+        """Wrappe l'action de transition pour CASSER NET les artefacts du
+        menu juste avant d'exécuter le code de transition.
+
+        Quand on a fini le fondu noir et qu'on s'apprête à entrer en jeu :
+          - on coupe la musique du menu instantanément (au cas où le fade
+            n'a pas fini)
+          - on remet l'intensité de l'effet_reveil à 0 (hard cut → pas de
+            résidu lumineux qui traîne au début du jeu)
+        """
+        def _wrapped():
+            # Hard cut musique
+            try:
+                pygame.mixer.music.stop()
+            except Exception:
+                pass
+            # Hard cut effet_reveil (intensité interne)
+            try:
+                self.effet_reveil.intensite = 0.0
+                self.effet_reveil._cible    = 0.0
+            except AttributeError:
+                pass
+            # Maintenant on lance vraiment l'action (chargement / nouvelle partie)
+            action()
+        return _wrapped
 
     def _gerer_menu(self, events):
         """Gestion du menu titre (état MENU)."""
@@ -1094,16 +1298,43 @@ class Game:
             if event.type != pygame.KEYDOWN:
                 continue
 
+            # Le menu de sélection de slot intercepte tout tant qu'il est
+            # visible (ouvert par "Continuer" → mode load).
+            if self.save_menu.visible:
+                res = self.save_menu.handle_key(event.key)
+                if res is not None:
+                    action, slot = res
+                    if action == "load":
+                        # On charge la sauvegarde DANS le fondu pour avoir
+                        # une transition propre (écran noir → chargement →
+                        # apparition progressive du jeu).
+                        from systems.save_system import charger_slot
+                        donnees = charger_slot(slot)
+                        if donnees is not None:
+                            def _action():
+                                self._appliquer_save_data(donnees)
+                                self.etats.switch(GAME)
+                            self._lancer_fondu_menu(_action)
+                continue
+
             choix = self.menu_titre.handle_key(event.key)
 
             if choix == "Continuer":
-                # Lambda = mini-fonction créée à la volée, voir [D34].
-                self._lancer_fondu_menu(lambda: self._charger_partie())
+                # On ouvre le menu de sélection de slot AU LIEU de charger
+                # automatiquement le plus récent. Le joueur choisit lui-même
+                # quelle sauvegarde reprendre (essentiel s'il a plusieurs
+                # parties en parallèle dans des slots différents).
+                self.save_menu.open(mode="load")
 
             elif choix == "Nouvelle partie":
                 # On utilise une vraie fonction locale pour pouvoir
                 # écrire plusieurs lignes (une lambda ne fait qu'une expression).
                 def _action():
+                    # Nouvelle partie = on EFFACE TOUTES les sauvegardes
+                    # (manuelles + autosave). Convention attendue par le
+                    # joueur : repartir d'une page blanche.
+                    from systems.save_system import supprimer_tout
+                    supprimer_tout()
                     self.mode = "histoire"
                     self._nouvelle_partie()
                 self._lancer_fondu_menu(_action)
@@ -1130,6 +1361,27 @@ class Game:
                 self.parametres.handle_key(event.key)
                 continue
 
+            # Le menu de sauvegarde / chargement (overlay) intercepte tout
+            # tant qu'il est visible. Retours possibles :
+            #   ("save", n)  → écrire la partie dans le slot n
+            #   ("load", n)  → charger le slot n
+            #   ("close", _) → simple fermeture
+            if self.save_menu.visible:
+                res = self.save_menu.handle_key(event.key)
+                if res is not None:
+                    action, slot = res
+                    if action == "save":
+                        from systems.save_system import sauvegarder_slot
+                        sauvegarder_slot(slot, self._construire_save_data())
+                        self.save_menu._refresh()    # re-affiche les nouvelles métadonnées
+                    elif action == "load":
+                        from systems.save_system import charger_slot
+                        donnees = charger_slot(slot)
+                        if donnees is not None:
+                            self._appliquer_save_data(donnees)
+                            self.etats.switch(GAME)
+                continue
+
             # Échap ferme la pause.
             if event.key == pygame.K_ESCAPE:
                 self.etats.switch(GAME)
@@ -1141,7 +1393,9 @@ class Game:
             elif choix == "Paramètres":
                 self.parametres.open()
             elif choix == "Sauvegarder":
-                self._sauvegarder()
+                self.save_menu.open(mode="save")
+            elif choix == "Charger":
+                self.save_menu.open(mode="load")
             elif choix == "Menu principal":
                 self._menu_fondu_etat  = "none"
                 self._menu_fondu_alpha = 0
@@ -1152,6 +1406,9 @@ class Game:
                 # On revient au menu → l'effet_reveil reprend son
                 # comportement normal (synchronisé sur la musique).
                 self.effet_reveil.reactiver()
+                # On reconstruit le menu titre pour que "Continuer" apparaisse
+                # si une sauvegarde a été faite pendant la partie.
+                self._rafraichir_menu_titre()
                 self.etats.switch(MENU)
             elif choix == "Quitter":
                 self.running = False
@@ -1195,6 +1452,19 @@ class Game:
     #    10. Mort → Game Over
 
     def _update_jeu(self, events, dt):
+        # ── ÉCRAN DE CHARGEMENT : simulation gelée tant que le fondu IN
+        # n'est pas terminé. Le joueur ne tombe pas, les ennemis ne bougent
+        # pas, mais on continue de RENDRE la scène (fait via _frame_jeu →
+        # _dessiner_monde) pour que les textures pré-chargent en mémoire.
+        # Quand l'image est pleinement révélée, la simulation reprend.
+        if self._est_en_chargement():
+            return
+
+        # Tracking du temps de jeu cumulé (pour l'affichage dans le menu de
+        # sauvegarde). Compte uniquement le temps PASSÉ dans l'état GAME
+        # ET hors écran de chargement.
+        self.play_time_s = getattr(self, "play_time_s", 0.0) + dt
+
         # ── 1. Gestionnaire histoire (prioritaire) ────────────────────────
         if self.gestionnaire_histoire.actif:
             for event in events:
@@ -1259,6 +1529,16 @@ class Game:
 
     def _gerer_touche(self, key):
         """Dispatche une touche vers l'action correspondante."""
+        # Ctrl+R : HOT RELOAD (sauvegarde position + relance process Python).
+        # Très tôt dans la chaîne pour court-circuiter dialogues/menus/éditeur.
+        # On ne le déclenche QUE si le mode texte de l'éditeur n'est PAS actif,
+        # sinon "r" doit pouvoir s'écrire dans une saisie de nom.
+        if key == pygame.K_r and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            if not (self.editeur.active and self.editeur._text_mode):
+                from core.hot_reload import declencher_hot_reload
+                declencher_hot_reload(self)
+                return  # jamais atteint (execv remplace le process)
+
         # F1 : overlay d'aide.
         if key == pygame.K_F1:
             self.aide.toggle()
@@ -1460,6 +1740,21 @@ class Game:
         if event.type == pygame.MOUSEMOTION and self.camera._drag_active:
             self.camera.update_drag(event.pos)
 
+    def respawn_player_at(self, x, y):
+        """Téléporte le joueur au point de respawn spécifique et reset sa physique."""
+        # 1. On déplace le joueur
+        self.joueur.rect.x = x
+        self.joueur.rect.y = y
+        
+        # 2. pn reset les vitesses (important pour pas qu'il garde son élan)
+        if hasattr(self.joueur, 'vel_x'): self.joueur.vel_x = 0
+        if hasattr(self.joueur, 'vel_y'): self.joueur.vel_y = 0
+        
+        # 3. petit effet visuel (ScreenShake) puisque tu as le système juice
+        if hasattr(self, "shake"):
+            self.shake.ajouter(duration=0.2, amplitude=8) # secousse de 0.2s
+        
+
     def _simuler_jeu(self, dt):
         """Physique, collisions, effets, systèmes. Appelé après les events."""
         keys = pygame.key.get_pressed()
@@ -1488,7 +1783,7 @@ class Game:
         if not mouvement_bloque:
             self.joueur.mouvement(phys_dt, keys, holes=trous)
 
-        self.camera.update(self.joueur.rect)
+        self.camera.update(self.joueur.rect, dt)
 
         # Mémorise l'état AVANT mise à jour (pour détecter les événements).
         hp_avant            = self.joueur.hp
@@ -1545,6 +1840,13 @@ class Game:
 
         # ── Collisions du joueur ──
         appliquer_plateformes(self.joueur, self.grille_plateformes)
+
+        if not self.editeur.active:
+            for zone in self.editeur.danger_zones:
+                if self.joueur.rect.colliderect(zone["rect"]):
+                    rx, ry = zone["respawn_pos"]
+                    self.respawn_player_at(rx, ry)
+                    break
 
         if not self.editeur.active:
             resoudre_contacts_ennemis(self.joueur, self.ennemis, hud=self.hud)
@@ -2148,11 +2450,195 @@ class Game:
                 self._frame_game_over(events)
 
             # Effet de réveil (rayons de lumière synchro avec la musique).
-            self.effet_reveil.update(self._dt)
-            self.effet_reveil.draw(self.screen)
+            # IMPORTANT : on ne le dessine QUE dans l'état MENU. Une fois
+            # qu'on entre en jeu, c'est un environnement totalement différent
+            # → pas de halo ni de particules du menu. Sans ça, l'effet
+            # restait visible plusieurs secondes en jeu (descente lente).
+            # _frame_menu lui-même appelle déjà update() pendant le fondu,
+            # mais ici on garantit qu'AUCUN draw ne fuite hors du menu.
+            if self.etats.is_menu:
+                self.effet_reveil.update(self._dt)
+                self.effet_reveil.draw(self.screen)
+
+            # ── 5b. Filtre de luminosité (post-process global) ──
+            # settings.luminosite : 1.0 = normal, < 1.0 = assombrit (overlay
+            # noir), > 1.0 = éclaircit (overlay blanc). On applique ICI, en
+            # dernier, pour que TOUT (jeu, HUD, menus, paramètres) soit
+            # affecté pareil → cohérent quel que soit l'écran utilisé.
+            self._appliquer_luminosite()
+
+            # ── 5c. Indicateur de chargement (3 points animés en bas-droite) ──
+            # Dessiné PAR-DESSUS le voile noir pendant la phase "loading".
+            self._dessiner_indicateur_chargement()
 
             # ── 6. Affichage final ──
             pygame.display.flip()
+
+    def _precharger_textures_legacy(self):
+        """Ancienne version (laissée en référence). Voir _precharger_textures."""
+        return
+
+    def _precharger_textures(self):
+        """Pré-conversion légère des textures de la map.
+
+        On se contente de .convert_alpha() chaque surface (= les met au bon
+        format mémoire CPU). Sur la plupart des configs pygame/SDL, ça
+        suffit pour éviter le pop visible quand le sprite est rendu pour
+        la 1ère fois.
+
+        On a abandonné le blit-sur-display+flip qu'on avait essayé avant :
+        sur certaines configs il causait des freezes au boot (gros lots
+        de flips → GPU thrashing → FPS qui yo-yo pendant 1 minute) sans
+        avantage perceptible côté upload textures.
+
+        Si du flicker persiste après ce convert_alpha, c'est probablement
+        une limitation pygame/SDL qu'on ne peut pas vraiment court-circuiter.
+        """
+        # ── Décors ──
+        for liste_attr in ("decors", "decors_fond", "decors_avant"):
+            for d in (getattr(self.editeur, liste_attr, None) or []):
+                img = getattr(d, "image", None)
+                if img is not None:
+                    try:
+                        d.image = img.convert_alpha()
+                    except Exception:
+                        pass
+
+        # ── Ennemis ──
+        for ennemi in (getattr(self, "ennemis", None) or []):
+            for attr in ("image", "_image", "sprite_courant"):
+                img = getattr(ennemi, attr, None)
+                if img is not None:
+                    try:
+                        setattr(ennemi, attr, img.convert_alpha())
+                    except Exception:
+                        pass
+
+        # ── Joueur : toutes les frames de toutes les anims ──
+        for nom in dir(self.joueur):
+            if not (nom.startswith("idle_anim_") or nom.startswith("anim_")):
+                continue
+            anim = getattr(self.joueur, nom, None)
+            images = getattr(anim, "images", None) if anim else None
+            if images is None:
+                continue
+            for i, frame in enumerate(images):
+                try:
+                    images[i] = frame.convert_alpha()
+                except Exception:
+                    pass
+
+    def _precharger_textures_OLD(self):
+        """Force le chargement GPU de TOUTES les textures de la map courante.
+
+        Pourquoi ? pygame charge les textures en LAZY : la conversion vers
+        le format display (et l'upload GPU sur certains backends) se fait
+        au premier blit SUR LA DISPLAY SURFACE (l'écran réel).
+
+        Mon premier essai blittait sur un dummy 1×1 → ça convertit le
+        format mémoire mais ne déclenche PAS l'upload GPU. Du coup les
+        gros décors (fonds Tiled, parallax) re-flickaient au 1er rendu.
+
+        Cette version blit TOUS les sprites sur self.screen (la vraie
+        display surface), à des coords NÉGATIVES (= 100% clippés, donc
+        invisibles), ce qui force pygame à uploader chaque texture côté
+        GPU. Ensuite on fill l'écran en noir pour repartir propre.
+        """
+        screen = self.screen
+
+        # 1) On collecte toutes les images uniques de la map à pré-charger.
+        textures = []
+        for liste_attr in ("decors", "decors_fond", "decors_avant"):
+            for d in (getattr(self.editeur, liste_attr, None) or []):
+                img = getattr(d, "image", None)
+                if img is not None:
+                    try:
+                        d.image = img.convert_alpha()
+                    except Exception:
+                        pass
+                    textures.append(d.image)
+
+        for ennemi in (getattr(self, "ennemis", None) or []):
+            for attr in ("image", "_image", "sprite_courant"):
+                img = getattr(ennemi, attr, None)
+                if img is not None:
+                    try:
+                        setattr(ennemi, attr, img.convert_alpha())
+                    except Exception:
+                        pass
+                    textures.append(getattr(ennemi, attr))
+
+        for nom in dir(self.joueur):
+            if not (nom.startswith("idle_anim_") or nom.startswith("anim_")):
+                continue
+            anim   = getattr(self.joueur, nom, None)
+            images = getattr(anim, "images", None) if anim else None
+            if images is None:
+                continue
+            for i, frame in enumerate(images):
+                try:
+                    images[i] = frame.convert_alpha()
+                except Exception:
+                    pass
+                textures.append(images[i])
+
+        # 2) Pré-upload : on blit chaque texture à des coords VISIBLES (0,0)
+        # de la display surface. Coords visibles = SDL fait l'upload GPU
+        # vraiment (les blits clippés à coords négatives sont souvent
+        # court-circuités côté backend → pas d'upload).
+        # On flip() périodiquement pour FORCER SDL à committer le batch.
+        # Le joueur ne voit rien : on est en plein OUT/LOADING, le voile
+        # noir est dessiné dès la frame suivante.
+        BATCH = 25
+        for i, img in enumerate(textures):
+            screen.blit(img, (0, 0))
+            if (i + 1) % BATCH == 0:
+                pygame.display.flip()
+                screen.fill((0, 0, 0))
+
+        # Flip + clear final pour repartir d'un écran propre.
+        pygame.display.flip()
+        screen.fill((0, 0, 0))
+
+        # Décommente pour debug :
+        # print(f"[Loading] {len(textures)} textures uploadees au GPU")
+
+    def _appliquer_luminosite(self):
+        """Pose un voile final selon settings.luminosite.
+
+        Permet d'ajuster la luminosité globale de l'image rendue sans
+        toucher aux assets ni à l'éclairage du moteur. Utile quand
+        l'écran physique du joueur est très sombre ou très clair.
+
+        - luminosite = 1.0 → rien à faire (chemin rapide)
+        - luminosite < 1.0 → voile NOIR semi-transparent (assombrit)
+        - luminosite > 1.0 → voile BLANC semi-transparent (éclaircit)
+
+        L'alpha est proportionnel à l'écart par rapport à 1.0, plafonné à
+        ~150 pour ne jamais blanchir/noircir totalement l'écran.
+        """
+        l = settings.luminosite
+        if abs(l - 1.0) < 0.02:
+            return    # quasi-neutre → rien à dessiner
+
+        w, h = self.screen.get_size()
+        if l < 1.0:
+            alpha   = int(min(220, (1.0 - l) * 220))
+            couleur = (0, 0, 0, alpha)
+        else:
+            alpha   = int(min(180, (l - 1.0) * 220))
+            couleur = (255, 255, 255, alpha)
+
+        # CACHE de la surface : avant on en allouait une nouvelle CHAQUE
+        # FRAME (~80×/sec) → grosse pression GC + alloc inutile.
+        # Maintenant on la réutilise et on ne la refill que si la couleur
+        # ou la taille a changé.
+        cle = (w, h, couleur)
+        if getattr(self, "_voile_lumi_cle", None) != cle:
+            self._voile_lumi = pygame.Surface((w, h), pygame.SRCALPHA)
+            self._voile_lumi.fill(couleur)
+            self._voile_lumi_cle = cle
+        self.screen.blit(self._voile_lumi, (0, 0))
 
     # ─── Sous-routines de run() ──────────────────────────────────────────────
 
@@ -2224,30 +2710,117 @@ class Game:
             self._dessiner_voile_noir(self._menu_fondu_alpha)
         return True
 
-    # Vitesse du voile noir, en alpha/seconde. 100 → 2.55 s pour aller de
-    # 0 à 255 (fade-out) ou inverse (fade-in). Plus lent que 170 → ressenti
-    # plus contemplatif, et laisse à l'effet_reveil le temps de s'estomper.
-    _MENU_FONDU_VITESSE = 100.0
+    # Vitesses du voile noir (alpha/seconde) + durée de la phase loading.
+    #   OUT      : 130 → ~2 s pour passer de 0 à 255 (fade-out rapide)
+    #   LOADING  : 1.5 s minimum, voile NOIR PLEIN + indicateur de chargement
+    #              On continue de rendre la scène EN DESSOUS du voile pour
+    #              warmup les textures sans que le joueur les voit.
+    #   IN       : 90 → ~3 s pour passer de 255 à 0 (fade-in court, doux)
+    _MENU_FONDU_VITESSE_OUT = 130.0
+    _MENU_FONDU_VITESSE_IN  = 90.0
+    _CHARGEMENT_DUREE       = 4  # secondes mini sur l'écran de chargement
 
     def _avancer_fondu_menu(self):
         """Fait progresser le fondu noir d'une frame.
 
-        Centralisé pour que _frame_menu, _frame_jeu ET le sélecteur de
-        carte (mode éditeur) partagent exactement la même logique."""
+        États possibles :
+          "none"     : rien à faire
+          "out"      : fade-out depuis menu (alpha 0 → 255)
+                       à la fin, action() s'exécute → on passe en "loading"
+          "loading"  : écran 100% noir + indicateur de chargement
+                       reste affiché _CHARGEMENT_DUREE secondes mini
+                       → on passe en "in" automatiquement
+          "in"       : fade-in vers le jeu (alpha 255 → 0)
+                       à la fin, état "none"
+        """
         if self._menu_fondu_etat == "out":
-            self._menu_fondu_alpha += self._MENU_FONDU_VITESSE * self._dt
+            self._menu_fondu_alpha += self._MENU_FONDU_VITESSE_OUT * self._dt
             if self._menu_fondu_alpha >= 255:
                 self._menu_fondu_alpha = 255
                 if self._menu_fondu_action:
                     self._menu_fondu_action()
                     self._menu_fondu_action = None
-                # Passe au fondu entrant (le jeu va réapparaître).
+                # Passe en phase de chargement (écran noir + loader).
+                self._menu_fondu_etat   = "loading"
+                self._chargement_timer  = self._CHARGEMENT_DUREE
+                # PRÉ-CHARGE TOUTES les textures de la map maintenant que
+                # action() les a chargées en mémoire. Sans ça, les textures
+                # hors champ de caméra restent en format natif et causent
+                # un stutter quand le joueur les croise plus tard.
+                try:
+                    self._precharger_textures()
+                except Exception as e:
+                    print(f"[Loading] précharge textures : {e}")
+        elif self._menu_fondu_etat == "loading":
+            # Décompte du chargement. Le voile reste à 255 (noir total).
+            self._menu_fondu_alpha = 255
+            self._chargement_timer -= self._dt
+            if self._chargement_timer <= 0:
                 self._menu_fondu_etat = "in"
         elif self._menu_fondu_etat == "in" and self._menu_fondu_alpha > 0:
-            self._menu_fondu_alpha -= self._MENU_FONDU_VITESSE * self._dt
+            self._menu_fondu_alpha -= self._MENU_FONDU_VITESSE_IN * self._dt
             if self._menu_fondu_alpha <= 0:
                 self._menu_fondu_alpha = 0
                 self._menu_fondu_etat  = "none"
+
+    def _est_en_chargement(self):
+        """True UNIQUEMENT pendant la phase 'loading' (écran noir total).
+
+        Avant : retournait True aussi pendant 'in' → le joueur restait
+        figé en l'air pendant 3s de fade-in puis tombait d'un coup. Pas
+        immersif, ressemblait à un bug.
+
+        Maintenant : dès que la phase 'in' commence (donc dès la fin de
+        l'écran noir), la simulation reprend → le joueur SUBIT la gravité
+        et commence à tomber pendant que le voile noir se lève. Le joueur
+        voit la chute en même temps que le monde apparaît, comme dans
+        n'importe quel jeu vidéo.
+        """
+        return self._menu_fondu_etat == "loading"
+
+    def _dessiner_indicateur_chargement(self):
+        """3 points animés en bas à droite pendant la phase loading.
+
+        Visible pendant LOADING + début de IN, avec un fade-out doux quand
+        on bascule sur IN (sinon les points disparaissent brutalement). On
+        calcule l'opacité en fonction de l'état :
+          - LOADING : opacité pleine (255)
+          - IN avec alpha > 200 : opacité décroît proportionnellement
+          - IN avec alpha < 200 : invisibles
+        Donne une transition naturelle "écran noir avec dots → fade in".
+        """
+        # Détermine l'opacité des points selon la phase
+        if self._menu_fondu_etat == "loading":
+            opacite = 255
+        elif self._menu_fondu_etat == "in":
+            # Fade out des points sur les ~50 premiers points d'alpha
+            if self._menu_fondu_alpha >= 220:
+                opacite = int((self._menu_fondu_alpha - 220) / 35 * 255)
+                opacite = max(0, min(255, opacite))
+            else:
+                return  # plus rien à dessiner
+        else:
+            return
+
+        w, h = self.screen.get_size()
+        import time as _t
+        # Animation continue : chaque point pulse légèrement, déphasés.
+        # plus doux qu'un "ON/OFF" → ressenti plus moderne.
+        for i in range(3):
+            phase = (_t.time() * 1.8 + i * 0.35) % 1.0
+            # Sinusoidale pour pulse fluide
+            import math as _m
+            pulse = 0.5 + 0.5 * _m.sin(phase * _m.pi * 2)
+            r     = int(5 + pulse * 3)
+            tint  = int(140 + pulse * 80)
+            col   = (tint, tint, tint + 15, opacite)
+
+            x = w - 70 + i * 20
+            y = h - 35
+            # Surface SRCALPHA pour gérer l'opacité du cercle
+            tmp = pygame.Surface((r * 2 + 2, r * 2 + 2), pygame.SRCALPHA)
+            pygame.draw.circle(tmp, col, (r + 1, r + 1), r)
+            self.screen.blit(tmp, (x - r, y - r))
 
     def _frame_menu(self, events):
         """Un frame dans l'état MENU."""
@@ -2255,6 +2828,10 @@ class Game:
         self._gerer_menu(events)
         self.screen.fill((0, 0, 0))
         self.menu_titre.draw(self.screen)
+
+        # Overlay de sélection de slot (ouvert par "Continuer").
+        self.save_menu.update(self._dt)
+        self.save_menu.draw(self.screen)
 
         # Fondu menu → jeu (quand on a cliqué "Nouvelle partie" par ex.)
         self._avancer_fondu_menu()
@@ -2268,10 +2845,13 @@ class Game:
         self._update_jeu(events, self._dt)
         self._dessiner_monde()
 
-        # Fondu entrant (après une transition depuis le menu).
-        if self._menu_fondu_etat == "in" and self._menu_fondu_alpha > 0:
+        # Fondu après transition depuis le menu : 2 phases possibles.
+        # Avant le fix, on n'avançait que si état == "in" → la phase
+        # "loading" tournait en boucle infinie (timer jamais décrémenté).
+        if self._menu_fondu_etat in ("loading", "in"):
             self._avancer_fondu_menu()
-            self._dessiner_voile_noir(self._menu_fondu_alpha)
+            if self._menu_fondu_alpha > 0:
+                self._dessiner_voile_noir(self._menu_fondu_alpha)
 
     def _frame_pause(self, events):
         """Un frame dans l'état PAUSE : le jeu est figé, menu par-dessus."""
@@ -2285,6 +2865,9 @@ class Game:
         self.menu_pause.draw(self.screen)
         # Écran Paramètres par-dessus la pause si ouvert.
         self.parametres.draw(self.screen)
+        # Overlay de sauvegarde / chargement par-dessus tout.
+        self.save_menu.update(self._dt)
+        self.save_menu.draw(self.screen)
 
     def _frame_game_over(self, events):
         """Un frame dans l'état GAME_OVER."""
@@ -2293,8 +2876,16 @@ class Game:
         self.menu_fin.draw(self.screen)
 
     def _dessiner_voile_noir(self, alpha):
-        """Dessine un rectangle noir semi-transparent sur tout l'écran."""
+        """Dessine un rectangle noir semi-transparent sur tout l'écran.
+
+        CACHE de surface (cf. _appliquer_luminosite) : la surface est créée
+        une seule fois pour la taille d'écran, puis on ne fait que set_alpha
+        à chaque frame (très rapide vs alloc + fill complets).
+        """
         w, h = self.screen.get_size()
-        voile = pygame.Surface((w, h), pygame.SRCALPHA)          # [D2]
-        voile.fill((0, 0, 0, int(min(255, max(0, alpha)))))
-        self.screen.blit(voile, (0, 0))
+        if (getattr(self, "_voile_noir", None) is None
+                or self._voile_noir.get_size() != (w, h)):
+            self._voile_noir = pygame.Surface((w, h), pygame.SRCALPHA)
+            self._voile_noir.fill((0, 0, 0, 255))
+        self._voile_noir.set_alpha(int(min(255, max(0, alpha))))
+        self.screen.blit(self._voile_noir, (0, 0))
