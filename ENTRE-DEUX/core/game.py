@@ -1460,6 +1460,21 @@ class Game:
         if event.type == pygame.MOUSEMOTION and self.camera._drag_active:
             self.camera.update_drag(event.pos)
 
+    def respawn_player_at(self, x, y):
+        """Téléporte le joueur au point de respawn spécifique et reset sa physique."""
+        # 1. On déplace le joueur
+        self.joueur.rect.x = x
+        self.joueur.rect.y = y
+        
+        # 2. pn reset les vitesses (important pour pas qu'il garde son élan)
+        if hasattr(self.joueur, 'vel_x'): self.joueur.vel_x = 0
+        if hasattr(self.joueur, 'vel_y'): self.joueur.vel_y = 0
+        
+        # 3. petit effet visuel (ScreenShake) puisque tu as le système juice
+        if hasattr(self, "shake"):
+            self.shake.ajouter(duration=0.2, amplitude=8) # secousse de 0.2s
+        
+
     def _simuler_jeu(self, dt):
         """Physique, collisions, effets, systèmes. Appelé après les events."""
         keys = pygame.key.get_pressed()
@@ -1545,6 +1560,13 @@ class Game:
 
         # ── Collisions du joueur ──
         appliquer_plateformes(self.joueur, self.grille_plateformes)
+
+        if not self.editeur.active:
+            for zone in self.editeur.danger_zones:
+                if self.joueur.rect.colliderect(zone["rect"]):
+                    rx, ry = zone["respawn_pos"]
+                    self.respawn_player_at(rx, ry)
+                    break
 
         if not self.editeur.active:
             resoudre_contacts_ennemis(self.joueur, self.ennemis, hud=self.hud)

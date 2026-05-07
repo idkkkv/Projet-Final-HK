@@ -2810,7 +2810,7 @@ class Editor:
             respawn_pt = zone["respawn_pos"]
 
             # 1. Dessin du rectangle rouge (mort)
-            draw_rect = self.camera.apply_rect(rect_objet)
+            draw_rect = self.camera.apply(rect_objet)
             s = pygame.Surface((draw_rect.width, draw_rect.height), pygame.SRCALPHA)
             s.fill((255, 0, 0, 80)) 
             surf.blit(s, (draw_rect.x, draw_rect.y))
