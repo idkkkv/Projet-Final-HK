@@ -851,6 +851,16 @@ class Game:
                 self._fondu_duree_courante = self.vitesse_fondu
             self._fondu_etat  = "out"
             self._fondu_alpha = 0
+            # Pour les PORTES (require_up = entrée volontaire), on stoppe
+            # la course/marche → l'anim de retour s'arrête net (pas de
+            # glisse résiduelle). Pour les portails AUTO (sauter dedans),
+            # on laisse la vélocité telle quelle (le joueur tombait dans
+            # le portail, sa chute reprend de l'autre côté avec vy=0).
+            if getattr(portail, "require_up", False):
+                try:
+                    self.joueur.forcer_idle()
+                except Exception:
+                    pass
             return
 
     def _update_fondu(self, dt):
@@ -931,8 +941,14 @@ class Game:
             #     (le joueur continue son saut/chute → effet fluide)
             #   - PORTE : tout à 0 (l'entrée est volontaire et statique)
             self.joueur.knockback_vx = 0
-            self.joueur.vy = getattr(self, "_portail_keep_vy", 0)
-            self.joueur.vx = getattr(self, "_portail_keep_vx", 0)
+            # On RESET la vélocité à 0 à l'arrivée d'un téléport. Avant on
+            # gardait celle d'entrée → si le joueur tombait à 1000 px/s
+            # dans un portail, il arrivait dans la nouvelle map à 1000 px/s
+            # et accélérait encore (gravité), invisible sous la caméra.
+            # Maintenant : départ doux, la gravité reprend depuis 0 → la
+            # chute est lisible même quand on apparaît en hauteur.
+            self.joueur.vy = 0
+            self.joueur.vx = 0
             self._portail_keep_vy = 0
             self._portail_keep_vx = 0
 
@@ -1316,6 +1332,13 @@ class Game:
             return
         self.cutscene = scene
         self.state    = "cinematic"
+        # Stoppe net la course/marche du joueur à l'entrée d'une
+        # cinématique. Sinon il glisse 1-2 frames avec son anim run
+        # avant que mouvement_bloque prenne effet (= peu naturel).
+        try:
+            self.joueur.forcer_idle()
+        except Exception:
+            pass
 
     def _dessiner_fondu(self):
         """Dessine le voile noir si l'alpha est > 0."""
@@ -1341,6 +1364,16 @@ class Game:
         self.cinematiques_jouees  = {}
         # Reset du journal des dialogues : nouvelle partie = nouveau journal.
         self.historique_dialogues = {}
+        # Reset des story flags : page blanche pour toutes les conditions
+        # de dialogue PNJ et tous les déblocages (quickuse_unlocked, etc.).
+        self.story_flags = {}
+        # Reset des sources de lucioles déjà obtenues : sinon les PNJ qui
+        # avaient déjà donné leur luciole refuseraient de la redonner.
+        self.lucioles_sources_obtenues = set()
+        # Reset des ennemis tués mémorisés par carte.
+        self._ennemis_morts_par_map = {}
+        # Reset du dernier point de save mémorisé.
+        self._dernier_save_pos = None
 
         # Reset des compétences en mode histoire : le joueur démarre avec
         # SEULEMENT le saut. Les autres compétences (double saut, dash,
@@ -1352,6 +1385,26 @@ class Game:
             for nom in ("double_jump", "dash", "back_dodge",
                         "wall_jump", "attack", "pogo"):
                 setattr(settings, f"skill_{nom}", False)
+
+        # Reset inventaire : seule la cassette de départ. Pas de pommes
+        # (elles sont données par la cinématique de Nymbus).
+        if self.mode == "histoire":
+            try:
+                self.inventory.slots = [None] * len(self.inventory.slots)
+                self.inventory.add_item("Cassette")
+            except Exception as e:
+                print(f"[Nouvelle partie] reset inventaire : {e}")
+
+        # Reset des compagnons : retour au nombre initial du game_config.
+        # Sinon ceux acquis dans la partie précédente persistent.
+        try:
+            nb_init = int(lire_config().get("nb_compagnons", 2))
+            from systems.compagnons import CompagnonGroup
+            self.compagnons = CompagnonGroup(nb=nb_init)
+            # Re-bind paramètres
+            self.parametres.bind_compagnons(self.compagnons, self.joueur)
+        except Exception as e:
+            print(f"[Nouvelle partie] reset compagnons : {e}")
 
         # Mode histoire → l'éditeur est désactivé (le joueur ne doit pas y accéder).
         if self.mode == "histoire":
@@ -1679,6 +1732,10 @@ class Game:
             if lignes:
                 self.dialogue.demarrer(lignes)
                 self._pnj_actif = pnj
+                # Stoppe net la course/marche du joueur AU MOMENT où il
+                # appuie sur E (sinon il glisse pendant 1-2 frames avec
+                # son anim run avant que mouvement_bloque prenne effet).
+                self.joueur.forcer_idle()
             return
 
     def _ouvrir_save_point(self):
@@ -2163,7 +2220,7 @@ class Game:
         # F5 : panneau debug des story flags (éditeur seulement).
         # Toggle l'overlay qui liste tous les flags posés et permet de
         # les basculer pour tester les conditions de dialogue PNJ.
-        if key == pygame.K_F5 and self.mode == "editeur":
+        if key == pygame.K_F5 and self.mode == "editeur" and key == pygame.K_s:
             self._story_flags_panel_open = not getattr(
                 self, "_story_flags_panel_open", False)
             return

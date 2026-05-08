@@ -7,8 +7,8 @@
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": -1036,
-    "y": 400
+    "x": -1359,
+    "y": 395
   },
   "named_spawns": {},
   "bg_color": [
@@ -274,16 +274,6 @@
   ],
   "portals": [
     {
-      "x": -1378,
-      "y": 329,
-      "w": 144,
-      "h": 82,
-      "target_map": "map22",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": false
-    },
-    {
       "x": 1730,
       "y": 309,
       "w": 68,
@@ -322,6 +312,16 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true
+    },
+    {
+      "x": -1397,
+      "y": 281,
+      "w": 14,
+      "h": 135,
+      "target_map": "map23 b",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
     }
   ],
   "decors": [
@@ -365,8 +365,7 @@
       "y": 371,
       "sprite": "tiled_villag_d_cor_21_x2p90.png",
       "collision": false,
-      "echelle": 1.0,
-      "is_save_point": true
+      "echelle": 1.0
     },
     {
       "x": -603,
@@ -491,21 +490,16 @@
   "pnjs": [
     {
       "type": "pnj",
-      "x": -832,
+      "x": -1129,
       "y": 374,
-      "nom": "Pancarte",
+      "nom": "save",
       "sprite_name": "objet_parlant_40x40.png",
-      "dialogues": [
-        [
-          [
-            "sdfsdfs",
-            "Pancarte"
-          ]
-        ]
-      ],
+      "dialogues": [],
       "dialogue_mode": "boucle_dernier",
       "has_gravity": false,
-      "is_save_point": false
+      "is_save_point": true,
+      "events": [],
+      "dialogue_conditions": []
     }
   ],
   "trigger_zones": [],

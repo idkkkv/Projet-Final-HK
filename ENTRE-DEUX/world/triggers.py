@@ -362,6 +362,15 @@ class CutsceneTrigger(TriggerZone):
         if hasattr(game, "state"):
             game.state = "cinematic"
 
+        # Stoppe net la course/marche du joueur à l'entrée d'une
+        # cinématique déclenchée par zone trigger. Sinon il glisse
+        # avec son anim "run" pendant le 1er fade.
+        if hasattr(game, "joueur") and hasattr(game.joueur, "forcer_idle"):
+            try:
+                game.joueur.forcer_idle()
+            except Exception:
+                pass
+
         # Incrémente le compteur (et le marque pour sauvegarde).
         if self.cutscene_nom and hasattr(game, "cinematiques_jouees"):
             game.cinematiques_jouees[self.cutscene_nom] = \

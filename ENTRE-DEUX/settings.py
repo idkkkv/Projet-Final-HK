@@ -121,6 +121,12 @@ CEILING_Y    = 0              # Y du plafond par défaut
 #  Exemple concret : `self.x += PLAYER_SPEED * dt` → avance de 300 px en 1 s.
 
 GRAVITY       = 1500          # accélération verticale (px/s²)
+# Vitesse de chute MAX (vélocité terminale, px/s). Empêche la chute
+# d'accélérer à l'infini sur les longues hauteurs → la caméra reste
+# capable de suivre, le perso reste visible. Diminuer pour ralentir
+# encore (ex: 500 = chute lente type "feuille morte"). Augmenter
+# pour autoriser des chutes plus rapides.
+MAX_FALL_SPEED = 700
 JUMP_POWER    = 700          # impulsion de saut (px/s, vers le haut)
 PLAYER_SPEED  = 220           # vitesse horizontale de course (px/s)
 PLAYER_RUN_SPEED = 370        # vitesse horizontale courir (px/s)

@@ -836,6 +836,30 @@ class Player:
     #
     # Les collisions avec les plateformes sont gérées APRÈS par collision.py.
 
+    def forcer_idle(self):
+        """Coupe net tout mouvement du joueur et le force en pose idle.
+
+        À appeler quand on entre dans un dialogue, une cinématique, ou
+        toute interaction qui doit immobiliser le joueur. Reset :
+          • vélocités horizontales (vx, knockback_vx)
+          • drapeaux walking / running
+          • machine d'état de course (run_state → "idle")
+          • coupe le son des pas en cours
+        Ne touche PAS à vy (un joueur en l'air doit continuer à tomber)
+        ni aux compétences en cours (dash, attaque) — on coupe juste
+        la course/marche, pas tout le perso.
+        """
+        self.vx           = 0
+        self.knockback_vx = 0
+        self.walking      = False
+        self.running      = False
+        self.run_state    = "idle"
+        try:
+            from audio import sound_manager
+            sound_manager.arreter("pas")
+        except Exception:
+            pass
+
     def _anim_air_normale(self):
         """Renvoie l'image à afficher quand le joueur est en l'air SANS
         cas particulier (pas attaque, pas double-saut, pas wall-slide).
@@ -1127,6 +1151,13 @@ class Player:
                     self.vy = WALL_SLIDE_SPEED
                 else:
                     self.vy += self.gravity * dt
+                    # Vitesse de chute MAX (vélocité terminale). Sans ce
+                    # cap, la chute accélérait à l'infini → la caméra ne
+                    # pouvait plus suivre dans les longues chutes (le
+                    # joueur disparaissait en bas de l'écran). Cf.
+                    # settings.MAX_FALL_SPEED. Réglable.
+                    if self.vy > settings.MAX_FALL_SPEED:
+                        self.vy = settings.MAX_FALL_SPEED
             else:
                 # Pendant un dash, on flotte à la même hauteur (pas de gravité).
                 self.vy = 0

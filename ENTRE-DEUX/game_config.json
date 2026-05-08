@@ -23,6 +23,10 @@
     {
       "nom": "louis",
       "sprite_name": "marchand"
+    },
+    {
+      "nom": "PNJ_3",
+      "sprite_name": "marchand"
     }
   ],
   "histoire": [
@@ -34,13 +38,14 @@
         "p",
         "s",
         "sm1",
-        "sm2"
+        "sm2",
+        "map23"
       ]
     }
   ],
   "carte_debut": "map22",
   "hud_mode": "permanent",
-  "nb_compagnons": 2,
+  "nb_compagnons": 3,
   "lucioles_couleurs_idx": [
     1,
     1,

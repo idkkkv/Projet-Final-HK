@@ -7,8 +7,8 @@
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 777,
-    "y": 286
+    "x": 788,
+    "y": 307
   },
   "named_spawns": {},
   "bg_color": [
@@ -192,7 +192,13 @@
       ],
       "dialogue_mode": "boucle_dernier",
       "has_gravity": false,
-      "is_save_point": false
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
     },
     {
       "type": "pnj",
@@ -214,7 +220,13 @@
       ],
       "dialogue_mode": "boucle_dernier",
       "has_gravity": false,
-      "is_save_point": false
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
     }
   ],
   "trigger_zones": [],

@@ -30,7 +30,7 @@
             "selectedLayer": 0,
             "viewCenter": {
                 "x": 383.8227146814404,
-                "y": -251.74515235457062
+                "y": -251.74515235457056
             }
         },
         "Basic Tiles Only.tsx": {
@@ -50,7 +50,7 @@
             "scale": 0.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 1182,
+                "x": 1181,
                 "y": 942
             }
         },
@@ -87,8 +87,8 @@
             "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 205.5,
-                "y": 113
+                "x": 653.75,
+                "y": 268
             }
         },
         "b.tmx#map1 sol + déco": {
@@ -121,13 +121,24 @@
             "scale": 3,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 193,
+                "x": 192.83333333333331,
                 "y": 179
             }
         },
         "map1 sol + déco.tsx": {
             "scaleInDock": 1.5,
             "scaleInEditor": 0.33
+        },
+        "map23.tmx": {
+            "expandedObjectLayers": [
+                8
+            ],
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 609,
+                "y": 1023
+            }
         },
         "maprose.tsx": {
             "scaleInDock": 1,
@@ -178,7 +189,7 @@
             "scale": 1.5,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 320.6666666666667,
+                "x": 320.33333333333326,
                 "y": 160.66666666666669
             }
         },
@@ -197,7 +208,7 @@
             "scale": 1.5,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 240,
+                "x": 239.66666666666663,
                 "y": 64
             }
         },
@@ -219,7 +230,7 @@
             "scale": 1,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 113,
+                "x": 112.5,
                 "y": -142
             }
         },
@@ -284,7 +295,6 @@
     ],
     "project": "sans titre.tiled-project",
     "recentFiles": [
-        "1maps.tmx",
         "House (Outside And Inside) 1Tileset.tsx",
         "2.tsx",
         "étoiles.tsx",
@@ -293,9 +303,10 @@
         "b.tsx",
         "b.tmx",
         "m1.tmx",
-        "plants.tsx",
-        "Basic Tiles Only.tsx",
-        "villag.tmx"
+        "sm.tmx",
+        "s.tmx",
+        "C:/Users/Utilisateur/Downloads/ENTRE-DEUX-modifie/ENTRE-DEUX/tiled/1maps.tmx",
+        "maprose.tsx"
     ],
     "resizeMap.removeObjects": false,
     "tileset.lastUsedFormat": "tsx",
