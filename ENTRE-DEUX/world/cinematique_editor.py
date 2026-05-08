@@ -250,6 +250,15 @@ TYPES_ETAPES = {
         "resume":  lambda d: f"+{d.get('amount',0)} pièces",
     },
 
+    # ── Macro : débloquer la barre quick-use + donner des pommes ─────────
+    "unlock_quickuse": {
+        "libelle": "Débloquer croix directionnelle (+ pommes)",
+        "champs":  [
+            ("pommes", "Pommes données (défaut 10)", 10),
+        ],
+        "resume":  lambda d: f"Débloque quick-use + {d.get('pommes',10)} pommes",
+    },
+
     # ── Story flags (déclencheurs d'événements futurs) ───────────────────
     "set_flag": {
         "libelle": "Poser un story flag",
@@ -258,6 +267,28 @@ TYPES_ETAPES = {
             ("value", "Valeur (1=true, 0=false)",     1),
         ],
         "resume":  lambda d: f"Flag {d.get('key','?')}={'T' if d.get('value',1) else 'F'}",
+    },
+
+    # ── Audio ──────────────────────────────────────────────────────────
+    "play_music": {
+        "libelle": "Musique : transition",
+        "champs":  [
+            ("chemin",     "Chemin (vide = fadeout seul)", ""),
+            ("volume",     "Volume (0.0-1.0)",           0.6),
+            ("fadeout_ms", "Fadeout (ms)",              1000),
+            ("fadein_ms",  "Fadein (ms)",               1500),
+        ],
+        "resume":  lambda d: f"Musique → {d.get('chemin','(silence)')}",
+    },
+
+    # ── Attendre une touche du joueur ───────────────────────────────────
+    "wait_input": {
+        "libelle": "Attendre une touche du joueur",
+        "champs":  [
+            ("touche",  "Touche (any / space / enter)", "any"),
+            ("timeout", "Timeout (s, 0 = jamais)",        0),
+        ],
+        "resume":  lambda d: f"Attend touche '{d.get('touche','any')}'",
     },
 
     # ── Hybride cinématique/gameplay ────────────────────────────────────

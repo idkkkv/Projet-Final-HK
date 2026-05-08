@@ -371,6 +371,25 @@ def build():
                 "Émet nb particules à (x,y) couleur (r,g,b)."],
         ])
 
+    h2(doc, "Famille « Audio »")
+    kvtable(doc,
+        ["Action", "Champs", "Effet"],
+        [
+            ["Musique : transition", "chemin, volume, fadeout_ms, fadein_ms",
+                "Bascule vers une autre piste musicale avec fondu. "
+                "Chemin vide = silence (fadeout seul)."],
+        ])
+
+    h2(doc, "Famille « Interaction »")
+    kvtable(doc,
+        ["Action", "Champs", "Effet"],
+        [
+            ["Attendre une touche du joueur", "touche, timeout",
+                "Pause la cinématique jusqu'à appui. touche = "
+                "« any » / « space » / « enter ». timeout=0 → "
+                "attend indéfiniment."],
+        ])
+
     h2(doc, "Famille « Hybride cinématique / gameplay »")
     kvtable(doc,
         ["Action", "Champs", "Effet"],
@@ -454,6 +473,20 @@ def build():
                "tu peux appuyer sur P : la coordonnée MONDE de la "
                "souris est prise automatiquement. Idéal pour positionner "
                "un PNJ où le joueur a cliqué."))
+
+    h2(doc, "Panneau debug des story flags (F5 en mode éditeur)")
+    para(doc, ("En mode éditeur, appuie sur F5 pour ouvrir l'overlay "
+               "qui liste TOUS les flags posés. Ça permet de :"))
+    bullet(doc, "↑ ↓  : naviguer dans les flags.")
+    bullet(doc, "T  : basculer le flag sélectionné (True ↔ False) — "
+                "très utile pour TESTER les conditions de dialogue PNJ.")
+    bullet(doc, "D  : supprimer un flag.")
+    bullet(doc, "A  : ajouter un nouveau flag (saisie texte, Ctrl+V "
+                "marche).")
+    bullet(doc, "F5 ou Esc  : fermer.")
+    para(doc, ("Pratique pour ne PAS avoir à rejouer toute une "
+               "cinématique pour tester si une conv PNJ se débloque "
+               "correctement."), italic=True, color=GRIS)
 
     h2(doc, "Tester avant de sauver")
     para(doc, ("Touche T dans l'éditeur de cinématique → la cinématique "

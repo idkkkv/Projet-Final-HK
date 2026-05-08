@@ -56,7 +56,7 @@ class QuickUseBar:
     SLOT_SIZE      = 44
     SPACING        = 6     # espace entre le centre et un slot
     MARGIN_RIGHT   = 24
-    MARGIN_BOTTOM  = 110   # au-dessus de la barre HP/peur
+    MARGIN_BOTTOM  = 40   # au-dessus de la barre HP/peur
 
     # Couleurs
     COL_BG         = (28, 22, 40, 220)
@@ -64,9 +64,12 @@ class QuickUseBar:
     COL_BORDER_DIS = (90, 90, 110)        # slot grisé (item épuisé)
     COL_FLASH      = (255, 255, 200)      # flash blanc à la consommation
 
-    def __init__(self, inventory, joueur):
+    def __init__(self, inventory, joueur, game=None):
         self.inventory = inventory
         self.joueur    = joueur
+        # Référence au game pour lire les story flags (visibilité de la
+        # barre conditionnée par story_flags["quickuse_unlocked"]).
+        self.game      = game
         # Index du slot qui flashe (animation visuelle de consommation),
         # avec un timer décroissant.
         self._flash_idx   = -1
@@ -75,6 +78,17 @@ class QuickUseBar:
         self._font = None
         self._font_key = None
 
+    def est_visible(self):
+        """True si la barre doit s'afficher.
+
+        Conditionnée par le story flag « quickuse_unlocked ». Posé par
+        la cinématique de Nymbus via l'action unlock_quickuse.
+        Si pas de game référencé (test hors jeu), True par défaut."""
+        if self.game is None:
+            return True
+        flags = getattr(self.game, "story_flags", {}) or {}
+        return bool(flags.get("quickuse_unlocked", False))
+
     # ------------------------------------------------------------------
     #  ENTRÉES
     # ------------------------------------------------------------------
@@ -82,6 +96,10 @@ class QuickUseBar:
     def handle_event(self, event):
         """À appeler dans la boucle d'événements. Consomme la touche si
         elle correspond à un slot."""
+        # Pas de barre visible → pas d'input. Évite que le joueur
+        # consomme des pommes accidentellement avant le déblocage.
+        if not self.est_visible():
+            return
         if event.type != pygame.KEYDOWN:
             return
         idx = self.KEY_BINDINGS.get(event.key)
@@ -188,6 +206,9 @@ class QuickUseBar:
         ]
 
     def draw(self, screen):
+        # Pas de rendu tant que la mécanique n'est pas débloquée.
+        if not self.est_visible():
+            return
         self._ensure_font()
         positions = self._slot_positions(screen)
         s = self.SLOT_SIZE

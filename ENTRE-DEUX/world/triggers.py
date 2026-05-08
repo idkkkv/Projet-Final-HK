@@ -732,6 +732,8 @@ def _steps_depuis_data(data):
         npc_spawn, npc_despawn,
         grant_skill, grant_luciole, give_item, give_coins,
         set_flag, wait_for_player_at,
+        play_music, wait_input,
+        unlock_quickuse,
     )
 
     def _opt_float(v):
@@ -848,4 +850,18 @@ def _steps_depuis_data(data):
                 radius=_f(step.get("radius"), 32),
                 timeout=_f(step.get("timeout"), 60),
             ))
+        elif t == "play_music":
+            steps.append(play_music(
+                step.get("chemin", "") or "",
+                volume=_f(step.get("volume"), 0.6),
+                fadeout_ms=_i(step.get("fadeout_ms"), 1000),
+                fadein_ms=_i(step.get("fadein_ms"), 1500),
+            ))
+        elif t == "wait_input":
+            steps.append(wait_input(
+                step.get("touche", "any"),
+                timeout=_f(step.get("timeout"), 0),
+            ))
+        elif t == "unlock_quickuse":
+            steps.append(unlock_quickuse(_i(step.get("pommes"), 10)))
     return steps

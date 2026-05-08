@@ -156,7 +156,7 @@ class PNJEditor:
                 self.fermer()
             return True
 
-        if self.mode in ("edit_line", "edit_orator", "edit_cond"):
+        if self.mode in ("edit_line", "edit_orator", "edit_cond", "edit_events"):
             return self._handle_key_text(key)
 
         if self.niveau == "conv":
@@ -167,7 +167,7 @@ class PNJEditor:
     def handle_textinput(self, text):
         if not self.actif:
             return
-        if self.mode in ("edit_line", "edit_orator", "edit_cond"):
+        if self.mode in ("edit_line", "edit_orator", "edit_cond", "edit_events"):
             self._input += text
 
     def _handle_key_text(self, key):
@@ -234,6 +234,10 @@ class PNJEditor:
             # [F] = éditer la CONDITION de la conversation sélectionnée.
             # Format texte (cf. _parser_condition / _format_condition).
             self._commencer_edition_condition()
+        elif key == pygame.K_e and n:
+            # [E] = éditer les ÉVÉNEMENTS déclenchés à la fin de la conv
+            # (skill, luciole, coins, hp, max_hp, item, flag).
+            self._commencer_edition_events()
         return True
 
     # ── Niveau 2 : lignes d'une conversation ─────────────────────────────────
@@ -313,6 +317,12 @@ class PNJEditor:
             self.mode   = None
             self._input = ""
             return
+        # Édition des events de fin de conv (mode "edit_events")
+        if self._input_for == "events":
+            self._enregistrer_events(self._input)
+            self.mode   = None
+            self._input = ""
+            return
         conv = self._conv_courante()
         if conv is None or not (0 <= self.line_idx < len(conv)):
             self.mode = None
@@ -389,6 +399,111 @@ class PNJEditor:
         self.pnj.dialogue_conditions[self.conv_idx] = cond
         self._msg_show("Condition enregistrée ✓")
 
+    # ── Édition des events de fin de dialogue ────────────────────────────────
+
+    def _commencer_edition_events(self):
+        """Ouvre la saisie des events pour la conversation sélectionnée.
+
+        Format texte (1 event par segment, séparés par "; ") :
+            (vide)                         → aucun event
+            skill:double_jump              → débloque la compétence
+            luciole:anna_rite              → +1 luciole (source unique)
+            coins:50                       → +50 pièces
+            hp:2                           → +2 PV
+            max_hp:1                       → +1 PV max
+            item:Pomme                     → +1 Pomme (count=1)
+            item:Pomme:5                   → +5 Pommes
+            flag:parchemins_lus            → pose flag à True
+            flag:parchemins_lus=0          → pose flag à False
+
+        Les events s'ENCHAÎNENT dans l'ordre :
+            skill:dash; luciole:boss_foret; coins:20
+        """
+        if self.pnj is None:
+            return
+        if not hasattr(self.pnj, "events"):
+            self.pnj.events = []
+        while len(self.pnj.events) < len(self._convs()):
+            self.pnj.events.append([])
+        events_actuels = self.pnj.events[self.conv_idx] or []
+        self.mode       = "edit_events"
+        self._input_for = "events"
+        self._input     = self._format_events(events_actuels)
+
+    def _format_events(self, events):
+        """Convertit une liste d'events en texte éditable."""
+        parts = []
+        for e in events:
+            if not isinstance(e, dict):
+                continue
+            t = e.get("type", "")
+            if t == "skill":
+                parts.append(f"skill:{e.get('value','')}")
+            elif t == "luciole":
+                parts.append(f"luciole:{e.get('source','')}")
+            elif t in ("coins", "hp", "max_hp"):
+                parts.append(f"{t}:{e.get('value', 0)}")
+            elif t == "item":
+                n = e.get("count", 1)
+                parts.append(f"item:{e.get('value','')}"
+                             + (f":{n}" if n != 1 else ""))
+            elif t == "flag":
+                v = e.get("value", True)
+                k = e.get("key", "")
+                parts.append(f"flag:{k}" if v else f"flag:{k}=0")
+        return "; ".join(parts)
+
+    def _enregistrer_events(self, texte):
+        """Parse le texte et stocke la liste d'events pour la conv courante."""
+        if not hasattr(self.pnj, "events"):
+            self.pnj.events = []
+        while len(self.pnj.events) < len(self._convs()):
+            self.pnj.events.append([])
+        events = []
+        for seg in texte.split(";"):
+            seg = seg.strip()
+            if not seg:
+                continue
+            if ":" not in seg:
+                continue
+            t, rest = seg.split(":", 1)
+            t = t.strip()
+            rest = rest.strip()
+            if t == "skill":
+                events.append({"type": "skill", "value": rest})
+            elif t == "luciole":
+                events.append({"type": "luciole", "source": rest})
+            elif t in ("coins", "hp", "max_hp"):
+                try:
+                    events.append({"type": t, "value": int(rest)})
+                except ValueError:
+                    pass
+            elif t == "item":
+                # "Pomme" ou "Pomme:5"
+                if ":" in rest:
+                    name, cnt = rest.split(":", 1)
+                    try:
+                        events.append({"type": "item",
+                                       "value": name.strip(),
+                                       "count": int(cnt)})
+                    except ValueError:
+                        events.append({"type": "item", "value": name.strip()})
+                else:
+                    events.append({"type": "item", "value": rest})
+            elif t == "flag":
+                # "key" ou "key=0"
+                if "=" in rest:
+                    k, v = rest.split("=", 1)
+                    events.append({"type": "flag", "key": k.strip(),
+                                   "value": v.strip() not in ("0", "false", "False", "")})
+                else:
+                    events.append({"type": "flag", "key": rest, "value": True})
+            else:
+                self._msg_show(f"Event inconnu : {t}", 4)
+        self.pnj.events[self.conv_idx] = events
+        n = len(events)
+        self._msg_show(f"Événements enregistrés ({n}) ✓")
+
     # ─────────────────────────────────────────────────────────────────────────
     #  Rendu
     # ─────────────────────────────────────────────────────────────────────────
@@ -423,8 +538,8 @@ class PNJEditor:
 
         # Aide contextuelle
         if self.niveau == "conv":
-            aide = ("[↑↓] | [Entrée] ouvrir | [A] +conv | [D] -conv | [W] mode | "
-                    "[B] save point | [F] condition | [Ctrl+V] coller | [Esc]")
+            aide = ("[↑↓] [Entrée] ouvrir [A]+ [D]- [W]mode [B]save [F]cond "
+                    "[E]events [Ctrl+V]coller [Esc]")
         else:
             aide = ("[↑↓] | [Entrée] éditer texte | [O] orateur | [A] +ligne | "
                     "[D] -ligne | [Maj+↑↓] reordonner | [Esc] retour")
@@ -452,7 +567,7 @@ class PNJEditor:
             surf.blit(ms, (cadre.centerx - ms.get_width() // 2, cadre.bottom - 30))
 
         # Popup d'édition
-        if self.mode in ("edit_line", "edit_orator", "edit_cond"):
+        if self.mode in ("edit_line", "edit_orator", "edit_cond", "edit_events"):
             self._draw_popup_edit(surf, font, fontsm)
 
     def _draw_convs(self, surf, font, cadre, y):
@@ -474,15 +589,23 @@ class PNJEditor:
                     apercu += f"  …  ({len(conv)} lignes)"
             surf.blit(font.render(f"{i+1:2d}. {apercu}", True, color),
                       (cadre.x + 16, y))
-            # Affiche la condition (si définie) en doré à droite.
+            # Affiche condition (doré) et indicateur events (vert) à droite.
             conds = getattr(self.pnj, "dialogue_conditions", []) or []
             cond  = conds[i] if i < len(conds) else None
+            evts  = getattr(self.pnj, "events", []) or []
+            evs   = evts[i] if i < len(evts) else []
+            x_end = cadre.right - 20
+            if evs:
+                tag = self._fontsm.render(
+                    f"[E×{len(evs)}]", True, (140, 220, 140))
+                x_end -= tag.get_width()
+                surf.blit(tag, (x_end, y + 4))
+                x_end -= 8
             if cond:
-                cond_str = "🔒 " + self._format_condition(cond)
-                # Ascii safe (pas tous les fonts ont 🔒)
                 cond_str = "[?] " + self._format_condition(cond)
                 cs = self._fontsm.render(cond_str, True, (255, 215, 70))
-                surf.blit(cs, (cadre.right - cs.get_width() - 20, y + 4))
+                x_end -= cs.get_width()
+                surf.blit(cs, (x_end, y + 4))
             y += 22
             if y > cadre.bottom - 30:
                 break
@@ -525,10 +648,14 @@ class PNJEditor:
         elif self._input_for == "orator":
             titre = "Orateur (qui parle) :"
             aide  = "[Enter] valider | [Esc] annuler | [Ctrl+V] coller"
-        else:  # cond
+        elif self._input_for == "cond":
             titre = "Condition de la conversation :"
             aide  = ("[vide] = toujours dispo | flag:k | flag:k=0 | "
                      "any:k1,k2 | all:k1,k2  —  [Enter] valider | [Esc]")
+        else:  # events
+            titre = "Événements de fin de conversation :"
+            aide  = ("Ex: skill:double_jump; coins:50; item:Pomme:5; "
+                     "flag:parchemins=1  —  [Enter] valider [Esc]")
         surf.blit(font.render(titre, True, (190, 175, 240)),
                   (box.x + 16, box.y + 12))
         surf.blit(font.render(self._input + "_", True, (255, 255, 255)),

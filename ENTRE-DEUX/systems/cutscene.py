@@ -240,6 +240,22 @@ class Cutscene:
                     ctx.dialogue_box.avancer()
                 return True
 
+        # wait_input : la touche attendue lève le drapeau qui termine l'étape.
+        # "any" = n'importe quelle touche (sauf Échap qui sert à skip).
+        if step_type == "wait_input":
+            params = self._etape_actuelle()[1]
+            cible = str(params.get("touche", "any")).lower()
+            if cible in ("any", ""):
+                if key != ECHAP:
+                    self._local["satisfied"] = True
+                    return True
+            elif cible in ("space", "espace") and key == ESPACE:
+                self._local["satisfied"] = True
+                return True
+            elif cible in ("enter", "return", "entree") and key == RETOUR:
+                self._local["satisfied"] = True
+                return True
+
         # Échap = annuler la cinématique (saute toutes les étapes restantes).
         # Volontairement permissif : utile en debug et en cas de blocage.
         if key == ECHAP:
@@ -406,13 +422,22 @@ class Cutscene:
 
         elif step_type in ("npc_spawn", "npc_despawn", "grant_skill",
                             "grant_luciole", "give_item", "give_coins",
-                            "set_flag"):
+                            "set_flag", "unlock_quickuse"):
             # Étapes instantanées : tout est fait dans _exec_step.
             pass
 
         elif step_type == "wait_for_player_at":
             # Rend la main au joueur pendant l'étape.
             self._local["t_ecoule"] = 0.0
+
+        elif step_type == "play_music":
+            # Étape instantanée : déclenchée dans _exec_step.
+            pass
+
+        elif step_type == "wait_input":
+            # Réinitialise le drapeau d'entrée. Le on_key le lève.
+            self._local["started"]   = False
+            self._local["satisfied"] = False
 
     def _exec_step(self, step_type, params, ctx, dt):
         """Avance l'étape d'une frame. Renvoie True quand elle est terminée."""
@@ -691,6 +716,28 @@ class Cutscene:
                     game.notifier(f"+ {n} pièces" if n > 0 else f"{n} pièces")
             return True
 
+        if step_type == "unlock_quickuse":
+            # Macro : pose le flag "quickuse_unlocked", donne N pommes,
+            # affiche une notification. Tout-en-un pour la cinématique
+            # de Nymbus qui débloque la mécanique.
+            game = ctx.game
+            if game is not None:
+                if not hasattr(game, "story_flags"):
+                    game.story_flags = {}
+                game.story_flags["quickuse_unlocked"] = True
+                # Quantité de pommes offertes (paramétrable).
+                n = int(params.get("pommes", 10))
+                if n > 0 and hasattr(game, "inventory"):
+                    try:
+                        game.inventory.add_item("Pomme", count=n)
+                    except Exception as e:
+                        print(f"[Cutscene] unlock_quickuse pommes : {e}")
+                if hasattr(game, "notifier"):
+                    game.notifier("Consommables rapides débloqués !")
+                    if n > 0:
+                        game.notifier(f"+ {n} Pommes")
+            return True
+
         if step_type == "set_flag":
             # Pose un story flag global accessible depuis les conditions
             # de dialogue PNJ. Stocké dans game.story_flags (dict str→bool).
@@ -702,6 +749,43 @@ class Cutscene:
             if key:
                 game.story_flags[key] = val
             return True
+
+        # ────────────────────────────────────────────────────────────────
+        #  Musique : transition fluide vers une autre piste
+        # ────────────────────────────────────────────────────────────────
+        if step_type == "play_music":
+            chemin     = str(params.get("chemin", ""))
+            volume     = float(params.get("volume",     0.6))
+            fadeout_ms = int(params.get("fadeout_ms",   1000))
+            fadein_ms  = int(params.get("fadein_ms",    1500))
+            try:
+                from audio import music_manager as music
+                if chemin:
+                    music.transition(chemin, volume=volume,
+                                     fadeout_ms=fadeout_ms,
+                                     fadein_ms=fadein_ms)
+                else:
+                    music.fadeout(fadeout_ms)
+            except Exception as e:
+                print(f"[Cutscene] play_music : {e}")
+            return True
+
+        # ────────────────────────────────────────────────────────────────
+        #  Attente d'une touche du joueur
+        # ────────────────────────────────────────────────────────────────
+        if step_type == "wait_input":
+            # L'étape se termine quand le joueur a appuyé sur la touche
+            # demandée (ex: "space"). Si "any", n'importe quelle touche.
+            # Stocke un drapeau attendu sur le runner ; on_key() le lève.
+            if not self._local.get("started", False):
+                self._local["started"]   = True
+                self._local["satisfied"] = False
+                self._local["t_ecoule"]  = 0.0
+            self._local["t_ecoule"] += dt
+            if self._local.get("satisfied", False):
+                return True
+            timeout = float(params.get("timeout", 0))
+            return timeout > 0 and self._local["t_ecoule"] > timeout
 
         # ────────────────────────────────────────────────────────────────
         #  Attente conditionnelle : laisse le joueur libre jusqu'à un point
@@ -967,6 +1051,16 @@ def give_coins(amount):
     return ("give_coins", {"amount": int(amount)})
 
 
+def unlock_quickuse(pommes=10):
+    """Débloque la croix directionnelle de consommables rapides ET
+    donne `pommes` pommes au joueur. Macro tout-en-un, à utiliser dans
+    la cinématique de Nymbus qui introduit la mécanique.
+
+    Pose story_flags["quickuse_unlocked"] = True (la barre lit ce flag
+    pour décider si elle s'affiche)."""
+    return ("unlock_quickuse", {"pommes": int(pommes)})
+
+
 def set_flag(key, value=True):
     """Pose un story flag global. Lu par les PNJ pour conditionner
     leurs dialogues (PNJ.dialogue_conditions). Cf. game.story_flags."""
@@ -974,6 +1068,35 @@ def set_flag(key, value=True):
 
 
 # ── Attente conditionnelle (gameplay au milieu d'une cinématique) ────────────
+
+def play_music(chemin, volume=0.6, fadeout_ms=1000, fadein_ms=1500):
+    """Transition vers une nouvelle piste musicale.
+
+    chemin : chemin vers le fichier (mp3/ogg). "" = fadeout seul (silence).
+    volume : 0.0 → 1.0
+    fadeout_ms / fadein_ms : durée des fondus.
+    """
+    return ("play_music", {
+        "chemin":     str(chemin),
+        "volume":     float(volume),
+        "fadeout_ms": int(fadeout_ms),
+        "fadein_ms":  int(fadein_ms),
+    })
+
+
+def wait_input(touche="any", timeout=0):
+    """Met la cinématique en pause jusqu'à ce que le joueur appuie sur
+    `touche`. Idéal pour les écrans "appuyez pour continuer".
+
+    touche  : "any" (n'importe quelle), "space", "enter".
+    timeout : 0 = pas de timeout (attend indéfiniment), N = abandonne
+              au bout de N secondes.
+    """
+    return ("wait_input", {
+        "touche":  str(touche),
+        "timeout": float(timeout),
+    })
+
 
 def wait_for_player_at(x, y, radius=32, timeout=60):
     """Pause la cinématique en RENDANT LA MAIN AU JOUEUR jusqu'à ce
