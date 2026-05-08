@@ -332,7 +332,36 @@ class Player:
         self.idle_anim_idle = Animation(frames_idle, img_dur=8, loop=True)
 
         # sauts
-        self.idle_anim_jump = Animation(frames_idle_jump, img_dur=img_duration_saut, loop=True)
+        # ── Découpe du sheet shejumps__0 (24 frames) en 3 sous-animations ──
+        # Le sheet contient :
+        #   • frames 1-20  → arc de saut (montée puis transition vers chute,
+        #                     frame 20 = pose pieds en avant)
+        #   • frames 17-20 → boucle de chute (lue en boucle tant que le
+        #                     joueur est en l'air après l'arc)
+        #   • frames 21-24 → atterrissage (s'accroupir + se redresser),
+        #                     joué UNE FOIS au contact du sol
+        # Avant : on bouclait les 24 frames → le perso s'accroupissait en
+        # plein vol parce que l'anim recyclait les frames 21-24 dans les
+        # airs. Maintenant : 3 anims distinctes orchestrées dans render.
+        if len(frames_idle_jump) >= 24:
+            arc_frames  = frames_idle_jump[0:20]   # 1-20
+            fall_frames = frames_idle_jump[16:20]  # 17-20
+            land_frames = frames_idle_jump[20:24]  # 21-24
+        else:
+            # Sécurité si le sheet a moins de frames qu'attendu.
+            arc_frames  = frames_idle_jump
+            fall_frames = frames_idle_jump[-4:] if len(frames_idle_jump) >= 4 else frames_idle_jump
+            land_frames = []
+
+        self.idle_anim_jump      = Animation(arc_frames,  img_dur=img_duration_saut, loop=False)
+        self.idle_anim_fall_loop = (Animation(fall_frames, img_dur=6, loop=True)
+                                    if fall_frames else None)
+        self.idle_anim_landing   = (Animation(land_frames, img_dur=4, loop=False)
+                                    if land_frames else None)
+        # Détection d'atterrissage : on note l'état sol précédent pour
+        # déclencher l'anim de landing à la transition airborne → sol.
+        self._prev_on_ground = True
+        self._landing_active = False
         self.idle_anim_double_jump = Animation(frames_idle_double_jump, img_dur=5, loop=False)
         self.idle_anim_double_jump_fwd = Animation(frames_idle_double_jump_fwd, img_dur=5, loop=False)
 
@@ -807,9 +836,56 @@ class Player:
     #
     # Les collisions avec les plateformes sont gérées APRÈS par collision.py.
 
+    def _anim_air_normale(self):
+        """Renvoie l'image à afficher quand le joueur est en l'air SANS
+        cas particulier (pas attaque, pas double-saut, pas wall-slide).
+
+        Logique :
+          • si saut effectué (jumps_used >= 1) ET arc pas terminé → arc
+            (frames 1-20)
+          • sinon → boucle de chute (frames 17-20 looped)
+            → couvre aussi le cas "marche d'une plateforme sans saut"
+              (jumps_used == 0) car arc est marqué done dès le contact sol.
+        """
+        if self.jumps_used >= 1 and not self.idle_anim_jump.done:
+            self.idle_anim_jump.update()
+            return self.idle_anim_jump.img()
+        # Boucle de chute (frames 17-20)
+        if self.idle_anim_fall_loop is not None:
+            self.idle_anim_fall_loop.update()
+            return self.idle_anim_fall_loop.img()
+        # Fallback : dernière image dispo de l'arc
+        return self.idle_anim_jump.img()
+
     def mouvement(self, dt, keys, holes=None):
 
-        # pour le joueur quand il est hurt il peut plus bouger 
+        # Anim de soin (consommation de pomme) : on bloque le mouvement
+        # tant qu'elle joue. Si le joueur APPUIE sur une touche de
+        # déplacement / saut / attaque / dash → on coupe l'anim et on
+        # laisse la frame courante reprendre la main.
+        if self.healing and not self.idle_anim_heal.done:
+            ax_check        = self._input_axis_x(keys)
+            jump_check      = self._input_jump(keys)
+            attack_check    = self._input_attack(keys)
+            dash_check      = self._input_dash(keys)
+            sp_atk_check    = self._input_super_atk(keys)
+            if ax_check != 0 or jump_check or attack_check or dash_check or sp_atk_check:
+                # Le joueur veut bouger → on annule la heal.
+                self.healing = False
+            else:
+                # Pas d'input : on reste figé pendant l'anim.
+                self.vx       = 0
+                self.walking  = False
+                self.running  = False
+                # Stop le son de pas si jamais.
+                try:
+                    from audio import sound_manager
+                    sound_manager.arreter("pas")
+                except Exception:
+                    pass
+                return
+
+        # pour le joueur quand il est hurt il peut plus bouger
         if self.cannot_move:
             ax = 0
             jump_held = False
@@ -963,9 +1039,18 @@ class Player:
                 # 1ère frame de wall jump apparaissait dans le mauvais sens
                 # parce que step 4 réécrasait direction à chaque frame du
                 # windup avec ax (qui pointait toujours vers le mur).
+                # Blocage du retournement du sprite pendant TOUT le wall jump :
+                #   - windup_timer : phase de prep contre le mur
+                #   - wall_jump_timer : phase de push (poussée latérale forcée)
+                # Si on autorise le retournement pendant le push, le joueur
+                # peut presser une direction et l'anim "se retourne en plein
+                # vol" (pieds dans le mauvais sens) — visuel laid pour 80 ms.
+                # On débloque seulement APRÈS la fin du push, le joueur peut
+                # alors orienter son perso pour la chute.
                 if (ax != 0
                         and self.back_dodge_lock_timer <= 0
-                        and self.wall_jump_windup_timer <= 0):
+                        and self.wall_jump_windup_timer <= 0
+                        and self.wall_jump_timer <= 0):
                     self.direction = ax
 
             """if self.attacking and not self.dashing:
@@ -1008,7 +1093,7 @@ class Player:
                 if self._tenter_saut():
                     # Saut réussi → on consomme le buffer.
                     self.jump_buffer = 0.0
-                    self.idle_anim_jump.frame = 0
+                    self.idle_anim_jump.reset()
                     # PRIORITÉ DU SAUT SUR LE DASH : si on était en plein dash
                     # (au sol ou aérien) au moment de l'appui Espace, on coupe
                     # le dash net pour laisser le saut prendre effet. Sinon vy
@@ -1348,6 +1433,25 @@ class Player:
         """
         now = time.time()
 
+        # ── Gating de la compétence ────────────────────────────────────
+        # En mode histoire, l'attaque normale (skill_attack) et le pogo
+        # (attaque vers le bas en l'air, skill_pogo) sont des compétences
+        # à débloquer. En mode éditeur, tout est dispo.
+        attaque_dispo = self._skill_unlocked("attack")
+        pogo_voulu    = (ay > 0 and not self.on_ground)
+        pogo_dispo    = self._skill_unlocked("pogo")
+
+        # On bloque le déclenchement d'une nouvelle attaque tant que la
+        # compétence requise n'est pas débloquée. Mais on n'interrompt
+        # PAS une attaque déjà en cours (sinon visuels cassés).
+        if attack_pressed and not self.attacking:
+            if not attaque_dispo:
+                attack_pressed = False
+            elif pogo_voulu and not pogo_dispo:
+                # On a appuyé pour un pogo mais pas débloqué → on ignore
+                # (la touche ne déclenche pas l'attaque par défaut).
+                attack_pressed = False
+
         if attack_pressed:
             self._last_f_press_time = now
             if self.attacking and self.combo_step < 3:
@@ -1584,6 +1688,43 @@ class Player:
         # On les dessine tant qu'ils ne sont pas terminés (one-shot).
         self._draw_aerial_dash_fx(surf, camera)
 
+        # ── Détection des transitions sol/air pour l'anim de saut ──────
+        # 1) On vient de QUITTER le sol → on reset le statut "done" de
+        #    l'arc de saut. Pour un VRAI saut (jumps_used>=1), l'arc va
+        #    rejouer ses 20 frames. Pour une marche en bord de plateforme
+        #    (jumps_used==0), on force directement le mode "fall_loop"
+        #    en marquant l'arc déjà terminé.
+        # 2) On vient de TOUCHER le sol après être en l'air → on déclenche
+        #    l'anim d'atterrissage (frames 21-24) jouée une fois.
+        if self._prev_on_ground and not self.on_ground:
+            # Quitte le sol
+            if self.jumps_used >= 1:
+                # Vrai saut → arc rejoué depuis le début (le code de
+                # _tenter_saut a déjà reset frame=0 ; on s'assure que
+                # done=False).
+                self.idle_anim_jump.done  = False
+            else:
+                # Pas de saut (marche en bord) → on saute directement
+                # sur la boucle de chute en marquant l'arc done.
+                self.idle_anim_jump.frame = (len(self.idle_anim_jump.images) - 1) * self.idle_anim_jump.img_duration
+                self.idle_anim_jump.done  = True
+                if self.idle_anim_fall_loop is not None:
+                    self.idle_anim_fall_loop.frame = 0
+        elif not self._prev_on_ground and self.on_ground:
+            # Atterrissage : on déclenche l'anim landing si elle existe.
+            if self.idle_anim_landing is not None and not self.dashing:
+                self.idle_anim_landing.reset()
+                self._landing_active = True
+        self._prev_on_ground = self.on_ground
+
+        # ── Anim d'atterrissage prioritaire (sur idle/walk uniquement) ─
+        # On laisse les actions interrompre le landing : si le joueur
+        # appuie pour courir, attaquer, dasher, etc., on coupe.
+        if self._landing_active:
+            interrupt = (self.attacking or self.dashing or self.walking
+                         or self.running or not self.on_ground)
+            if interrupt or self.idle_anim_landing is None or self.idle_anim_landing.done:
+                self._landing_active = False
 
         # hurt -----------------------------
         if self.hitted_hard:
@@ -1655,9 +1796,9 @@ class Player:
                         anim.update()
                         img = anim.img()
                     else:
-                        # Anim terminée → on bascule sur jump (chute)
-                        self.idle_anim_jump.update()
-                        img = self.idle_anim_jump.img()
+                        # Double saut terminé → bascule sur l'arc de saut
+                        # (ou la boucle de chute si l'arc est lui-même fini).
+                        img = self._anim_air_normale()
             else:
                 # Saut normal
                 if self.attacking and not self.on_ground:
@@ -1672,8 +1813,14 @@ class Player:
 
                     self.just_fallen = True
                 else:
-                    self.idle_anim_jump.update()
-                    img = self.idle_anim_jump.img()
+                    img = self._anim_air_normale()
+
+        # landing (atterrissage) — frames 21-24, joué une fois au contact sol
+        elif self._landing_active and self.idle_anim_landing is not None:
+            self.idle_anim_landing.update()
+            img = self.idle_anim_landing.img()
+            if self.idle_anim_landing.done:
+                self._landing_active = False
 
         # atk ------------------------------
         elif self.attacking and not self.just_fallen:

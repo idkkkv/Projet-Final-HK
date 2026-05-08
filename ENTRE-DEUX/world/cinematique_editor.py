@@ -62,6 +62,43 @@ CINEMATIQUES_DIR = os.path.join(
 #       type_par_défaut sert à la fois de placeholder et d'indication de type
 #       (str, float, int, list).
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  HELPERS PRESSE-PAPIERS (Ctrl+V / Ctrl+C dans les saisies de texte)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Pourquoi ? Quand on rédige une histoire dans un Word/Google Doc à côté,
+#  on veut pouvoir copier-coller des répliques entières sans tout retaper.
+#  Implémentation : tkinter (livré avec Python, pas de dépendance externe).
+
+def _clipboard_get():
+    """Renvoie le texte du presse-papiers (ou "" si vide / erreur)."""
+    try:
+        import tkinter
+        r = tkinter.Tk()
+        r.withdraw()
+        try:
+            text = r.clipboard_get()
+        except Exception:
+            text = ""
+        r.destroy()
+        return text or ""
+    except Exception:
+        return ""
+
+
+def _clipboard_set(text):
+    """Pose `text` dans le presse-papiers."""
+    try:
+        import tkinter
+        r = tkinter.Tk()
+        r.withdraw()
+        r.clipboard_clear()
+        r.clipboard_append(str(text))
+        r.update()       # nécessaire pour rendre le contenu accessible
+        r.destroy()
+    except Exception:
+        pass
+
+
 TYPES_ETAPES = {
     "wait": {
         "libelle": "Attendre",
@@ -160,6 +197,79 @@ TYPES_ETAPES = {
             ("y", "Y monde", 0),
         ],
         "resume":  lambda d: f"Téléport joueur ({d.get('x', 0)}, {d.get('y', 0)})",
+    },
+
+    # ── Apparition / disparition de PNJ ──────────────────────────────────
+    "npc_spawn": {
+        "libelle": "Faire apparaître un PNJ",
+        "champs":  [
+            ("nom",     "Nom (unique)",                      ""),
+            ("x",       "X monde",                            0),
+            ("y",       "Y monde",                            0),
+            ("sprite",  "Sprite (vide = rectangle violet)",  ""),
+            ("dialogues_texte",
+                "Dialogues (texte|auteur, // entre lignes, ; entre conv)",
+                ""),
+            ("dialogue_mode",  "Mode (boucle_dernier / restart)", "boucle_dernier"),
+            ("has_gravity",    "Gravité (1=oui, 0=flottant)",     1),
+        ],
+        "resume":  lambda d: f"Spawn PNJ '{d.get('nom','?')}' → ({d.get('x',0)},{d.get('y',0)})",
+    },
+    "npc_despawn": {
+        "libelle": "Faire disparaître un PNJ",
+        "champs":  [("nom", "Nom du PNJ", "")],
+        "resume":  lambda d: f"Despawn PNJ '{d.get('nom','?')}'",
+    },
+
+    # ── Récompenses ──────────────────────────────────────────────────────
+    "grant_skill": {
+        "libelle": "Débloquer une compétence",
+        "champs":  [
+            ("value",
+             "Compétence (double_jump/dash/back_dodge/wall_jump/attack/pogo)",
+             ""),
+        ],
+        "resume":  lambda d: f"Skill: {d.get('value','?')}",
+    },
+    "grant_luciole": {
+        "libelle": "Donner une luciole",
+        "champs":  [("source", "Source unique (ex: 'anna_rite')", "")],
+        "resume":  lambda d: f"Luciole '{d.get('source','?')}'",
+    },
+    "give_item": {
+        "libelle": "Donner un item",
+        "champs":  [
+            ("name",  "Nom (Pomme, Cassette, …)", ""),
+            ("count", "Quantité",                  1),
+        ],
+        "resume":  lambda d: f"Item: {d.get('name','?')} ×{d.get('count',1)}",
+    },
+    "give_coins": {
+        "libelle": "Donner des pièces",
+        "champs":  [("amount", "Montant", 0)],
+        "resume":  lambda d: f"+{d.get('amount',0)} pièces",
+    },
+
+    # ── Story flags (déclencheurs d'événements futurs) ───────────────────
+    "set_flag": {
+        "libelle": "Poser un story flag",
+        "champs":  [
+            ("key",   "Clé (ex: 'parchemins_lus')", ""),
+            ("value", "Valeur (1=true, 0=false)",     1),
+        ],
+        "resume":  lambda d: f"Flag {d.get('key','?')}={'T' if d.get('value',1) else 'F'}",
+    },
+
+    # ── Hybride cinématique/gameplay ────────────────────────────────────
+    "wait_for_player_at": {
+        "libelle": "Rendre la main au joueur jusqu'à un point",
+        "champs":  [
+            ("x",       "X monde",                  0),
+            ("y",       "Y monde",                  0),
+            ("radius",  "Rayon d'arrivée (px)",    32),
+            ("timeout", "Timeout (s)",              60),
+        ],
+        "resume":  lambda d: f"Joueur libre → ({d.get('x',0)},{d.get('y',0)}) r={d.get('radius',32)}",
     },
 }
 
@@ -420,6 +530,19 @@ class CinematiqueEditor:
             self._field_input = " // ".join(
                 f"{l.get('texte', '')}|{l.get('auteur', '')}" for l in lignes
             )
+        elif nom == "dialogues_texte":
+            # Linéarise les conv : "; " entre conv, " // " entre lignes.
+            convs = self._field_pending.get("dialogues", [])
+            parts = []
+            for conv in convs:
+                lignes_str = []
+                for ligne in conv:
+                    if isinstance(ligne, (list, tuple)) and len(ligne) >= 2:
+                        lignes_str.append(f"{ligne[0]}|{ligne[1]}")
+                    else:
+                        lignes_str.append(f"{ligne}|")
+                parts.append(" // ".join(lignes_str))
+            self._field_input = " ; ".join(parts)
         else:
             valeur = self._field_pending.get(nom, defaut)
             if valeur == "" or valeur is None:
@@ -450,6 +573,33 @@ class CinematiqueEditor:
             self._field_pending["lignes"] = lignes
             # On NE garde PAS "lignes_texte" dans le dict final
             self._field_pending.pop("lignes_texte", None)
+
+        elif nom == "dialogues_texte":
+            # Format : "Hello|Anna // Ça va ?|Anna ; Bye|Anna"
+            #  • ";" sépare les conversations
+            #  • "//" sépare les répliques d'une même conversation
+            #  • "|" sépare texte et auteur
+            # Produit : [[["Hello","Anna"],["Ça va ?","Anna"]], [["Bye","Anna"]]]
+            conv_list = []
+            for conv in brut.split(";"):
+                conv = conv.strip()
+                if not conv:
+                    continue
+                lignes = []
+                for tok in conv.split("//"):
+                    tok = tok.strip()
+                    if not tok:
+                        continue
+                    if "|" in tok:
+                        t, a = tok.split("|", 1)
+                        lignes.append([t.strip(), a.strip()])
+                    else:
+                        lignes.append([tok, ""])
+                if lignes:
+                    conv_list.append(lignes)
+            self._field_pending["dialogues"] = conv_list
+            self._field_pending.pop("dialogues_texte", None)
+
         else:
             # Conversion typée d'après le default
             if isinstance(defaut, float):
@@ -480,8 +630,9 @@ class CinematiqueEditor:
         """Étape complète : on remplace l'étape dans self.steps."""
         idx = self._field_step_idx
         if 0 <= idx < len(self.steps):
-            # Nettoie les clés temporaires (lignes_texte)
+            # Nettoie les clés temporaires (lignes_texte / dialogues_texte)
             self._field_pending.pop("lignes_texte", None)
+            self._field_pending.pop("dialogues_texte", None)
             self.steps[idx] = self._field_pending
         self.mode             = None
         self._field_step_idx  = -1
@@ -627,17 +778,34 @@ class CinematiqueEditor:
         return True
 
     def _handle_key_filename(self, key):
+        mods = pygame.key.get_mods()
+        ctrl = bool(mods & pygame.KMOD_CTRL)
         if key == pygame.K_RETURN:
             self._confirmer_nom()
         elif key == pygame.K_BACKSPACE:
             self._filename_input = self._filename_input[:-1]
+        elif ctrl and key == pygame.K_v:
+            # Ctrl+V : colle le presse-papiers (filtre le \n).
+            self._filename_input += _clipboard_get().replace("\n", "").replace("\r", "")
+        elif ctrl and key == pygame.K_c:
+            _clipboard_set(self._filename_input)
         return True
 
     def _handle_key_field(self, key):
+        mods = pygame.key.get_mods()
+        ctrl = bool(mods & pygame.KMOD_CTRL)
         if key == pygame.K_RETURN:
             self._confirmer_champ()
         elif key == pygame.K_BACKSPACE:
             self._field_input = self._field_input[:-1]
+        elif ctrl and key == pygame.K_v:
+            # Ctrl+V : colle le presse-papiers. On normalise les retours
+            # de ligne pour ne pas casser les saisies multi-conv (où "//"
+            # et ";" sont les vrais séparateurs).
+            txt = _clipboard_get().replace("\r\n", "\n").replace("\r", "\n")
+            self._field_input += txt
+        elif ctrl and key == pygame.K_c:
+            _clipboard_set(self._field_input)
         elif key == pygame.K_p and self.camera is not None:
             # Picker : remplit le champ courant avec la coord monde de la souris
             # (X ou Y selon le nom du champ courant).

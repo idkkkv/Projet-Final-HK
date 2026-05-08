@@ -61,6 +61,7 @@ from core.camera import Camera
 
 # ── Inventaire
 from ui.inventory import Inventory, ITEMS
+from ui.quick_use import QuickUseBar
 from ui.items_effects import play_cassette
 
 # ── Entités vivantes
@@ -216,6 +217,11 @@ class Game:
         self.joueur     = Player((100, 400))
         # On branche le menu Paramètres MAINTENANT (après joueur créé).
         self.parametres.bind_compagnons(self.compagnons, self.joueur)
+        # Barre quick-use (croix directionnelle bas-droite, touches 1/2/3/4).
+        # Créée ICI parce qu'elle a besoin de self.joueur ET de
+        # self.inventory (déjà créé plus haut dans _creer_systemes).
+        # Cf. ui/quick_use.py pour configurer les slots et effets.
+        self.quick_use = QuickUseBar(self.inventory, self.joueur)
 
         # ── Tracking des sources de lucioles déjà obtenues ──
         # Ensemble (set) de chaînes : "boss_miroir", "villageois_anna", etc.
@@ -372,8 +378,10 @@ class Game:
         """Crée les systèmes transversaux (peur, particules, shake…)."""
         self.boutique = Boutique()
         self.inventory = Inventory()
-        self.inventory.add_item("Pomme")                      # pomme offerte au départ
+        self.inventory.add_item("Pomme", count=10)             # 10 pommes de départ (stack)
         self.inventory.add_item("Cassette")                    # cassette offerte au départ
+        # Note : la barre quick-use est créée plus tard dans __init__,
+        # une fois que self.joueur existe (cf. après Player((100, 400))).
 
         self.hud        = HUD()                          # cœurs + jauge de peur
         self.peur       = FearSystem(max_fear=100)       # 0 → 100
@@ -469,6 +477,21 @@ class Game:
         )
         # Overlay multi-slots ouvert par "Sauvegarder" / "Charger"
         self.save_menu = SaveMenu()
+        # (carte, x, y) du dernier save manuel — utilisé par Recommencer
+        # après mort pour respawn au banc plutôt qu'au spawn de map.
+        self._dernier_save_pos = None
+        # Story flags : dict str→bool. Posé par cutscene set_flag() ou
+        # par PNJ events. Lu par les PNJ pour conditionner les dialogues
+        # (PNJ.dialogue_conditions). Sauvegardé / restauré dans le slot.
+        self.story_flags = {}
+        # File de notifications éphémères (haut-centre). Une notif =
+        # (texte, timer_restant). Posée via self.notifier(text).
+        # Affichée au-dessus du HUD pendant ~3 secondes.
+        self._notifs = []
+        # Toast "Sauvegardé ✓" en bas-droite (timer + spinner).
+        # Activé pour SAVE_TOAST_DUREE secondes après chaque save réussie.
+        self._save_toast_timer = 0.0
+        self._save_toast_duree = 2.0
         self.menu_fin = Menu(
             ["Recommencer", "Menu principal"],
             title="FIN",
@@ -808,9 +831,16 @@ class Game:
             if not getattr(portail, "require_up", False):
                 self._portail_keep_vy = self.joueur.vy
                 self._portail_keep_vx = self.joueur.vx
+                # Type "auto" : on laisse la physique tourner pendant le
+                # fondu out (le joueur continue sa chute / son saut), c'est
+                # plus réaliste qu'un freeze net.
+                self._portail_freeze_pendant_fondu = False
             else:
                 self._portail_keep_vy = 0
                 self._portail_keep_vx = 0
+                # Type "porte" : on fige (animation rituelle, le joueur
+                # entre dans une porte → pas de chute parasite).
+                self._portail_freeze_pendant_fondu = True
             # Durée du fondu pour CETTE transition. Les PORTES ont un
             # fondu plus long (plus rituel) que les portails classiques.
             if getattr(portail, "require_up", False):
@@ -924,7 +954,7 @@ class Game:
         la dernière entrée pour ce PNJ sur cette map, on ne re-loggue pas
         (cas typique : mode boucle_dernier qui re-renvoie la dernière ligne
         à chaque talk → on ne pollue pas le journal)."""
-        conv = pnj.conversation_actuelle()
+        conv = pnj.conversation_actuelle(getattr(self, "story_flags", {}))
         if not conv:
             return
         carte = self.carte_actuelle or "?"
@@ -942,6 +972,144 @@ class Game:
         if par_map and par_map[-1] == conv_norm:
             return
         par_map.append(conv_norm)
+
+    def notifier(self, texte, duree=3.0):
+        """Affiche une notification éphémère en haut-centre de l'écran.
+
+        Utilisé par les events PNJ et les actions de cinématique pour
+        signaler au joueur un changement (compétence débloquée, item
+        reçu, flag posé, etc.). Plusieurs notifs s'empilent verticalement.
+        """
+        if texte:
+            self._notifs.append([str(texte), float(duree), float(duree)])
+
+    def _dessiner_notifications(self):
+        """Affiche / met à jour les notifications éphémères."""
+        if not self._notifs:
+            return
+        dt = self._dt
+        # Décrémente les timers, retire celles qui ont fini.
+        nouvelles = []
+        for n in self._notifs:
+            n[1] -= dt
+            if n[1] > 0:
+                nouvelles.append(n)
+        self._notifs = nouvelles
+        if not self._notifs:
+            return
+
+        w, h = self.screen.get_size()
+        font = pygame.font.SysFont("Consolas", 16, bold=True)
+        y = 60
+        for texte, restant, total in self._notifs:
+            # Alpha : fade-in 0.2s + fade-out 0.5s
+            ratio_in  = min(1.0, (total - restant) / 0.2) if total > 0.2 else 1.0
+            ratio_out = min(1.0, restant / 0.5)
+            alpha = int(255 * min(ratio_in, ratio_out))
+            txt_surf = font.render(texte, True, (255, 215, 70))
+            bw = txt_surf.get_width() + 32
+            bh = txt_surf.get_height() + 12
+            bx = (w - bw) // 2
+            bg = pygame.Surface((bw, bh), pygame.SRCALPHA)
+            bg.fill((20, 14, 38, int(220 * alpha / 255)))
+            pygame.draw.rect(bg, (180, 150, 220, alpha),
+                             pygame.Rect(0, 0, bw, bh), 1)
+            pygame.draw.rect(bg, (255, 215, 70, int(150 * alpha / 255)),
+                             pygame.Rect(2, 2, bw - 4, bh - 4), 1)
+            txt_surf.set_alpha(alpha)
+            bg.blit(txt_surf, (16, 6))
+            self.screen.blit(bg, (bx, y))
+            y += bh + 6
+
+    def _appliquer_event_pnj(self, event):
+        """Applique un événement déclenché en fin de conversation PNJ.
+
+        Format attendu : dict { "type": str, ...params }.
+        Types supportés (extensibles — ajouter une branche ici) :
+
+          {"type": "skill",   "value": "double_jump"}
+              → settings.skill_<value> = True
+              valeurs : double_jump, dash, back_dodge, wall_jump,
+                        attack, pogo
+
+          {"type": "luciole", "source": "anna"}
+              → self.compagnons.gagner_luciole(joueur, source=...)
+                "source" doit être un identifiant unique pour éviter
+                qu'on regagne la même luciole à chaque relecture.
+
+          {"type": "coins",   "value": 50}    → joueur.coins += value
+          {"type": "hp",      "value": 2}     → soigne (cap = max_hp)
+          {"type": "max_hp",  "value": 1}     → +max_hp ET soigne plein
+          {"type": "item",    "value": "potion"}
+              → joueur.inventaire.append(value) (si attribut existe)
+
+        Tout type inconnu logue un avertissement et est ignoré.
+        Cf. entities/npc.py PNJ.events pour la pose côté éditeur/JSON.
+        """
+        if not isinstance(event, dict):
+            return
+        etype = event.get("type")
+
+        if etype == "skill":
+            val = event.get("value", "")
+            attr = f"skill_{val}"
+            if hasattr(settings, attr):
+                setattr(settings, attr, True)
+                self.notifier(f"Compétence débloquée : {val}")
+            else:
+                print(f"[event PNJ] skill inconnu : {val!r}")
+
+        elif etype == "luciole":
+            src = event.get("source") or f"pnj_{getattr(self._pnj_actif, 'nom', 'x')}"
+            try:
+                self.compagnons.gagner_luciole(joueur=self.joueur, source=src)
+                self.notifier("+ 1 luciole")
+            except Exception as exc:
+                print(f"[event PNJ] luciole : {exc}")
+
+        elif etype == "coins":
+            v = int(event.get("value", 0))
+            self.joueur.coins = getattr(self.joueur, "coins", 0) + v
+            if v != 0:
+                self.notifier(f"+ {v} pièces" if v > 0 else f"{v} pièces")
+
+        elif etype == "hp":
+            v = int(event.get("value", 0))
+            self.joueur.hp = min(self.joueur.max_hp, self.joueur.hp + v)
+            if v > 0:
+                self.notifier(f"+ {v} PV")
+
+        elif etype == "max_hp":
+            v = int(event.get("value", 0))
+            self.joueur.max_hp += v
+            self.joueur.hp = self.joueur.max_hp
+            if v > 0:
+                self.notifier(f"+ {v} PV max")
+
+        elif etype == "item":
+            val = event.get("value", "")
+            if hasattr(self, "inventory") and val:
+                # Préfère l'inventaire UI (stackable) plutôt qu'une liste
+                # custom sur le joueur — comportement uniforme.
+                try:
+                    n = int(event.get("count", 1))
+                    self.inventory.add_item(val, count=n)
+                    self.notifier(f"+ {n} {val}" if n > 1 else f"+ {val}")
+                except Exception:
+                    pass
+
+        elif etype == "flag":
+            # Pose un story flag global. Lu par les PNJ pour conditionner
+            # leurs dialogues (PNJ.dialogue_conditions).
+            key = event.get("key", "")
+            val = bool(event.get("value", True))
+            if key:
+                if not hasattr(self, "story_flags"):
+                    self.story_flags = {}
+                self.story_flags[key] = val
+
+        else:
+            print(f"[event PNJ] type inconnu : {etype!r}")
 
     def _reset_compteur_cinematique(self, nom):
         """Remet à zéro le compteur de lectures pour la cinématique `nom`.
@@ -1118,7 +1286,15 @@ class Game:
         # (les images seront re-résolues à la restauration via ITEMS).
         inv_slots = []
         for slot in getattr(self.inventory, "slots", []):
-            inv_slots.append(slot.name if slot is not None else None)
+            if slot is None:
+                inv_slots.append(None)
+            else:
+                # Format stackable {name, count}. Rétro-compat : si count=1
+                # on aurait pu garder string mais on uniformise.
+                inv_slots.append({
+                    "name":  slot.name,
+                    "count": int(getattr(slot, "count", 1)),
+                })
 
         # Ennemis tués : pour chaque map où on a tué qqn, on retient
         # les indices d'ennemis morts. Sauve dict {map → [idx1, idx2…]}.
@@ -1138,6 +1314,7 @@ class Game:
                 "current_map":          self.carte_actuelle,
                 "cinematics_played":    self.cinematiques_jouees,
                 "dialog_history":       self.historique_dialogues,
+                "flags":                dict(getattr(self, "story_flags", {})),
             },
             "player": {
                 "x":         int(j.rect.x),
@@ -1186,6 +1363,7 @@ class Game:
         self.mode                  = story.get("mode", "histoire")
         self.cinematiques_jouees   = dict(story.get("cinematics_played",  {}))
         self.historique_dialogues  = dict(story.get("dialog_history",     {}))
+        self.story_flags           = dict(story.get("flags",              {}))
 
         if self.mode == "histoire":
             self.editeur.active = False
@@ -1208,6 +1386,12 @@ class Game:
         j.dead        = False
         j.vx = j.vy   = 0
         j.knockback_vx = 0
+        # Mémorise la position chargée comme dernier point de save :
+        # si le joueur meurt, "Recommencer" le ramène ICI plutôt qu'au
+        # spawn de map. Sinon on perdait la progression d'exploration
+        # depuis le dernier banc à chaque mort.
+        if carte:
+            self._dernier_save_pos = (carte, j.rect.x, j.rect.y)
 
         # ── Inventaire ─────────────────────────────────────────────────
         try:
@@ -1215,13 +1399,25 @@ class Game:
             inv_slots = data.get("inventory", {}).get("slots", [])
             # Reset puis re-place chaque item à son ancien index.
             self.inventory.slots = [None] * len(self.inventory.slots)
-            for i, name in enumerate(inv_slots):
-                if name and name in ITEMS and i < len(self.inventory.slots):
-                    info = ITEMS[name]
-                    img  = self.inventory.images.get(name) if hasattr(self.inventory, "images") else None
-                    self.inventory.slots[i] = InventoryItem(
-                        name, img, info.get("category", "Consommable")
-                    )
+            for i, entry in enumerate(inv_slots):
+                if i >= len(self.inventory.slots) or entry is None:
+                    continue
+                # Rétro-compat : ancien format = juste le nom (string).
+                if isinstance(entry, str):
+                    name, count = entry, 1
+                else:
+                    name  = entry.get("name")
+                    count = int(entry.get("count", 1))
+                if not name or name not in ITEMS:
+                    continue
+                info = ITEMS[name]
+                img  = self.inventory.images.get(name) if hasattr(self.inventory, "images") else None
+                self.inventory.slots[i] = InventoryItem(
+                    name, img, info.get("category", "Consommable"),
+                    count=count,
+                    stackable=bool(info.get("stackable", False)),
+                    max_stack=int(info.get("max_stack", 1)),
+                )
         except Exception as e:
             print(f"[Save] Restauration inventaire échouée : {e}")
 
@@ -1331,8 +1527,10 @@ class Game:
                 self._ouvrir_save_point()
                 return
 
-            # PNJ normal : on démarre son dialogue.
-            lignes = pnj.conversation_actuelle()
+            # PNJ normal : on démarre son dialogue. On passe les story
+            # flags pour que conversation_actuelle puisse débloquer/sauter
+            # les conv selon les conditions (cf. PNJ.dialogue_conditions).
+            lignes = pnj.conversation_actuelle(getattr(self, "story_flags", {}))
             if lignes:
                 self.dialogue.demarrer(lignes)
                 self._pnj_actif = pnj
@@ -1482,7 +1680,17 @@ class Game:
                     if action == "save":
                         from systems.save_system import sauvegarder_slot
                         sauvegarder_slot(slot, self._construire_save_data())
+                        # Mémorise le dernier point de sauvegarde pour que
+                        # "Recommencer" après mort y revienne au lieu du
+                        # spawn de la map.
+                        self._dernier_save_pos = (
+                            self.carte_actuelle,
+                            self.joueur.rect.x,
+                            self.joueur.rect.y,
+                        )
                         self.save_menu._refresh()
+                        # Déclenche le toast "Sauvegardé" avec spinner.
+                        self._save_toast_timer = self._save_toast_duree
                     elif action == "load":
                         from systems.save_system import charger_slot
                         donnees = charger_slot(slot)
@@ -1549,8 +1757,15 @@ class Game:
                 self.joueur.vy           = 0
                 self.joueur.knockback_vx = 0
                 self.joueur.invincible   = False
-                self.joueur.rect.x       = self.editeur.spawn_x
-                self.joueur.rect.y       = self.editeur.spawn_y
+                # Si on a un dernier point de sauvegarde sur la map COURANTE,
+                # on respawn dessus. Sinon, fallback au spawn de map.
+                _dsp = getattr(self, "_dernier_save_pos", None)
+                if _dsp and _dsp[0] == self.carte_actuelle:
+                    self.joueur.rect.x = _dsp[1]
+                    self.joueur.rect.y = _dsp[2]
+                else:
+                    self.joueur.rect.x = self.editeur.spawn_x
+                    self.joueur.rect.y = self.editeur.spawn_y
                 self.camera.snap_to(self.joueur.rect)
                 # Réveille les ennemis de la map courante.
                 for e in self.ennemis:
@@ -1623,6 +1838,14 @@ class Game:
         # Drag-and-drop dans l'inventaire
         self.inventory.drag_drop(events)
 
+        # Barre quick-use (touches 1/2/3/4 → consomme l'item du slot).
+        # On la traite ici plutôt que dans _traiter_evenements_jeu pour
+        # qu'elle reste active même quand un overlay éditeur est ouvert.
+        if not self.editeur.active and not self.dialogue.actif:
+            for ev in events:
+                self.quick_use.handle_event(ev)
+        self.quick_use.update(dt)
+
     # ─── Sous-routines de _update_jeu ────────────────────────────────────────
 
     def _traiter_evenements_jeu(self, events):
@@ -1692,17 +1915,38 @@ class Game:
         if self.boutique.actif :
             item = self.boutique.handle_key(key, self.joueur)
             if item:
-                nom = item["nom"]
-                self.inventory.add_item(item["nom"])
-                self.boutique._show_msg = f"{item['nom']} acheté !"
-                if nom in ITEMS:
-                    self.inventory.add_item(nom)
-                elif nom.capitalize() in ITEMS:
-                    self.inventory.add_item(nom.capitalize())
+                # Résolution tolérante du nom (ex. "pomme" → "Pomme").
+                nom_brut = item.get("nom", "")
+                if nom_brut in ITEMS:
+                    nom = nom_brut
+                elif nom_brut.capitalize() in ITEMS:
+                    nom = nom_brut.capitalize()
                 else:
-                    print(f"Item inconnu dans ITEMS : '{nom}'")
-                    print(f"Items disponibles : {list(ITEMS.keys())}")
-            if key == pygame.K_ESCAPE : 
+                    nom = None
+                    print(f"[Boutique] Item inconnu dans ITEMS : '{nom_brut}'. "
+                          f"Items disponibles : {list(ITEMS.keys())}")
+
+                if nom is not None:
+                    # UN SEUL add_item (auparavant : on ajoutait 2 fois).
+                    ok = self.inventory.add_item(nom)
+                    if ok:
+                        self.boutique._show_msg = f"{nom} acheté !"
+                        # Son d'achat (réutilise ui_select).
+                        try:
+                            from audio import sound_manager
+                            sound_manager.jouer("ui_select", volume=0.5)
+                        except Exception:
+                            pass
+                    else:
+                        # Inventaire plein → on rembourse pour ne pas
+                        # punir le joueur (avant : il perdait ses pièces).
+                        self.joueur.coins += int(item.get("prix", 0))
+                        self.boutique._show_msg = "Inventaire plein !"
+                else:
+                    # Refund si item introuvable côté ITEMS.
+                    self.joueur.coins += int(item.get("prix", 0))
+                    self.boutique._show_msg = "Item indisponible."
+            if key == pygame.K_ESCAPE :
                 self.boutique.fermer()
             return
 
@@ -1914,16 +2158,40 @@ class Game:
             phys_dt = dt
 
         # On bloque aussi le mouvement pendant un fondu, un dialogue ou
-        # une cinématique en cours.
-        mouvement_bloque = (self._fondu_etat != "none"
+        # une cinématique en cours. EXCEPTION : pour les portails AUTO
+        # (sauter dans un trou téléporteur), on laisse la physique tourner
+        # pendant le fondu out → le joueur continue sa chute, plus réaliste.
+        # EXCEPTION 2 : pendant une étape `wait_for_player_at`, la
+        # cinématique a explicitement libéré le contrôle (drapeau posé
+        # par cutscene.py). On le RESET à False ici, c'est l'étape qui
+        # le rallumera chaque frame tant qu'elle est active.
+        fondu_freeze = (self._fondu_etat != "none"
+                        and getattr(self, "_portail_freeze_pendant_fondu", True))
+        cutscene_freeze = (self.cutscene is not None
+                           and not getattr(self, "_cutscene_player_libre", False))
+        self._cutscene_player_libre = False
+        mouvement_bloque = (fondu_freeze
                             or self.dialogue.actif
-                            or self.cutscene is not None)
+                            or cutscene_freeze)
         # Drapeau "mode éditeur" pour le gating des compétences (toutes
         # débloquées en mode éditeur, restrictif en mode histoire).
         self.joueur._in_editor_mode = (self.mode == "editeur")
 
         if not mouvement_bloque:
             self.joueur.mouvement(phys_dt, keys, holes=trous)
+        else:
+            # Force la pose idle pendant dialogue / cutscene / fondu :
+            # sinon l'anim "running" continue à tourner alors que le perso
+            # est censé être figé pour parler.
+            self.joueur.vx       = 0
+            self.joueur.walking  = False
+            self.joueur.running  = False
+            # Stoppe aussi le son des pas qui pourrait tourner
+            try:
+                from audio import sound_manager
+                sound_manager.arreter("pas")
+            except Exception:
+                pass
 
         self.camera.update(self.joueur.rect, dt)
 
@@ -2042,6 +2310,18 @@ class Game:
             # journal AVANT d'avancer l'index (sinon on logguerait celle
             # d'après).
             self._logger_dialogue(self._pnj_actif)
+            # ── ÉVÉNEMENTS DE DIALOGUE ─────────────────────────────────
+            # On déclenche AVANT passer_a_suivante() pour que les events
+            # référent à la conv qui VIENT D'ÊTRE LUE (et pas la suivante).
+            try:
+                evts = self._pnj_actif.evenements_a_declencher()
+            except AttributeError:
+                evts = []
+            for e in evts:
+                try:
+                    self._appliquer_event_pnj(e)
+                except Exception as exc:
+                    print(f"[event PNJ] Échec {e!r} : {exc}")
             self._pnj_actif.passer_a_suivante()
             if isinstance(self._pnj_actif, Marchand):
                 self.boutique.ouvrir(self._pnj_actif.inventaire)
@@ -2456,6 +2736,12 @@ class Game:
             # Overlay "fear text" : dessiné par-dessus le HUD pour rester
             # lisible. Invisible si self.fear_overlay.actif est False.
             self.fear_overlay.draw(self.screen)
+            # Croix directionnelle de consommables rapides (bas-droite).
+            self.quick_use.draw(self.screen)
+            # Toast "Sauvegardé" + spinner après une save (timer décroit).
+            self._dessiner_save_toast()
+            # Notifications éphémères (compétence débloquée, items reçus…)
+            self._dessiner_notifications()
 
         # 18-21. Gestionnaire histoire, inventaire, dialogue, aide.
         self.gestionnaire_histoire.draw(self.screen)
@@ -2497,6 +2783,48 @@ class Game:
         sw = self.screen.get_width()
         self.screen.blit(bg, (sw - bg.get_width() - 12, 12))
         self.screen.blit(rendu, (sw - bg.get_width() - 12 + 8, 16))
+
+    def _dessiner_save_toast(self):
+        """Affiche le petit toast 'Sauvegardé' avec spinner en bas-droite.
+
+        Activé via self._save_toast_timer (set à _save_toast_duree à
+        chaque save réussie). Décrémenté à chaque frame ; quand <=0,
+        plus rien ne s'affiche.
+        """
+        if self._save_toast_timer <= 0:
+            return
+        self._save_toast_timer -= self._dt
+        # Alpha : pleine opacité au début, fade-out sur la dernière demi-seconde.
+        ratio = max(0.0, min(1.0, self._save_toast_timer / 0.5))
+        alpha = int(255 * (1.0 if self._save_toast_timer > 0.5 else ratio))
+
+        w, h = self.screen.get_size()
+        font = pygame.font.SysFont("Consolas", 14, bold=True)
+        txt = font.render("Sauvegardé", True, (255, 215, 70))
+        # Spinner : cercle qui tourne — segment rotatif basé sur le temps.
+        import math as _m
+        t = pygame.time.get_ticks() / 1000.0
+        spin_r = 8
+        cx, cy = 14, 14
+        # Bandeau
+        bandeau_w = txt.get_width() + 30 + spin_r * 2
+        bandeau_h = 28
+        bx = w - bandeau_w - 16
+        by = h - bandeau_h - 16
+        bg = pygame.Surface((bandeau_w, bandeau_h), pygame.SRCALPHA)
+        bg.fill((20, 14, 38, int(220 * alpha / 255)))
+        pygame.draw.rect(bg, (110, 90, 200, alpha),
+                         pygame.Rect(0, 0, bandeau_w, bandeau_h), 1)
+        # Spinner (4 points sur cercle, intensité variable selon angle)
+        for i in range(8):
+            ang = t * 6 + i * (_m.pi / 4)
+            px = cx + int(_m.cos(ang) * spin_r)
+            py = cy + int(_m.sin(ang) * spin_r)
+            inten = int(255 * (i + 1) / 8 * alpha / 255)
+            pygame.draw.circle(bg, (255, 215, 70, inten), (px, py), 2)
+        # Texte
+        bg.blit(txt, (30, (bandeau_h - txt.get_height()) // 2))
+        self.screen.blit(bg, (bx, by))
 
     def _dessiner_fps_et_carte(self):
         """Affiche le compteur FPS et le nom de la carte courante."""
@@ -2768,23 +3096,35 @@ class Game:
             return    # quasi-neutre → rien à dessiner
 
         w, h = self.screen.get_size()
-        if l < 1.0:
-            alpha   = int(min(220, (1.0 - l) * 220))
-            couleur = (0, 0, 0, alpha)
-        else:
-            alpha   = int(min(180, (l - 1.0) * 220))
-            couleur = (255, 255, 255, alpha)
 
-        # CACHE de la surface : avant on en allouait une nouvelle CHAQUE
-        # FRAME (~80×/sec) → grosse pression GC + alloc inutile.
-        # Maintenant on la réutilise et on ne la refill que si la couleur
-        # ou la taille a changé.
-        cle = (w, h, couleur)
+        # On utilise un BLEND MULTIPLICATIF / ADDITIF au lieu d'un overlay
+        # alpha (qui faisait un effet "brouillard" devant les objets).
+        #
+        #   l < 1.0 (assombrir)  → BLEND_MULT avec un gris (l, l, l) :
+        #       chaque pixel devient pixel * l → noirs restent noirs,
+        #       blancs deviennent gris. Pas de brume, juste sombre.
+        #   l > 1.0 (éclaircir)  → BLEND_ADD avec un gris (l-1)*255 :
+        #       chaque pixel ajouté → on tire vers le blanc proprement.
+        #
+        # Ça ressemble vraiment à un réglage de luminosité d'écran et
+        # non à un filtre de brume.
+        cle = (w, h, round(l, 2))
         if getattr(self, "_voile_lumi_cle", None) != cle:
-            self._voile_lumi = pygame.Surface((w, h), pygame.SRCALPHA)
-            self._voile_lumi.fill(couleur)
+            voile = pygame.Surface((w, h))
+            if l < 1.0:
+                # Multiplier par l → on encode l*255 dans un gris
+                v = int(max(0.0, min(1.0, l)) * 255)
+                voile.fill((v, v, v))
+                self._voile_lumi_mode = pygame.BLEND_MULT
+            else:
+                # Ajouter (l-1)*255 → gris additionné aux pixels
+                v = int(min(0.5, l - 1.0) * 220)   # plafonné pour éviter blanc total
+                voile.fill((v, v, v))
+                self._voile_lumi_mode = pygame.BLEND_ADD
+            self._voile_lumi     = voile
             self._voile_lumi_cle = cle
-        self.screen.blit(self._voile_lumi, (0, 0))
+        self.screen.blit(self._voile_lumi, (0, 0),
+                         special_flags=self._voile_lumi_mode)
 
     # ─── Sous-routines de run() ──────────────────────────────────────────────
 
@@ -3008,12 +3348,19 @@ class Game:
             self._dessiner_monde()
         finally:
             self.joueur.paused = False
-        self.menu_pause.draw(self.screen)
+        # Pas de menu pause si on est venu d'un SAVE POINT (l'overlay
+        # SaveMenu prend toute la place — sinon le pause apparaît
+        # brièvement entre le clic du slot et le retour au jeu).
+        if not getattr(self, "_save_point_actif", False):
+            self.menu_pause.draw(self.screen)
         # Écran Paramètres par-dessus la pause si ouvert.
         self.parametres.draw(self.screen)
         # Overlay de sauvegarde / chargement par-dessus tout.
         self.save_menu.update(self._dt)
         self.save_menu.draw(self.screen)
+        # Toast "Sauvegardé" : affiché même en pause (court moment où
+        # le save_menu se ferme et l'état n'a pas encore basculé).
+        self._dessiner_save_toast()
 
     def _frame_game_over(self, events):
         """Un frame dans l'état GAME_OVER : fondu progressif vers le noir

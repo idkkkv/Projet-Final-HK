@@ -404,6 +404,16 @@ class Cutscene:
             # Téléporte le joueur à (x, y) instantanément. Étape instantanée.
             pass
 
+        elif step_type in ("npc_spawn", "npc_despawn", "grant_skill",
+                            "grant_luciole", "give_item", "give_coins",
+                            "set_flag"):
+            # Étapes instantanées : tout est fait dans _exec_step.
+            pass
+
+        elif step_type == "wait_for_player_at":
+            # Rend la main au joueur pendant l'étape.
+            self._local["t_ecoule"] = 0.0
+
     def _exec_step(self, step_type, params, ctx, dt):
         """Avance l'étape d'une frame. Renvoie True quand elle est terminée."""
 
@@ -570,6 +580,155 @@ class Cutscene:
                 joueur.rect.x = int(x)
                 joueur.rect.y = int(y)
             return True
+
+        # ────────────────────────────────────────────────────────────────
+        #  Apparition / disparition de PNJ (étape instantanée)
+        # ────────────────────────────────────────────────────────────────
+        if step_type == "npc_spawn":
+            # Crée un PNJ runtime et l'ajoute à game.pnjs (si dispo via ctx).
+            try:
+                from entities.npc import PNJ
+            except Exception:
+                return True
+            x       = float(params.get("x", 0))
+            y       = float(params.get("y", 0))
+            nom     = str(params.get("nom", "PNJ"))
+            sprite  = params.get("sprite", None)
+            dialogues_   = params.get("dialogues", [])
+            mode    = str(params.get("dialogue_mode", "boucle_dernier"))
+            gravity = bool(params.get("has_gravity", True))
+            events  = params.get("events", None)
+            try:
+                nv = PNJ(
+                    int(x), int(y), nom, dialogues_,
+                    sprite_name=sprite,
+                    dialogue_mode=mode,
+                    has_gravity=gravity,
+                    events=events,
+                )
+            except Exception as e:
+                print(f"[Cutscene] npc_spawn échoué : {e}")
+                return True
+            # Cible privilégiée : ctx.editeur.pnjs (rebuild via _sync_triggers
+            # n'est pas nécessaire : ctx.pnjs pointe sur la même liste).
+            target_list = None
+            if hasattr(ctx, "editeur") and ctx.editeur is not None:
+                target_list = getattr(ctx.editeur, "pnjs", None)
+            if target_list is None:
+                target_list = ctx.pnjs
+            if target_list is not None:
+                target_list.append(nv)
+                # Si ctx.pnjs est une référence distincte, on l'aligne aussi.
+                if ctx.pnjs is not target_list and ctx.pnjs is not None:
+                    ctx.pnjs.append(nv)
+            return True
+
+        if step_type == "npc_despawn":
+            nom = str(params.get("nom", ""))
+            cible = _trouver_pnj(ctx, nom)
+            if cible is None:
+                return True
+            for lst in (
+                getattr(ctx.editeur, "pnjs", None) if hasattr(ctx, "editeur") else None,
+                ctx.pnjs,
+            ):
+                if lst is None:
+                    continue
+                try:
+                    lst.remove(cible)
+                except ValueError:
+                    pass
+            return True
+
+        # ────────────────────────────────────────────────────────────────
+        #  Récompenses (skill / luciole / item / coins) — instantanées
+        # ────────────────────────────────────────────────────────────────
+        if step_type == "grant_skill":
+            try:
+                import settings
+                val = str(params.get("value", ""))
+                attr = f"skill_{val}"
+                if hasattr(settings, attr):
+                    setattr(settings, attr, True)
+                    if ctx.game and hasattr(ctx.game, "notifier"):
+                        ctx.game.notifier(f"Compétence débloquée : {val}")
+                else:
+                    print(f"[Cutscene] skill inconnu : {val!r}")
+            except Exception as e:
+                print(f"[Cutscene] grant_skill : {e}")
+            return True
+
+        if step_type == "grant_luciole":
+            game = ctx.game
+            src = str(params.get("source", "cutscene"))
+            try:
+                game.compagnons.gagner_luciole(joueur=game.joueur, source=src)
+                if hasattr(game, "notifier"):
+                    game.notifier("+ 1 luciole")
+            except Exception as e:
+                print(f"[Cutscene] grant_luciole : {e}")
+            return True
+
+        if step_type == "give_item":
+            game = ctx.game
+            nom = str(params.get("name", ""))
+            n   = int(params.get("count", 1))
+            try:
+                if hasattr(game, "inventory") and nom:
+                    game.inventory.add_item(nom, count=n)
+                    if hasattr(game, "notifier"):
+                        game.notifier(f"+ {n} {nom}" if n > 1 else f"+ {nom}")
+            except Exception as e:
+                print(f"[Cutscene] give_item : {e}")
+            return True
+
+        if step_type == "give_coins":
+            game = ctx.game
+            n = int(params.get("amount", 0))
+            if hasattr(game, "joueur"):
+                game.joueur.coins = getattr(game.joueur, "coins", 0) + n
+                if hasattr(game, "notifier") and n != 0:
+                    game.notifier(f"+ {n} pièces" if n > 0 else f"{n} pièces")
+            return True
+
+        if step_type == "set_flag":
+            # Pose un story flag global accessible depuis les conditions
+            # de dialogue PNJ. Stocké dans game.story_flags (dict str→bool).
+            game = ctx.game
+            if not hasattr(game, "story_flags"):
+                game.story_flags = {}
+            key = str(params.get("key", ""))
+            val = bool(params.get("value", True))
+            if key:
+                game.story_flags[key] = val
+            return True
+
+        # ────────────────────────────────────────────────────────────────
+        #  Attente conditionnelle : laisse le joueur libre jusqu'à un point
+        # ────────────────────────────────────────────────────────────────
+        if step_type == "wait_for_player_at":
+            # Pendant cette étape, on rend la main au joueur (bouger,
+            # sauter…) jusqu'à ce qu'il atteigne (x, y) ± rayon.
+            # Utile pour scènes mi-cinématique mi-gameplay (ex : aller
+            # ouvrir un tiroir, monter une échelle, etc.).
+            x      = float(params.get("x", 0))
+            y      = float(params.get("y", 0))
+            rayon  = float(params.get("radius", 32))
+            timeout = float(params.get("timeout", 60))
+            self._local["t_ecoule"] = self._local.get("t_ecoule", 0.0) + dt
+            joueur = ctx.joueur
+            if joueur is None or not hasattr(joueur, "rect"):
+                return True
+            # Drapeau lu par game._simuler_jeu : si True, ne pas bloquer
+            # le mouvement même si une cutscene tourne. Cf. game.py.
+            game = ctx.game
+            if game is not None:
+                game._cutscene_player_libre = True
+            dx = x - joueur.rect.centerx
+            dy = y - joueur.rect.centery
+            if (dx * dx + dy * dy) ** 0.5 <= rayon:
+                return True
+            return self._local["t_ecoule"] > timeout
 
         # Type inconnu → on n'ose pas bloquer la cinématique : on saute.
         return True
@@ -743,6 +902,94 @@ def camera_focus_pnj(nom_pnj, duration=None, speed=None, follow=False):
 def set_player_pos(x, y):
     """Téléporte le joueur à (x, y) instantanément (en coords monde)."""
     return ("set_player_pos", {"x": float(x), "y": float(y)})
+
+
+# ── Apparition / disparition de PNJ ──────────────────────────────────────────
+
+def npc_spawn(nom, x, y, dialogues=None, sprite=None,
+              dialogue_mode="boucle_dernier", has_gravity=True, events=None):
+    """Fait apparaître un PNJ au point (x, y).
+
+    Cas typique : à la fin d'un dialogue avec un parchemin, séraphin
+    apparaît derrière le joueur pour engager la suite. Combiner avec
+    camera_focus_pnj() + dialogue() pour orchestrer la scène.
+
+    nom            : identifiant unique (utilisé par _trouver_pnj /
+                     npc_walk_by_name / npc_despawn).
+    sprite         : nom du sprite (cf. assets/images/pnj/) ou None
+                     pour un rectangle violet de fallback.
+    dialogues      : liste de listes (cf. PNJ.__init__).
+    dialogue_mode  : "boucle_dernier" (défaut) ou "restart".
+    has_gravity    : True (tombe) / False (flottant).
+    events         : liste parallèle aux dialogues — événements à
+                     déclencher en fin de chaque conv. Voir PNJ.events.
+    """
+    return ("npc_spawn", {
+        "nom": str(nom), "x": float(x), "y": float(y),
+        "sprite": sprite,
+        "dialogues": list(dialogues or []),
+        "dialogue_mode": str(dialogue_mode),
+        "has_gravity": bool(has_gravity),
+        "events": events,
+    })
+
+
+def npc_despawn(nom):
+    """Fait disparaître le PNJ nommé `nom` (ex : séraphin remonte
+    l'échelle puis quitte la scène). No-op si PNJ inexistant."""
+    return ("npc_despawn", {"nom": str(nom)})
+
+
+# ── Récompenses ───────────────────────────────────────────────────────────────
+
+def grant_skill(value):
+    """Débloque une compétence (settings.skill_<value> = True).
+
+    Valeurs valides : double_jump, dash, back_dodge, wall_jump,
+                      attack, pogo."""
+    return ("grant_skill", {"value": str(value)})
+
+
+def grant_luciole(source):
+    """Ajoute une luciole/compagnon. `source` doit être unique pour
+    éviter le double-don au rejouer la cinématique."""
+    return ("grant_luciole", {"source": str(source)})
+
+
+def give_item(name, count=1):
+    """Ajoute `count` exemplaires de l'item `name` à l'inventaire
+    (stack auto si l'item est stackable, ex. Pomme)."""
+    return ("give_item", {"name": str(name), "count": int(count)})
+
+
+def give_coins(amount):
+    """Ajoute `amount` pièces au joueur."""
+    return ("give_coins", {"amount": int(amount)})
+
+
+def set_flag(key, value=True):
+    """Pose un story flag global. Lu par les PNJ pour conditionner
+    leurs dialogues (PNJ.dialogue_conditions). Cf. game.story_flags."""
+    return ("set_flag", {"key": str(key), "value": bool(value)})
+
+
+# ── Attente conditionnelle (gameplay au milieu d'une cinématique) ────────────
+
+def wait_for_player_at(x, y, radius=32, timeout=60):
+    """Pause la cinématique en RENDANT LA MAIN AU JOUEUR jusqu'à ce
+    qu'il atteigne (x, y) ± radius.
+
+    Idéal pour scènes mixtes : "le joueur doit ouvrir le tiroir",
+    "le joueur doit monter à l'échelle", etc. Le drapeau interne
+    `game._cutscene_player_libre` est posé à True pendant l'étape.
+
+    timeout : abandon de l'étape au bout de N secondes (défaut 60).
+    """
+    return ("wait_for_player_at", {
+        "x": float(x), "y": float(y),
+        "radius": float(radius),
+        "timeout": float(timeout),
+    })
 
 
 # ═════════════════════════════════════════════════════════════════════════════

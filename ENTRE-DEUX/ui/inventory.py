@@ -49,14 +49,21 @@ from utils import find_file
 
 ITEMS = {
     "Pomme": {
-        "category": "Consommable",
-        "image": "pomme.png"
+        "category":   "Consommable",
+        "image":      "pomme.png",
+        # Stackable : un seul slot accumule un compteur.
+        # Effet de consommation : +heal_hp PV à l'utilisation rapide.
+        "stackable":  True,
+        "max_stack":  99,
+        "consumable": True,
+        "heal_hp":    2,
     },
     "Cassette": {
-        "category": "Matériel",
-        "image": "cassette.png",
+        "category":   "Matériel",
+        "image":      "cassette.png",
         "contenu visuel": "video_cassette.mp4",
-        "contenu sonore": "video_cassette.mp3"
+        "contenu sonore": "video_cassette.mp3",
+        "stackable":  False,
     },
 }
 
@@ -66,11 +73,21 @@ VITESSE_ANIMATION = 0.2 # 0 à 1, + grand = + rapide
 VITESSE_DEFILEMENT_PAGE = 0.2
 
 class InventoryItem:
-    # item = nom + image + catégorie
-    def __init__(self, name, image, category="Consommable"):
-        self.name = name
-        self.image = image
-        self.category = category
+    """Item d'inventaire stackable.
+
+    count       — quantité dans ce slot (>=1 ; 0 = à supprimer)
+    stackable   — True : peut accumuler plusieurs unités sur 1 slot
+                  False : 1 unité = 1 slot (ex. Cassette)
+    max_stack   — borne supérieure du compteur (Pomme : 99)
+    """
+    def __init__(self, name, image, category="Consommable",
+                 count=1, stackable=False, max_stack=1):
+        self.name      = name
+        self.image     = image
+        self.category  = category
+        self.count     = max(1, int(count))
+        self.stackable = bool(stackable)
+        self.max_stack = max(1, int(max_stack))
 
 class ItemContainer:
     # liste de slots pour stocker les items
@@ -78,9 +95,26 @@ class ItemContainer:
         self.slots = [None] * size
 
     def add_item(self, item):
-        """Ajoute un item à l'inventaire
-        True = ajouté
-        False = inventaire plein"""
+        """Ajoute un item à l'inventaire.
+
+        Si l'item est stackable et qu'un slot existant contient déjà le
+        même nom (et n'est pas plein), on incrémente le compteur. Sinon
+        on cherche un slot libre.
+
+        Retour : True ajouté, False inventaire plein.
+        """
+        # 1) tentative de stack sur un slot existant
+        if getattr(item, "stackable", False):
+            for s in self.slots:
+                if (s is not None and s.name == item.name
+                        and s.stackable and s.count < s.max_stack):
+                    place = s.max_stack - s.count
+                    pris  = min(place, item.count)
+                    s.count    += pris
+                    item.count -= pris
+                    if item.count <= 0:
+                        return True
+        # 2) sinon, slot libre
         for i in range(len(self.slots)):
             if self.slots[i] is None:
                 self.slots[i] = item
@@ -93,6 +127,36 @@ class ItemContainer:
             self.slots[index] = None
             return True
         return False
+
+    def consommer(self, name, n=1):
+        """Retire n unités d'un item nommé (cumule sur tous les slots).
+
+        Renvoie True si on a pu retirer la totalité, False si pas assez
+        (et dans ce cas on ne retire rien — atomique)."""
+        # Compte la quantité dispo
+        total = 0
+        for s in self.slots:
+            if s is not None and s.name == name:
+                total += s.count
+        if total < n:
+            return False
+        # Retire effectivement
+        restant = n
+        for i, s in enumerate(self.slots):
+            if restant <= 0:
+                break
+            if s is not None and s.name == name:
+                pris = min(s.count, restant)
+                s.count -= pris
+                restant -= pris
+                if s.count <= 0:
+                    self.slots[i] = None
+        return True
+
+    def quantite(self, name):
+        """Quantité totale d'un item donné (somme sur tous les slots)."""
+        return sum(s.count for s in self.slots
+                   if s is not None and s.name == name)
 
 class Inventory(ItemContainer):
     def __init__(self):
@@ -168,12 +232,17 @@ class Inventory(ItemContainer):
         """Inventaire ouvert ou pas"""
         return self.open
 
-    def add_item(self, objet):
-        """ajoute un item à l'inventaire"""
+    def add_item(self, objet, count=1):
+        """ajoute un item à l'inventaire (stack auto si stackable)."""
 
         data = ITEMS[objet]  # objet = "Pomme"
 
-        item = InventoryItem(objet, self.images[objet], data["category"])
+        item = InventoryItem(
+            objet, self.images[objet], data["category"],
+            count=count,
+            stackable=bool(data.get("stackable", False)),
+            max_stack=int(data.get("max_stack", 1)),
+        )
 
         return super().add_item(item)
 
@@ -294,7 +363,17 @@ class Inventory(ItemContainer):
             if item is not None:
                 img_rect = item.image.get_rect(center=local_rect.center)
                 surface.blit(item.image, img_rect)
-        
+                # Compteur en bas-droite si stackable et > 1
+                if getattr(item, "stackable", False) and item.count > 1:
+                    fnt = pygame.font.SysFont("Consolas", 14, bold=True)
+                    txt = fnt.render(f"x{item.count}", True, (255, 255, 255))
+                    # Ombre noire pour lisibilité.
+                    sh  = fnt.render(f"x{item.count}", True, (0, 0, 0))
+                    bx = local_rect.right - txt.get_width() - 4
+                    by = local_rect.bottom - txt.get_height() - 2
+                    surface.blit(sh,  (bx + 1, by + 1))
+                    surface.blit(txt, (bx, by))
+
     def update_rects(self, cols, rows):
         """met à jour les rectangles de chaque slot en fonction de la catégorie active et de la grille"""
         for i in range(len(self.slots)):
