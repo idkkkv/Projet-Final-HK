@@ -1134,6 +1134,35 @@ class Game:
                                           (255, 255, 255)),
                              (sx + 6, sy + 6))
 
+    def _declencher_cinematique_mort(self):
+        """Cherche une CutsceneTrigger en mode "on_death" qui couvre la
+        position du joueur. Si trouvée, la lance et renvoie True. Sinon
+        renvoie False → game.py basculera en GAME_OVER normal.
+
+        Permet de scripter une "mort narrative" (PNJ qui parle pendant
+        l'écran noir, téléport vers un lieu safe, etc.) au lieu du Game
+        Over basique. Voir CutsceneTrigger(mode="on_death")."""
+        from world.triggers import CutsceneTrigger
+        for zone in (self.editeur.trigger_zones or []):
+            if not isinstance(zone, CutsceneTrigger):
+                continue
+            if getattr(zone, "mode", "enter") != "on_death":
+                continue
+            if not zone.rect.colliderect(self.joueur.rect):
+                continue
+            # Lance la cinématique. fire() applique la même logique que
+            # on_enter (compteur max_plays, _lancer scene, forcer_idle…).
+            try:
+                zone.fire({"game": self})
+            except Exception as e:
+                print(f"[Mort scriptée] fire échoué : {e}")
+                return False
+            # On garde joueur.dead = True jusqu'à ce que la cinématique
+            # appelle revive_player → la physique reste figée (pas
+            # d'attaque ennemie pendant les dialogues d'agonie).
+            return True
+        return False
+
     def notifier(self, texte, duree=3.0):
         """Affiche une notification éphémère en haut-centre de l'écran.
 
@@ -1939,6 +1968,29 @@ class Game:
 
     def _gerer_fin(self, events):
         """Gestion de l'écran Game Over (état GAME_OVER)."""
+        # Cinématique de mort scriptée en cours ? On bloque les boutons
+        # « Recommencer / Menu » : seules les touches du dialogue (Espace
+        # / Entrée pour avancer) sont autorisées. Le clavier passe par
+        # cutscene.on_key qui consomme Espace/Entrée pour advancer la
+        # boîte de dialogue. La cinématique se terminera par revive_player
+        # → on rebascule en GAME automatiquement (ci-dessous _frame_game_over).
+        if self.cutscene is not None:
+            for event in events:
+                if event.type != pygame.KEYDOWN:
+                    continue
+                # On laisse cutscene.on_key décider — il consomme Espace/
+                # Entrée pour le dialogue, et IGNORE Échap (on n'autorise
+                # pas le skip d'une cinématique de mort, ce serait un
+                # contournement du blocage).
+                if event.key == pygame.K_ESCAPE:
+                    continue
+                try:
+                    from systems.cutscene import CutsceneContext
+                    self.cutscene.on_key(event.key, CutsceneContext(self))
+                except Exception:
+                    pass
+            return
+
         for event in events:
             if event.type != pygame.KEYDOWN:
                 continue
@@ -2029,13 +2081,19 @@ class Game:
         # ── 3-9. Logique de simulation ────────────────────────────────────
         self._simuler_jeu(dt)
 
-        # ── 10. Mort → Game Over ──────────────────────────────────────────
+        # ── 10. Mort → Cinématique de mort scriptée + Game Over ─────────
         if self.joueur.dead:
+            # On bascule TOUJOURS en GAME_OVER (l'écran de mort apparaît).
+            # En PLUS, on cherche une CutsceneTrigger mode "on_death" qui
+            # couvre la position : si trouvée, on la lance — son dialogue
+            # s'affichera PAR-DESSUS l'écran de mort. Tant que la cinéma-
+            # tique tourne, _gerer_fin bloque le bouton « Recommencer ».
+            # À la fin (action revive_player), le joueur est téléporté
+            # ailleurs et l'écran de mort disparaît.
             self.etats.switch(GAME_OVER)
             self.menu_fin.selection = 0
-            # Démarre le fondu d'entrée vers l'écran de mort (alpha 0 → 255).
-            # Sinon le passage du jeu au menu de mort était brutal (cut net).
             self._gameover_fade_alpha = 0.0
+            self._declencher_cinematique_mort()
 
         # Drag-and-drop dans l'inventaire
         self.inventory.drag_drop(events)
@@ -3603,6 +3661,31 @@ class Game:
             getattr(self, "_gameover_fade_alpha", 0.0) + VITESSE * self._dt
         )
         self._dessiner_voile_noir(self._gameover_fade_alpha)
+
+        # ── Cinématique de mort scriptée ?
+        # Si une cinématique est active pendant le GAME_OVER, on la fait
+        # avancer (dialogue qui défile) et on l'affiche par-dessus le voile.
+        # Le revive_player en fin de cinématique remettra dead=False et
+        # rebasculera l'état en GAME via _verifier_revive_post_cutscene.
+        if self.cutscene is not None:
+            try:
+                from systems.cutscene import CutsceneContext
+                self.cutscene.update(self._dt, CutsceneContext(self))
+                if self.cutscene.is_done():
+                    self.cutscene = None
+                    # Si revive_player a été appelée, joueur.dead est False.
+                    if not self.joueur.dead:
+                        self._gameover_fade_alpha = 0.0
+                        self.etats.switch(GAME)
+                        return
+            except Exception as e:
+                print(f"[Mort scriptée] update : {e}")
+            # Boîte de dialogue par-dessus le voile noir.
+            try:
+                self.dialogue.draw(self.screen)
+            except Exception:
+                pass
+            return
 
         # Le menu de mort n'apparaît que quand le voile est complètement
         # opaque (sinon on le voit s'estomper en transparence sur le jeu,

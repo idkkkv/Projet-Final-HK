@@ -1,0 +1,275 @@
+{
+  "ground_y": 1080,
+  "ceiling_y": 0,
+  "scene_width": 2100,
+  "scene_left": 0,
+  "camera_y_offset": -170,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 66,
+    "y": 828
+  },
+  "named_spawns": {},
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": -1,
+      "y": 845,
+      "w": 845,
+      "h": 63
+    },
+    {
+      "x": 792,
+      "y": 739,
+      "w": 50,
+      "h": 168
+    },
+    {
+      "x": 792,
+      "y": 739,
+      "w": 1056,
+      "h": 53
+    },
+    {
+      "x": 898,
+      "y": 716,
+      "w": 53,
+      "h": 20
+    },
+    {
+      "x": 1689,
+      "y": 716,
+      "w": 53,
+      "h": 26
+    },
+    {
+      "x": 1795,
+      "y": 739,
+      "w": 53,
+      "h": 158
+    },
+    {
+      "x": 1848,
+      "y": 845,
+      "w": 264,
+      "h": 53
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 1080,
+      "w": 2100,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 2100,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2680
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2100,
+      "y": -800,
+      "w": 800,
+      "h": 2680
+    }
+  ],
+  "holes": [],
+  "enemies": [
+    {
+      "x": 1298,
+      "y": 619,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 945,
+      "patrol_right": 1690,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    }
+  ],
+  "lights": [
+    {
+      "x": 924,
+      "y": 879,
+      "radius": 173,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1297,
+      "y": 880,
+      "radius": 173,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1349,
+      "y": 880,
+      "radius": 137,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1715,
+      "y": 879,
+      "radius": 175,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2245,
+      "y": 822,
+      "radius": 361,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -117,
+      "y": 804,
+      "radius": 377,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 200,
+      "y": -215,
+      "radius": 1707,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 2
+    },
+    {
+      "x": 2210,
+      "y": -231,
+      "radius": 1575,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 2
+    }
+  ],
+  "portals": [
+    {
+      "x": 3,
+      "y": 709,
+      "w": 22,
+      "h": 144,
+      "target_map": "ent1 h",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
+    },
+    {
+      "x": 2070,
+      "y": 690,
+      "w": 45,
+      "h": 166,
+      "target_map": "map23 e",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
+    }
+  ],
+  "decors": [
+    {
+      "x": 0,
+      "y": 0,
+      "sprite": "tiled_ent2_d_cor_2_x3p30.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "sprite": "tiled_ent2_d_cor_1_x3p30.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 533,
+      "y": 795,
+      "nom": "Pancarte",
+      "sprite_name": "objet_parlant_40x40.png",
+      "dialogues": [
+        [
+          [
+            "Ce monde vous laissera essayer avant de vous laisser comprendre..",
+            "Pancarte"
+          ],
+          [
+            "Appuyer sur [Supp] pour essayer d'attaquer..",
+            "Pancarte"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": false,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    }
+  ],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": 338,
+      "y": 396,
+      "w": 1754,
+      "h": 504,
+      "nom": "serar",
+      "one_shot": true,
+      "cutscene_nom": "serar",
+      "max_plays": 1,
+      "mode": "on_death"
+    }
+  ],
+  "danger_zones": []
+}

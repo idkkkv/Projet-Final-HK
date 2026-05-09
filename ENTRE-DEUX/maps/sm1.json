@@ -10,7 +10,12 @@
     "x": 1154,
     "y": 312
   },
-  "named_spawns": {},
+  "named_spawns": {
+    "l": [
+      194,
+      268
+    ]
+  },
   "bg_color": [
     0,
     0,
@@ -197,7 +202,61 @@
       "echelle": 1.0
     }
   ],
-  "pnjs": [],
-  "trigger_zones": [],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 957,
+      "y": 296,
+      "nom": "Seraphin",
+      "sprite_name": "marchand",
+      "dialogues": [
+        [
+          [
+            "Maintenant que tu as acquis ces nouvelles comp\u00e9tences, tu devrais \u00eatre capable d'affronter le terrain d'entra\u00eenement.",
+            "Seraphin"
+          ],
+          [
+            "Va t'exercer jusqu'\u00e0 ce que ton corps cesse d'h\u00e9siter.",
+            "Seraphin"
+          ],
+          [
+            "...M\u00eame si certaines faiblesse ne disparaissent pas avec l'entra\u00eenement.",
+            "Seraphin"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [],
+      "dialogue_conditions": []
+    }
+  ],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": 245,
+      "y": 183,
+      "w": 124,
+      "h": 123,
+      "nom": "sera",
+      "one_shot": true,
+      "cutscene_nom": "sera",
+      "max_plays": 1,
+      "mode": "enter"
+    },
+    {
+      "type": "cutscene",
+      "x": 739,
+      "y": 241,
+      "w": 166,
+      "h": 114,
+      "nom": "sera2",
+      "one_shot": true,
+      "cutscene_nom": "sera2",
+      "max_plays": 1,
+      "mode": "enter"
+    }
+  ],
   "danger_zones": []
 }

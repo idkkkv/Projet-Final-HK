@@ -250,6 +250,17 @@ TYPES_ETAPES = {
         "resume":  lambda d: f"+{d.get('amount',0)} pièces",
     },
 
+    # ── Mort scriptée (cinématique on_death) ─────────────────────────────
+    "revive_player": {
+        "libelle": "Réanimer le joueur (fin cinématique mort)",
+        "champs":  [
+            ("cible",
+             "Spawn cible : 'map spawn' ou 'spawn' (vide = défaut)",
+             ""),
+        ],
+        "resume":  lambda d: f"Réanime → '{d.get('cible','(défaut)')}'",
+    },
+
     # ── Macro : débloquer la barre quick-use + donner des pommes ─────────
     "unlock_quickuse": {
         "libelle": "Débloquer croix directionnelle (+ pommes)",

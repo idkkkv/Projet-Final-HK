@@ -1,0 +1,49 @@
+[
+  {
+    "type": "wait",
+    "duration": 0.5
+  },
+  {
+    "type": "camera_focus_pnj",
+    "nom": "Seraphin",
+    "duration": "garde la caméra fixée",
+    "speed": "0.03",
+    "follow": "1"
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Ce monde est bien plus vaste et cruel que ce que tu as aperçu jusqu’ici.",
+        "auteur": "Seraphin"
+      },
+      {
+        "texte": "Ceux qui y survivent apprennent à tomber… puis à se relever autrement.",
+        "auteur": "Seraphin"
+      },
+      {
+        "texte": "Je vais te transmettre une part de ce savoir. Écoute bien ton corps… il se souvient parfois avant l’esprit.",
+        "auteur": "Serahpin"
+      }
+    ]
+  },
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "camera_release"
+  },
+  {
+    "type": "grant_skill",
+    "value": "double_jump"
+  },
+  {
+    "type": "wait",
+    "duration": 2.0
+  },
+  {
+    "type": "grant_skill",
+    "value": "attack"
+  }
+]

@@ -422,7 +422,7 @@ class Cutscene:
 
         elif step_type in ("npc_spawn", "npc_despawn", "grant_skill",
                             "grant_luciole", "give_item", "give_coins",
-                            "set_flag", "unlock_quickuse"):
+                            "set_flag", "unlock_quickuse", "revive_player"):
             # Étapes instantanées : tout est fait dans _exec_step.
             pass
 
@@ -714,6 +714,82 @@ class Cutscene:
                 game.joueur.coins = getattr(game.joueur, "coins", 0) + n
                 if hasattr(game, "notifier") and n != 0:
                     game.notifier(f"+ {n} pièces" if n > 0 else f"{n} pièces")
+            return True
+
+        if step_type == "revive_player":
+            # Réanime le joueur après une cinématique de mort scriptée.
+            # - PV remis à max_hp
+            # - position via SPAWN NOMMÉ (cf. mode 14 de l'éditeur) :
+            #   cible = "mapname spawnname" ou juste "spawnname" pour la
+            #   carte courante. Comme pour les portails (target_map).
+            # - dead = False (annule l'écran de mort)
+            # - revive les ennemis de la map d'arrivée
+            game = ctx.game
+            joueur = ctx.joueur
+            if joueur is None or game is None:
+                return True
+
+            joueur.hp           = joueur.max_hp
+            joueur.dead         = False
+            joueur.vx           = 0
+            joueur.vy           = 0
+            joueur.knockback_vx = 0
+            joueur.invincible   = False
+
+            cible = str(params.get("cible", "")).strip()
+            nom_map  = None
+            nom_spawn = None
+            if cible:
+                if " " in cible:
+                    parts = cible.split(" ", 1)
+                    nom_map   = parts[0].strip()
+                    nom_spawn = parts[1].strip()
+                else:
+                    # Pas d'espace → c'est un nom de spawn dans la carte
+                    # courante (raccourci).
+                    nom_spawn = cible
+
+            # Charger la carte cible si différente de l'actuelle.
+            if nom_map and nom_map != game.carte_actuelle:
+                if hasattr(game.editeur, "load_map_for_portal"):
+                    if game.editeur.load_map_for_portal(nom_map):
+                        game.carte_actuelle = nom_map
+                        # Reconstruction des index spatiaux après chgt map.
+                        try:
+                            game._reconstruire_grille()
+                            game._murs_modifies()
+                            game._sync_triggers()
+                        except Exception:
+                            pass
+
+            # Récupère la position du spawn nommé.
+            named = getattr(game.editeur, "named_spawns", {}) or {}
+            pos = None
+            if nom_spawn and nom_spawn in named:
+                pos = named[nom_spawn]
+            if pos is not None:
+                joueur.rect.x = int(pos[0])
+                joueur.rect.y = int(pos[1])
+            else:
+                # Fallback : spawn par défaut de la map.
+                joueur.rect.x = game.editeur.spawn_x
+                joueur.rect.y = game.editeur.spawn_y
+                if cible:
+                    print(f"[Cutscene] revive_player : spawn '{cible}' "
+                          f"introuvable, fallback spawn défaut")
+
+            # Snap caméra sur la nouvelle pos.
+            if hasattr(game.camera, "snap_to"):
+                game.camera.snap_to(joueur.rect)
+            # Revive les ennemis du niveau.
+            for e in getattr(game, "ennemis", []):
+                e.alive = True
+            # Replace les compagnons.
+            if hasattr(game, "compagnons"):
+                try:
+                    game.compagnons.respawn(joueur)
+                except Exception:
+                    pass
             return True
 
         if step_type == "unlock_quickuse":
@@ -1049,6 +1125,29 @@ def give_item(name, count=1):
 def give_coins(amount):
     """Ajoute `amount` pièces au joueur."""
     return ("give_coins", {"amount": int(amount)})
+
+
+def revive_player(cible=""):
+    """Réanime le joueur après une cinématique de mort scriptée.
+
+    cible : spawn nommé où apparaître. Format identique aux portails :
+        "mapname spawnname"  → change de carte ET place sur le spawn
+        "spawnname"          → reste sur la carte courante
+        ""                   → fallback : spawn par défaut de la map
+
+    Effets :
+      - PV remis au max
+      - écran de mort annulé (joueur.dead = False)
+      - téléport vers le spawn nommé (cf. mode 14 de l'éditeur)
+      - ennemis de la map d'arrivée ressuscités
+      - compagnons replacés autour du joueur
+
+    À utiliser à la FIN d'une cinématique CutsceneTrigger en mode
+    on_death : le joueur meurt, le dialogue joue par-dessus l'écran
+    noir, puis cette action le téléporte vers un point safe (lit de
+    Séraphin par exemple) et lui rend la main.
+    """
+    return ("revive_player", {"cible": str(cible)})
 
 
 def unlock_quickuse(pommes=10):

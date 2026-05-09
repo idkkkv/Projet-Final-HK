@@ -18,6 +18,10 @@
     "b": [
       4554,
       3922
+    ],
+    "e": [
+      578,
+      3939
     ]
   },
   "bg_color": [
@@ -691,6 +695,16 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": false
+    },
+    {
+      "x": 533,
+      "y": 3799,
+      "w": 94,
+      "h": 174,
+      "target_map": "ent1",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true
     }
   ],
   "decors": [
@@ -781,7 +795,8 @@
       "nom": "nym",
       "one_shot": true,
       "cutscene_nom": "nym",
-      "max_plays": 1
+      "max_plays": 1,
+      "mode": "enter"
     }
   ],
   "danger_zones": []
