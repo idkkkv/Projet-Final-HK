@@ -836,7 +836,8 @@ class Game:
                 continue
 
             if getattr(portail, "need_key", False):
-                if not self.inventory.utiliser("Keys"):
+                key_type = getattr(portail, "key_type", "Keys")
+                if not self.inventory.utiliser(key_type):
 
                     # afficher "Il te faut une clé"
 
@@ -846,7 +847,7 @@ class Game:
                         self._last_key_msg = 0
 
                     if now - self._last_key_msg > 3000:
-                        self.notifier("Il te faut une clé")
+                        self.notifier(f"Il te faut une {key_type}")
                         self._last_key_msg = now
 
                     continue

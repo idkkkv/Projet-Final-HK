@@ -348,7 +348,7 @@ class Portal:
     """
 
     def __init__(self, x, y, w, h, target_map, target_x=-1, target_y=-1,
-                 require_up=False, need_key=False):
+                 require_up=False, need_key=False, key_type="CleRouge"):
         self.rect       = pygame.Rect(x, y, w, h)
         self.target_map = target_map
         # target_x / target_y = position d'arrivée dans la map cible.
@@ -358,6 +358,7 @@ class Portal:
         # Si True → portail "porte" : il faut appuyer sur HAUT pour entrer.
         self.require_up = bool(require_up)
         self.need_key = bool(need_key)
+        self.key_type = key_type
 
     def to_dict(self):
         """Sérialisation pour JSON."""
@@ -3584,6 +3585,7 @@ class Editor:
                 # Absent dans les vieilles saves → défaut False (classique).
                 require_up=p.get("require_up", False),
                 need_key=p.get("need_key", False),
+                key_type=p.get("key_type", "Keys"),
             ))
 
         # Décors.
