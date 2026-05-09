@@ -281,7 +281,8 @@
       "target_map": "m1",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": true,
+      "need_key": false
     },
     {
       "x": -173,
@@ -291,7 +292,8 @@
       "target_map": "p",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": true,
+      "need_key": false
     },
     {
       "x": 481,
@@ -301,7 +303,8 @@
       "target_map": "s",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": true,
+      "need_key": false
     },
     {
       "x": 2383,
@@ -311,7 +314,8 @@
       "target_map": "bossseraphin",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": true,
+      "need_key": false
     },
     {
       "x": -1397,
@@ -321,7 +325,8 @@
       "target_map": "map23 b",
       "target_x": -1,
       "target_y": -1,
-      "require_up": false
+      "require_up": false,
+      "need_key": false
     }
   ],
   "decors": [
@@ -498,6 +503,86 @@
       "dialogue_mode": "boucle_dernier",
       "has_gravity": false,
       "is_save_point": true,
+      "events": [],
+      "dialogue_conditions": []
+    },
+    {
+      "type": "marchand",
+      "x": 1455,
+      "y": 318,
+      "nom": "louis le marchand",
+      "sprite_name": "marchand",
+      "dialogues": [[["Bonjour, que puis-je pour toi ?", "louis"]]],
+      "inventaire": [
+        {
+          "nom": "Pomme",
+          "prix": 0,
+          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose à faire\ndonc NAN. D:<"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant (tkt est tres tres utile)",
+          "stock":1
+        },
+        {
+          "nom": "Keys",
+          "prix": 10,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile",
+          "stock":1
+        },
+        {
+          "nom": "Elixir",
+          "prix": 50,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Oui",
+          "prix": 10,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Soupe",
+          "prix": 25,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Champignon",
+          "prix": 2,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Salade",
+          "prix": 67,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Rossier hairs",
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Macron",
+          "prix": 493,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "1l essence",
+          "prix": 999,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Requin",
+          "prix": 255,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+        }],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
       "events": [],
       "dialogue_conditions": []
     }

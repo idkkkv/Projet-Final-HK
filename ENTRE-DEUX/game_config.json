@@ -27,6 +27,10 @@
     {
       "nom": "PNJ_3",
       "sprite_name": "marchand"
+    },
+    {
+      "nom": "louis le marchand",
+      "sprite_name": "marchand"
     }
   ],
   "histoire": [

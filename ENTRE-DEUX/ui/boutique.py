@@ -7,6 +7,7 @@
 import pygame 
 from utils import find_file
 
+
 class Boutique:
     def __init__(self):
         self.actif     = False
@@ -40,9 +41,14 @@ class Boutique:
         elif key in (pygame.K_SPACE, pygame.K_RETURN):
             if self.inventaire:
                 item = self.inventaire[self.selection]
-                if player.coins >= item.get("prix", 0):
+                stock = item.get("stock", 0)
+
+                if stock >= 0 and player.coins >= item.get("prix", 0):
                     player.coins -= item.get("prix", 0)
+                    stock -= 1
+                    item["stock"] = stock
                     return item
+                
         elif key == pygame.K_ESCAPE:
             self.fermer()
         return None
@@ -148,6 +154,7 @@ class Boutique:
 
                 nom  = item.get("nom", "?")
                 prix = item.get("prix", "?")
+                stock = item.get("stock", "?")
                 
                 if i == self.selection :
                     coul  = text_color_gold
@@ -172,7 +179,9 @@ class Boutique:
                 if img:
                     surf.blit(img, (split_x + pad + int(35), top + int(7)))
                     
-                surf.blit(police.render(f"{prefixe}{nom}  —  {prix}$",True, coul),(bx + pad, by + int(60) + idx_affiche * line))
+                
+                if stock != 0:
+                    surf.blit(police.render(f"{prefixe}{nom}  —  {prix}$",True, coul),(bx + pad, by + int(60) + idx_affiche * line))
 
         surf.blit(police.render("Espace=acheter", True, text_color_gray),
                 (bx + pad, by + bh - line))
