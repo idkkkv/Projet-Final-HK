@@ -103,6 +103,7 @@
     {
       "x": 1298,
       "y": 619,
+      "nb_dgt":5,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "mushroom",

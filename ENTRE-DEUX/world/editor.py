@@ -3451,6 +3451,7 @@ class Editor:
         for e in data.get("enemies", []):
             self.enemies.append(Enemy(
                 e["x"], e["y"],
+                nb_dgt=e.get("nb_dgt", 1),
                 has_gravity=e.get("has_gravity", True),
                 has_collision=e.get("has_collision", True),
                 sprite_name=e.get("sprite_name", "monstre_perdu.png"),

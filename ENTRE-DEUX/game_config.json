@@ -30,7 +30,11 @@
     },
     {
       "nom": "Seraphin",
-      "sprite_name": "marchand"
+      "sprite_name": "fox"
+    },
+    {
+      "nom": "Nymbus",
+      "sprite_name": "nimbus"
     },
     {
       "nom": "louis le marchand",

@@ -61,7 +61,7 @@
 #
 #  JE VEUX MODIFIER QUOI ?
 #  -----------------------
-#     - Combien de PV un coup enlève → DEGAT_ATTAQUE_JOUEUR / DEGAT_CONTACT_ENNEMI
+#     - Combien de PV un coup enlève → DEGAT_ATTAQUE_JOUEUR / dgt_ennemis
 #     - Force du recul (knockback)   → settings.KNOCKBACK_PLAYER / _ENEMY
 #     - Durée d'invincibilité        → settings.INVINCIBLE_DURATION
 #     - Ajouter un coup chargé       → une nouvelle constante DEGAT_X +
@@ -82,7 +82,8 @@ from settings import (
 )
 from audio import sound_manager
 import random
-
+from entities.enemy import Enemy
+import math 
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  1. RÉGLAGES (combien de PV par type de coup)
@@ -92,8 +93,7 @@ import random
 #  puisse équilibrer sans aller fouiller 5 fichiers.
 
 DEGAT_ATTAQUE_JOUEUR = 1   # coup d'épée du joueur → 1 PV à l'ennemi
-DEGAT_CONTACT_ENNEMI = 1   # contact d'un ennemi   → 1 PV (= 1 cœur) au joueur
-CRIT_CHANCE_ENNEMI = 1.0   # dgt crit (temporaire pour test)
+CRIT_CHANCE_ENNEMI = 0.0   # dgt crit (temporaire pour test)
 CRIT_MULTIPLIER = 2        # 2 coeurs retirés
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -195,7 +195,6 @@ def infliger_degats(cible, montant, source_rect=None, knockback=0):
 
     if hasattr(cible, "hit"):
         cible.hit = True
-        print("true")
 
     return True
 
@@ -287,18 +286,20 @@ def resoudre_contacts_ennemis(joueur, ennemis, hud=None):
         if ennemi.attack_cooldown > 0:
             continue
         # Pas de contact physique → suivant.
-        if not joueur.rect.colliderect(ennemi.rect):
+        dist = math.hypot(joueur.rect.centerx - ennemi.rect.centerx, 
+                          joueur.rect.centery - ennemi.rect.centery)
+        if dist>80:
             continue
 
         # ── Contact ! L'ennemi déclenche son coup et son cooldown ────────────
         # ennemi.hit_player() peut renvoyer False (ex : il est en train de
         # se faire toucher lui-même → il refuse de frapper).
         if ennemi.hit_player(joueur.rect):
+            
             # joueur.hit_by_enemy() s'occupe de tout côté joueur :
             # son d'impact, animation rouge, mise à jour du HUD, son
             # propre knockback amorti.
-            degats = DEGAT_CONTACT_ENNEMI
-            degats_base = DEGAT_CONTACT_ENNEMI
+            degats = ennemi.nb_dgt
 
             # chance crit + dgt crit 
             is_crit = random.random() < CRIT_CHANCE_ENNEMI
@@ -308,6 +309,10 @@ def resoudre_contacts_ennemis(joueur, ennemis, hud=None):
                 joueur.hitted_hard = True
             else :
                 joueur.hitted_normal = True
+
+            joueur.hit_by_enemy(ennemi.rect, degats)
+            return 
+            
 """
             infliger_degats(
                 joueur,

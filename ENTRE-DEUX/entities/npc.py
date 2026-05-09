@@ -374,6 +374,9 @@ class PNJ:
         if sprite_name == "nimbus":
             self.echelle = 2
 
+        if sprite_name == "fox":
+            self.echelle = 3
+
         if sprite_name and self.echelle != 1:
             self._rescale_frames(self.echelle)
 

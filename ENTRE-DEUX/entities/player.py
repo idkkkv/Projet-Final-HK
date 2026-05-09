@@ -92,6 +92,7 @@ from utils import find_file
 from entities.animation import Animation
 from audio import sound_manager
 from systems.hitbox_config import get_player_hitbox
+from entities.enemy import Enemy
 
 
 # ─── Constantes locales à ce fichier ─────────────────────────────────────────
@@ -276,7 +277,6 @@ class Player:
         frames_idle_jump = self._charger_frames("shejumps__0", 24)
         duree_saut = (2 * abs(JUMP_POWER)) / GRAVITY
         img_duration_saut = (duree_saut * FPS) / len(frames_idle_jump)
-        print(len(frames_idle_jump))
 
         frames_idle_double_jump = self._charger_frames("shejumpsvertical_00", 7)
         frames_idle_double_jump_fwd = self._charger_frames("shejumpsfoward_00", 7)
@@ -644,12 +644,13 @@ class Player:
     # 4.  DÉGÂTS / COMBAT (événements ponctuels)
     # ═════════════════════════════════════════════════════════════════════════
 
-    def hit_by_enemy(self, enemy_rect):
+    def hit_by_enemy(self, enemy_rect, degats=1):
         """Appelé par systems/combat.py quand un ennemi touche le joueur.
 
         Effets : recul (knockback), invincibilité courte, -1 PV, son.
         Si PV ≤ 0 → self.dead = True (la boucle de jeu affichera "Game Over").
         """
+        
         # Déjà invincible ou mort ? → on ignore ce coup.
         if self.invincible or self.dead:
             return
@@ -685,10 +686,10 @@ class Player:
         self.invincible       = True
         self.invincible_timer = INVINCIBLE_DURATION
 
-        # Perte de PV et affichage des cœurs.
-        self.hp -= 1
+        self.hp = max(0, self.hp - degats)
         sound_manager.jouer("degat")
         self.show_hp_timer = HP_DISPLAY_DURATION
+        #mppp
 
         if self.hp <= self.max_hp // 2:          # coup "fort" si PV ≤ moitié
             self.hitted_hard   = True
