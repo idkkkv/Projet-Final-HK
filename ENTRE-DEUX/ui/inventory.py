@@ -65,6 +65,10 @@ ITEMS = {
         "contenu sonore": "video_cassette.mp3",
         "stackable":  False,
     },
+    "Keys": {
+        "category": "Matériel",
+        "image": "keys.png"
+    }
 }
 
 CATEGORIES = ["Consommable", "Équipement", "Matériel"]

@@ -73,27 +73,27 @@
     {
       "type": "pnj",
       "x": 1070,
-      "y": 536,
+      "y": 490,
       "nom": "nymbus",
-      "sprite_name": null,
+      "sprite_name": "nimbus",
       "dialogues": [
         [
           [
-            "dfff",
+            "mouhahhahhahah, c'est moi nymbus.. >D",
             "nymbus"
           ],
           [
-            "yutyu",
+            "j'Ai FAiM... Tu Ne vOUdRaiS PAs quE j'EN meUre QUaNd meME ????",
             "nymbus"
           ],
           [
-            "htfghg",
+            "DONNE MOI UNE POMME!! D:<",
             "nymbus"
           ]
         ]
       ],
       "dialogue_mode": "boucle_dernier",
-      "has_gravity": true
+      "has_gravity": false
     },
     {
       "type": "marchand",
@@ -114,8 +114,8 @@
           "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant (tkt est tres tres utile)"
         },
         {
-          "nom": "Clés",
-          "prix": 100,
+          "nom": "Keys",
+          "prix": 10,
           "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
         },
         {
