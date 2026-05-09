@@ -65,9 +65,17 @@ ITEMS = {
         "contenu sonore": "video_cassette.mp3",
         "stackable":  False,
     },
-    "Keys": {
+    "CleJaune": {
         "category": "Matériel",
         "image": "keys.png"
+    },
+    "CleRouge": {
+        "category": "Matériel",
+        "image": "keyspink.png"
+    },
+    "CleBleue": {
+        "category": "Matériel",
+        "image": "keysblue.png"
     }
 }
 

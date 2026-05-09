@@ -526,18 +526,18 @@
           "stock":1
         },
         {
-          "nom": "Keys",
+          "nom": "CleJaune",
           "prix": 10,
           "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile",
           "stock":1
         },
         {
-          "nom": "Elixir",
-          "prix": 50,
+          "nom": "CleRouge",
+          "prix": 5,
           "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
         },
         {
-          "nom": "Oui",
+          "nom": "CleBleue",
           "prix": 10,
           "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
         },
