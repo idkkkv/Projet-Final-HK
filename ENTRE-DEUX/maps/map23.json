@@ -1,0 +1,788 @@
+{
+  "ground_y": 4000,
+  "ceiling_y": 0,
+  "scene_width": 4670,
+  "scene_left": 0,
+  "camera_y_offset": -270,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 1847,
+    "y": 604
+  },
+  "named_spawns": {
+    "h": [
+      140,
+      3441
+    ],
+    "b": [
+      4554,
+      3922
+    ]
+  },
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 0,
+      "y": 3960,
+      "w": 4752,
+      "h": 116
+    },
+    {
+      "x": 367,
+      "y": 3643,
+      "w": 373,
+      "h": 57
+    },
+    {
+      "x": 736,
+      "y": 3699,
+      "w": 163,
+      "h": 54
+    },
+    {
+      "x": 213,
+      "y": 3591,
+      "w": 157,
+      "h": 62
+    },
+    {
+      "x": 154,
+      "y": 3541,
+      "w": 60,
+      "h": 53
+    },
+    {
+      "x": 51,
+      "y": 3483,
+      "w": 110,
+      "h": 63
+    },
+    {
+      "x": 3,
+      "y": 3433,
+      "w": 55,
+      "h": 59
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 4000,
+      "w": 4670,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 4670,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 5600
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 4670,
+      "y": -800,
+      "w": 800,
+      "h": 5600
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 128,
+      "y": 3833,
+      "radius": 152,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2142,
+      "y": 3833,
+      "radius": 131,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2405,
+      "y": 3836,
+      "radius": 139,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2721,
+      "y": 44,
+      "radius": 99,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2722,
+      "y": 253,
+      "radius": 82,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2718,
+      "y": 463,
+      "radius": 68,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2717,
+      "y": 991,
+      "radius": 67,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2720,
+      "y": 773,
+      "radius": 70,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2719,
+      "y": 1205,
+      "radius": 57,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2720,
+      "y": 1414,
+      "radius": 58,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2719,
+      "y": 1619,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2723,
+      "y": 1830,
+      "radius": 76,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2720,
+      "y": 2050,
+      "radius": 54,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2725,
+      "y": 2252,
+      "radius": 73,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2723,
+      "y": 2573,
+      "radius": 60,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2724,
+      "y": 2780,
+      "radius": 70,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2718,
+      "y": 2990,
+      "radius": 75,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2720,
+      "y": 3212,
+      "radius": 58,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2722,
+      "y": 3415,
+      "radius": 75,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2720,
+      "y": 3632,
+      "radius": 68,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2722,
+      "y": 3841,
+      "radius": 59,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3140,
+      "y": 3843,
+      "radius": 57,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3567,
+      "y": 3846,
+      "radius": 61,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3993,
+      "y": 3843,
+      "radius": 63,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4408,
+      "y": 3848,
+      "radius": 68,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4409,
+      "y": 3639,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4409,
+      "y": 3415,
+      "radius": 68,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4409,
+      "y": 3214,
+      "radius": 60,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4411,
+      "y": 3000,
+      "radius": 61,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4408,
+      "y": 2787,
+      "radius": 68,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3988,
+      "y": 2790,
+      "radius": 64,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3989,
+      "y": 2999,
+      "radius": 61,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3989,
+      "y": 3207,
+      "radius": 63,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3988,
+      "y": 3413,
+      "radius": 70,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3985,
+      "y": 3631,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3562,
+      "y": 3632,
+      "radius": 66,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3142,
+      "y": 3632,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3145,
+      "y": 3420,
+      "radius": 56,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3567,
+      "y": 3420,
+      "radius": 64,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3563,
+      "y": 3212,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3140,
+      "y": 3210,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3570,
+      "y": 2998,
+      "radius": 64,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3143,
+      "y": 2993,
+      "radius": 69,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3141,
+      "y": 2789,
+      "radius": 64,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3566,
+      "y": 2791,
+      "radius": 67,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3566,
+      "y": 2579,
+      "radius": 55,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3144,
+      "y": 2568,
+      "radius": 67,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3991,
+      "y": 2572,
+      "radius": 63,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4418,
+      "y": 2582,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4407,
+      "y": 2268,
+      "radius": 60,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4400,
+      "y": 2048,
+      "radius": 56,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3977,
+      "y": 2041,
+      "radius": 76,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3563,
+      "y": 2047,
+      "radius": 60,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3144,
+      "y": 2052,
+      "radius": 65,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3141,
+      "y": 2256,
+      "radius": 67,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3566,
+      "y": 2259,
+      "radius": 63,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3987,
+      "y": 2261,
+      "radius": 67,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3985,
+      "y": 1836,
+      "radius": 64,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3992,
+      "y": 1627,
+      "radius": 66,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3140,
+      "y": 1830,
+      "radius": 73,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3142,
+      "y": 1626,
+      "radius": 60,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3565,
+      "y": 1618,
+      "radius": 76,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3563,
+      "y": 1835,
+      "radius": 69,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4406,
+      "y": 1840,
+      "radius": 66,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4407,
+      "y": 1626,
+      "radius": 64,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 718,
+      "y": 4456,
+      "radius": 1877,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 1
+    },
+    {
+      "x": 4965,
+      "y": 4114,
+      "radius": 1781,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 1
+    },
+    {
+      "x": 1954,
+      "y": 3892,
+      "radius": 248,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 1
+    },
+    {
+      "x": 2610,
+      "y": 3944,
+      "radius": 54,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 1
+    },
+    {
+      "x": 1455,
+      "y": 3939,
+      "radius": 54,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 1
+    }
+  ],
+  "portals": [
+    {
+      "x": 3,
+      "y": 3277,
+      "w": 91,
+      "h": 228,
+      "target_map": "s",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
+    },
+    {
+      "x": 4589,
+      "y": 3781,
+      "w": 80,
+      "h": 190,
+      "target_map": "villag",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
+    }
+  ],
+  "decors": [
+    {
+      "x": 0,
+      "y": 0,
+      "sprite": "tiled_map23_d_cor_1_x3p30.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 106,
+      "y": 3802,
+      "sprite": "tiled_map23_Calque_de_Tuiles_2_x3p30.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 639,
+      "y": 3907,
+      "nom": "Pancarte",
+      "sprite_name": "objet_parlant_40x40.png",
+      "dialogues": [
+        [
+          [
+            "Salle d'entra\u00eenement",
+            "Pancarte"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": false,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    },
+    {
+      "type": "pnj",
+      "x": 1935,
+      "y": 3906,
+      "nom": "Nymbus",
+      "sprite_name": null,
+      "dialogues": [
+        [
+          [
+            "",
+            "Nymbus"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    }
+  ],
+  "trigger_zones": [
+    {
+      "type": "fear",
+      "x": 3941,
+      "y": 3685,
+      "w": 612,
+      "h": 275,
+      "nom": "fear_4",
+      "one_shot": false,
+      "peur_max": 4,
+      "direction_mur": "d",
+      "texte": "Revenez lorsque l'obscurit\u00e9 aura un peu moins d'emprise sur vous.|Une lumi\u00e8re sommeille en vous... mais elle ne suffit pas encore."
+    },
+    {
+      "type": "cutscene",
+      "x": 1513,
+      "y": 3856,
+      "w": 211,
+      "h": 104,
+      "nom": "nym",
+      "one_shot": true,
+      "cutscene_nom": "nym",
+      "max_plays": 1
+    }
+  ],
+  "danger_zones": []
+}

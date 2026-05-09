@@ -2929,6 +2929,25 @@ class Editor:
                     label = font_small.render(nom, True, (60, 220, 255))
                     surf.blit(label, (cx - label.get_width() // 2, cy + 12))
 
+        # ── Points de sauvegarde sur les décors (étoile dorée) ─────────
+        # Marqueur visible TOUT LE TEMPS dans l'éditeur pour qu'on
+        # repère d'un coup d'œil les décors qui servent de save point
+        # (toggle via touche dédiée en mode décor : cf. ligne 1082).
+        for d in self.decors:
+            if not getattr(d, "is_save_point", False):
+                continue
+            r = self.camera.apply(d.rect)
+            cx, cy = r.centerx, r.top - 10
+            # Étoile dorée à 5 branches.
+            import math as _m
+            pts = []
+            for i in range(10):
+                ang = -_m.pi / 2 + i * _m.pi / 5
+                rr  = 9 if i % 2 == 0 else 4
+                pts.append((cx + rr * _m.cos(ang), cy + rr * _m.sin(ang)))
+            pygame.draw.polygon(surf, (255, 215, 70), pts)
+            pygame.draw.polygon(surf, (90, 60, 0), pts, 1)
+
     def draw_hud(self, surf, dt=0.016):
         """Bandeau d'information en haut + message éphémère en bas."""
         font  = self._get_font()

@@ -121,6 +121,12 @@ CEILING_Y    = 0              # Y du plafond par défaut
 #  Exemple concret : `self.x += PLAYER_SPEED * dt` → avance de 300 px en 1 s.
 
 GRAVITY       = 1500          # accélération verticale (px/s²)
+# Vitesse de chute MAX (vélocité terminale, px/s). Empêche la chute
+# d'accélérer à l'infini sur les longues hauteurs → la caméra reste
+# capable de suivre, le perso reste visible. Diminuer pour ralentir
+# encore (ex: 500 = chute lente type "feuille morte"). Augmenter
+# pour autoriser des chutes plus rapides.
+MAX_FALL_SPEED = 700
 JUMP_POWER    = 700          # impulsion de saut (px/s, vers le haut)
 PLAYER_SPEED  = 220           # vitesse horizontale de course (px/s)
 PLAYER_RUN_SPEED = 370        # vitesse horizontale courir (px/s)
@@ -164,8 +170,11 @@ KNOCKBACK_DECAY       = 0.85  # freinage appliqué chaque frame (× 0.85)
 
 # Régénération passive : si le joueur reste immobile au sol, il récupère
 # progressivement des PV. Le moindre mouvement remet les compteurs à zéro.
-REGEN_DELAY           = 1.5   # temps immobile avant le 1er PV récupéré (s)
-REGEN_INTERVAL        = 1.0   # intervalle entre deux PV récupérés (s)
+REGEN_DELAY           = 45.0  # temps immobile avant le 1er PV récupéré (s)
+REGEN_INTERVAL        = 45.0  # intervalle entre deux PV récupérés (s)
+# Régénération lente intentionnelle : pour récupérer rapidement, le
+# joueur consomme des pommes via la croix directionnelle (touches 1-4).
+# Cf. ui/quick_use.py et ITEMS["Pomme"]["heal_hp"] dans ui/inventory.py.
 
 
 # ═════════════════════════════════════════════════════════════════════════════

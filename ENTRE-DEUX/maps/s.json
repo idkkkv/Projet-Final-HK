@@ -3,12 +3,12 @@
   "ceiling_y": 0,
   "scene_width": 1900,
   "scene_left": 0,
-  "camera_y_offset": -230,
+  "camera_y_offset": -310,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 1834,
-    "y": 864
+    "x": 1840,
+    "y": 884
   },
   "named_spawns": {
     "ps": [
@@ -103,16 +103,6 @@
       "require_up": true
     },
     {
-      "x": 1887,
-      "y": 795,
-      "w": 12,
-      "h": 119,
-      "target_map": "villag",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": false
-    },
-    {
       "x": 373,
       "y": 829,
       "w": 67,
@@ -121,6 +111,16 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true
+    },
+    {
+      "x": 1886,
+      "y": 798,
+      "w": 13,
+      "h": 115,
+      "target_map": "map23 h",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false
     }
   ],
   "decors": [
@@ -191,7 +191,26 @@
       ],
       "dialogue_mode": "boucle_dernier",
       "has_gravity": false,
-      "is_save_point": false
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    },
+    {
+      "type": "pnj",
+      "x": 1279,
+      "y": 873,
+      "nom": "save",
+      "sprite_name": "objet_parlant_40x40.png",
+      "dialogues": [],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": false,
+      "is_save_point": true,
+      "events": [],
+      "dialogue_conditions": []
     }
   ],
   "trigger_zones": [],

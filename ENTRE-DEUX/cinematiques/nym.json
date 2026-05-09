@@ -1,0 +1,50 @@
+[
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "camera_focus_pnj",
+    "nom": "nymbus",
+    "duration": "garde la caméra fixée",
+    "speed": "0.03",
+    "follow": "1"
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Tu es tombé bien bas… Peu de gens arrivent ici.",
+        "auteur": "nymbus"
+      },
+      {
+        "texte": "Si tu veux un conseil, oublie les règles du monde que tu connaissais.",
+        "auteur": "nymbus"
+      }
+    ]
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Une salle d’entraînement se trouve un peu plus loin. Tu devrais commencer par là.",
+        "auteur": "nymbus"
+      },
+      {
+        "texte": "Et tiens… prends quelques pommes. Elles te seront utiles plus vite que tu ne l’imagines.",
+        "auteur": "nymbus"
+      }
+    ]
+  },
+  {
+    "type": "camera_release"
+  },
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "unlock_quickuse",
+    "pommes": 10
+  }
+]

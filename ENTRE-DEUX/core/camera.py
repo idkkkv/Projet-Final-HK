@@ -257,21 +257,20 @@ class Camera:
             return
 
         # ── Phase de retour cinématique ──────────────────────────────────────
-        # Pendant cinematic_active, la caméra centrait PILE sur le PNJ (sans
-        # y_offset). Si on rebascule direct au mode joueur normal (qui a un
-        # y_offset de 150 px), le target saute de 150 px en Y et la trajectoire
-        # de retour n'est plus le miroir de l'aller (effet "bas puis droite"
-        # désagréable). Pour avoir un retour symétrique, on cible le centre
-        # EXACT du joueur (sans y_offset) pendant la phase de retour. Le
-        # y_offset est réintroduit ensuite, en douceur, par le lerp normal.
+        # On cible directement la position FINALE de la caméra en mode
+        # joueur normal (i.e. avec y_offset appliqué). Avant on visait le
+        # centre EXACT du joueur, ce qui ignorait le décalage manuel
+        # défini en éditeur (PageUp/PageDown) → on voyait des choses
+        # qu'on ne devrait pas voir au-dessus/en-dessous, le temps que
+        # le lerp rattrape ensuite.
         if self._cinematic_returning:
             target_x = target_rect.centerx - self._sw // 2
-            target_y = target_rect.centery - self._sh // 2
+            target_y = target_rect.centery - self._sh // 2 + self.y_offset
             import math
             cs = max(0.001, min(1.0, self._cinematic_speed))
             rate_ret = -math.log(1.0 - cs) * 60.0
             f = self._facteur_lerp(dt, rate=rate_ret)
-            # Sortie de la phase quand on est très proche du centre joueur.
+            # Sortie de la phase quand on est très proche du target final.
             if abs(target_x - self.offset_x) < 8 and abs(target_y - self.offset_y) < 8:
                 self._cinematic_returning = False
         else:

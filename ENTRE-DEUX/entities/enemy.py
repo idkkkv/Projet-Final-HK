@@ -873,41 +873,44 @@ class Enemy:
     # patrouille, saut max possible, flèche de direction, etc.
 
     def draw(self, surf, camera, show_hitbox=False):
+        # FIX critique : on utilise la VRAIE taille de la frame courante,
+        # pas self.sprite_w/sprite_h qui est figé au 1er chargement. Les
+        # anims atk/run/die peuvent avoir des frames PLUS LARGES que
+        # idle → sans ça la zone de collision saute de 100+ px quand
+        # l'ennemi se retourne ou change d'anim.
         if not self.alive:
             img = self.animations["die"].img()
+            img_w, img_h = img.get_width(), img.get_height()
 
             if self.direction < 0:
                 img = pygame.transform.flip(img, True, False)
             if self.direction >= 0:
                 sx = self.rect.x - self.hitbox_ox
-                sy = self.rect.y - self.hitbox_oy
             else:
-                sx = self.rect.x - (self.sprite_w - self.hitbox_ox - self.hitbox_w)
-                sy = self.rect.y - self.hitbox_oy
+                sx = self.rect.x - (img_w - self.hitbox_ox - self.hitbox_w)
+            sy = self.rect.y - self.hitbox_oy
 
-            surf.blit(img, camera.apply(pygame.Rect(sx, sy, self.sprite_w, self.sprite_h)))
-            return            
-        
+            surf.blit(img, camera.apply(pygame.Rect(sx, sy, img_w, img_h)))
+            return
+
         # ── 1. Sprite ──
-        
-        #base
         img = self.animations[self.current_anim].img()
         self.animations[self.current_anim].update()
+        # Taille EFFECTIVE de cette frame (peut différer de sprite_w/h)
+        img_w, img_h = img.get_width(), img.get_height()
 
-        # se retourner
+        # Se retourner (mirror horizontal)
         if self.direction < 0:
             img = pygame.transform.flip(img, True, False)
 
-        # Position du sprite (le offset est miroir si on regarde à gauche).
+        # Position du sprite : on calcule l'offset pour que la HITBOX
+        # tombe pile sur self.rect, peu importe la taille de la frame.
         if self.direction >= 0:
             sx = self.rect.x - self.hitbox_ox
-            sy = self.rect.y - self.hitbox_oy
         else:
-            sx = self.rect.x - (self.sprite_w - self.hitbox_ox - self.hitbox_w)
-            sy = self.rect.y - self.hitbox_oy
-        surf.blit(img, camera.apply(pygame.Rect(
-            sx, sy, self.sprite_w, self.sprite_h,
-        )))
+            sx = self.rect.x - (img_w - self.hitbox_ox - self.hitbox_w)
+        sy = self.rect.y - self.hitbox_oy
+        surf.blit(img, camera.apply(pygame.Rect(sx, sy, img_w, img_h)))
 
         if not show_hitbox:
             return

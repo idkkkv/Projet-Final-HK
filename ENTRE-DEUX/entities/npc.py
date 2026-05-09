@@ -242,11 +242,71 @@ class PNJ:
 
     def __init__(self, x, y, nom, dialogues, sprite_name=None,
                  dialogue_mode="boucle_dernier", has_gravity=True,
-                 is_save_point=False, echelle = 1):
+                 is_save_point=False, events=None, dialogue_conditions=None, echelle = 1):
         self.nom           = nom
         self.sprite_name   = sprite_name
         self._dialogues    = dialogues
         self._conv_idx     = 0
+
+        # ── ÉVÉNEMENTS DE DIALOGUE ──────────────────────────────────────
+        # Liste parallèle à `_dialogues` : pour chaque conversation, une
+        # liste d'événements à déclencher quand le joueur a fini de la lire.
+        # Chaque événement est un dict { "type": str, ...params }.
+        # Types supportés (cf. game._appliquer_event_pnj) :
+        #
+        #   {"type": "skill", "value": "double_jump"}  → débloque skill_double_jump
+        #         valeurs possibles : double_jump, dash, back_dodge,
+        #                             wall_jump, attack, pogo
+        #
+        #   {"type": "luciole", "source": "anna"}      → ajoute 1 compagnon
+        #         "source" est un identifiant unique pour éviter le double-don
+        #
+        #   {"type": "coins", "value": 50}             → +50 pièces
+        #   {"type": "hp",    "value": 2}              → +2 PV (max → max_hp)
+        #   {"type": "max_hp","value": 1}              → +1 PV max (et soigne)
+        #   {"type": "item",  "value": "potion"}       → ajoute item à l'inventaire
+        #
+        # JSON exemple : un PNJ qui débloque le double saut au 2e dialogue :
+        #   {
+        #     "type": "pnj",
+        #     "dialogues": [
+        #       [["Tu sembles fatigué...", "Anna"]],
+        #       [["Prends ceci, ça t'aidera.", "Anna"]]
+        #     ],
+        #     "events": [
+        #       [],                                            // conv 0 : rien
+        #       [{"type": "skill", "value": "double_jump"}]    // conv 1 : double saut
+        #     ]
+        #   }
+        if events is None:
+            self.events = [[] for _ in (dialogues or [])]
+        else:
+            # Padding/troncage pour rester aligné avec les dialogues.
+            self.events = list(events)
+            while len(self.events) < len(dialogues or []):
+                self.events.append([])
+
+        # ── CONDITIONS DE DIALOGUE (story flags) ────────────────────────
+        # Liste parallèle aux dialogues : dialogue_conditions[i] est la
+        # condition à remplir pour que la conv i soit "disponible". Si la
+        # conv i n'est pas dispo, on saute à la suivante (ou on revient à
+        # la dernière dispo en mode boucle_dernier).
+        #
+        # Format d'une condition : dict ou None
+        #   None                          → toujours disponible (défaut)
+        #   {"flag": "key"}              → dispo si game.story_flags[key]==True
+        #   {"flag": "key", "value": False} → dispo si flag absent OU False
+        #   {"any": ["k1","k2"]}         → dispo si AU MOINS un flag True
+        #   {"all": ["k1","k2"]}         → dispo si TOUS les flags True
+        #
+        # Story flags : posés depuis cutscene (set_flag) ou depuis events
+        # PNJ (cf. game._appliquer_event_pnj). Cf. game.story_flags.
+        if dialogue_conditions is None:
+            self.dialogue_conditions = [None] * len(dialogues or [])
+        else:
+            self.dialogue_conditions = list(dialogue_conditions)
+            while len(self.dialogue_conditions) < len(dialogues or []):
+                self.dialogue_conditions.append(None)
         # Marqué True dès que la DERNIÈRE conversation a été jouée. En mode
         # boucle_dernier, après ce flag, on ne renvoie plus que LA DERNIÈRE
         # LIGNE (et pas la conv entière) pour signifier "il a déjà tout dit".
@@ -334,7 +394,46 @@ class PNJ:
     #  5. DIALOGUE (gestion de la conversation courante)
     # ═════════════════════════════════════════════════════════════════════════
 
-    def conversation_actuelle(self):
+    def _condition_satisfaite(self, cond, story_flags):
+        """True si la condition `cond` est validée par les flags fournis.
+
+        story_flags : dict str→bool (probablement game.story_flags). Une
+                      clé absente est considérée comme False."""
+        if cond is None:
+            return True
+        if not isinstance(cond, dict):
+            return True
+        flags = story_flags or {}
+        if "flag" in cond:
+            wanted = cond.get("value", True)
+            return bool(flags.get(cond["flag"], False)) == bool(wanted)
+        if "any" in cond:
+            return any(bool(flags.get(k, False)) for k in cond.get("any", []))
+        if "all" in cond:
+            return all(bool(flags.get(k, False)) for k in cond.get("all", []))
+        return True
+
+    def _index_conv_dispo(self, story_flags):
+        """Renvoie l'index de la conversation à jouer maintenant.
+
+        Avance si la conv courante n'est pas débloquée. Si plus aucune
+        conv dispo derrière, on revient à la dernière dispo trouvée.
+        """
+        if not self._dialogues:
+            return 0
+        idx = self._conv_idx
+        # On essaie de trouver la première conv dispo à partir de _conv_idx.
+        derniere_dispo = None
+        for i in range(len(self._dialogues)):
+            cond = self.dialogue_conditions[i] if i < len(self.dialogue_conditions) else None
+            if self._condition_satisfaite(cond, story_flags):
+                derniere_dispo = i
+                if i >= idx:
+                    return i
+        # Aucune conv dispo ≥ idx → on prend la dernière dispo trouvée.
+        return derniere_dispo if derniere_dispo is not None else idx
+
+    def conversation_actuelle(self, story_flags=None):
         """Retourne la liste de lignes de la conversation à jouer maintenant.
 
         N'AVANCE PAS l'index (c'est le rôle de passer_a_suivante() à la
@@ -361,7 +460,25 @@ class PNJ:
             # que la dialogue_box reçoive bien un format compatible.
             return [derniere_conv[-1]]
 
-        return self._dialogues[self._conv_idx]
+        # Sélection de la conv en tenant compte des conditions (story flags).
+        # Si aucun story_flags fourni → comportement legacy (utilise _conv_idx).
+        idx = self._conv_idx
+        if story_flags is not None:
+            idx = self._index_conv_dispo(story_flags)
+            self._conv_idx = idx
+        return self._dialogues[idx]
+
+    def evenements_a_declencher(self):
+        """Renvoie la liste d'événements à déclencher pour la conv qui
+        VIENT D'ÊTRE LUE. À appeler AVANT passer_a_suivante().
+
+        Ne touche PAS à l'état (game.py est responsable d'appliquer).
+        """
+        if not self.events or self._has_played_last:
+            return []
+        if 0 <= self._conv_idx < len(self.events):
+            return list(self.events[self._conv_idx])
+        return []
 
     def passer_a_suivante(self):
         """Avance après la fermeture d'une boîte de dialogue.
@@ -565,6 +682,8 @@ class PNJ:
             "dialogue_mode":  self.dialogue_mode,
             "has_gravity":    self.has_gravity,
             "is_save_point":  self.is_save_point,
+            "events":         list(self.events),
+            "dialogue_conditions": list(self.dialogue_conditions),
         }
 
     @staticmethod
@@ -582,6 +701,8 @@ class PNJ:
             dialogue_mode=data.get("dialogue_mode", "boucle_dernier"),
             has_gravity=data.get("has_gravity", True),
             is_save_point=data.get("is_save_point", False),
+            events=data.get("events", None),
+            dialogue_conditions=data.get("dialogue_conditions", None),
         )
     
     # ═════════════════════════════════════════════════════════════════════════

@@ -513,19 +513,6 @@ class Menu:
             "↑↓  naviguer    ⏎  valider", True, (70, 60, 110))
         surf.blit(aide, (cx - aide.get_width() // 2, h - 32))
 
-        # Indicateurs "il y en a au-dessus / en-dessous"
-        if scroll_start > 0:
-            up = self._police_option.render("▲", True, (150, 135, 200))
-            surf.blit(up, (cx - up.get_width() // 2, debut_y - 28))
-        if scroll_end < n:
-            dn = self._police_option.render("▼", True, (150, 135, 200))
-            surf.blit(dn, (cx - dn.get_width() // 2,
-                           debut_y + (scroll_end - scroll_start) * self.options_spacing + 4))
-
-        # ── Petite indication en bas ─────────────────────────────────────────
-        aide = self._police_sous.render("↑↓ Naviguer   Entrée Valider", True, (70, 60, 110))
-        surf.blit(aide, (cx - aide.get_width() // 2, h - 30))
-
     # ═════════════════════════════════════════════════════════════════════════
     #  9. RENDU — panneau flottant (pause)
     # ═════════════════════════════════════════════════════════════════════════

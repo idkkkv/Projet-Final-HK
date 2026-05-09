@@ -193,6 +193,10 @@ def charger_ou_synth(nom, chemin, freq, duree, volume=0.3, forme="sin"):
 def jouer(nom, volume=1.0):
     """Joue le son `nom` à `volume` (entre 0.0 et 1.0).
 
+    Le volume EFFECTIF est multiplié par settings.volume_sfx (master des
+    effets sonores, configurable depuis l'écran Paramètres). Si vide ou
+    invalide, on retombe sur 1.0 (= pas d'atténuation).
+
     CAS SPÉCIAL : "pas" — si une instance est déjà en train de jouer, on
     la COUPE avant de lancer la nouvelle. Comme ça la cadence des pas
     est pilotée 100% par STEP_INTERVAL_WALK / STEP_INTERVAL_RUN dans
@@ -202,7 +206,14 @@ def jouer(nom, volume=1.0):
     if son:
         if nom == "pas" and son.get_num_channels() > 0:
             son.stop()                         # coupe le précédent
-        son.set_volume(max(0.0, min(1.0, volume)))   # clamp [0, 1]
+        # Master SFX (paramètres). Lookup paresseux pour ne pas créer
+        # de dépendance circulaire au chargement du module.
+        try:
+            import settings
+            master = float(getattr(settings, "volume_sfx", 1.0))
+        except Exception:
+            master = 1.0
+        son.set_volume(max(0.0, min(1.0, volume * master)))
         son.play()
 
 

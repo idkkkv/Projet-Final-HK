@@ -362,6 +362,15 @@ class CutsceneTrigger(TriggerZone):
         if hasattr(game, "state"):
             game.state = "cinematic"
 
+        # Stoppe net la course/marche du joueur à l'entrée d'une
+        # cinématique déclenchée par zone trigger. Sinon il glisse
+        # avec son anim "run" pendant le 1er fade.
+        if hasattr(game, "joueur") and hasattr(game.joueur, "forcer_idle"):
+            try:
+                game.joueur.forcer_idle()
+            except Exception:
+                pass
+
         # Incrémente le compteur (et le marque pour sauvegarde).
         if self.cutscene_nom and hasattr(game, "cinematiques_jouees"):
             game.cinematiques_jouees[self.cutscene_nom] = \
@@ -728,6 +737,12 @@ def _steps_depuis_data(data):
         wait, dialogue, fade, camera_focus, camera_focus_pnj, camera_release,
         shake, play_sound, particles_burst, player_walk, npc_walk_by_name,
         set_player_pos,
+        # Nouvelles actions (apparition PNJ, récompenses, story flags, …)
+        npc_spawn, npc_despawn,
+        grant_skill, grant_luciole, give_item, give_coins,
+        set_flag, wait_for_player_at,
+        play_music, wait_input,
+        unlock_quickuse,
     )
 
     def _opt_float(v):
@@ -808,4 +823,54 @@ def _steps_depuis_data(data):
             ))
         elif t == "set_player_pos":
             steps.append(set_player_pos(_f(step.get("x")), _f(step.get("y"))))
+
+        # ── Nouvelles actions ──────────────────────────────────────────
+        elif t == "npc_spawn":
+            steps.append(npc_spawn(
+                step.get("nom", "PNJ"),
+                _f(step.get("x")), _f(step.get("y")),
+                dialogues=step.get("dialogues", []) or [],
+                sprite=step.get("sprite") or None,
+                dialogue_mode=step.get("dialogue_mode", "boucle_dernier"),
+                has_gravity=bool(step.get("has_gravity", 1)),
+                events=step.get("events"),
+            ))
+        elif t == "npc_despawn":
+            steps.append(npc_despawn(step.get("nom", "")))
+        elif t == "grant_skill":
+            steps.append(grant_skill(step.get("value", "")))
+        elif t == "grant_luciole":
+            steps.append(grant_luciole(step.get("source", "")))
+        elif t == "give_item":
+            steps.append(give_item(
+                step.get("name", ""),
+                _i(step.get("count"), 1),
+            ))
+        elif t == "give_coins":
+            steps.append(give_coins(_i(step.get("amount"), 0)))
+        elif t == "set_flag":
+            steps.append(set_flag(
+                step.get("key", ""),
+                bool(step.get("value", 1)),
+            ))
+        elif t == "wait_for_player_at":
+            steps.append(wait_for_player_at(
+                _f(step.get("x")), _f(step.get("y")),
+                radius=_f(step.get("radius"), 32),
+                timeout=_f(step.get("timeout"), 60),
+            ))
+        elif t == "play_music":
+            steps.append(play_music(
+                step.get("chemin", "") or "",
+                volume=_f(step.get("volume"), 0.6),
+                fadeout_ms=_i(step.get("fadeout_ms"), 1000),
+                fadein_ms=_i(step.get("fadein_ms"), 1500),
+            ))
+        elif t == "wait_input":
+            steps.append(wait_input(
+                step.get("touche", "any"),
+                timeout=_f(step.get("timeout"), 0),
+            ))
+        elif t == "unlock_quickuse":
+            steps.append(unlock_quickuse(_i(step.get("pommes"), 10)))
     return steps
