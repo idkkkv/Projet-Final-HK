@@ -58,6 +58,10 @@ ITEMS = {
         "contenu visuel": "video_cassette.mp4",
         "contenu sonore": "video_cassette.mp3"
     },
+    "Keys": {
+        "category": "Matériel",
+        "image": "keys.png"
+    }
 }
 
 CATEGORIES = ["Consommable", "Équipement", "Matériel"]

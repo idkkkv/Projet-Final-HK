@@ -242,7 +242,7 @@ class PNJ:
 
     def __init__(self, x, y, nom, dialogues, sprite_name=None,
                  dialogue_mode="boucle_dernier", has_gravity=True,
-                 is_save_point=False):
+                 is_save_point=False, echelle = 1):
         self.nom           = nom
         self.sprite_name   = sprite_name
         self._dialogues    = dialogues
@@ -281,7 +281,7 @@ class PNJ:
         self._etat_anim  = "idle"    # état courant ("idle" | "walk")
         self._facing     = 1         # 1 = droite (sprite normal), -1 = gauche (flip)
         self._prev_pos   = (x, y)    # pour détecter le mouvement
-
+            
         if sprite_name:
             anims_par_etat = _charger_animations_pnj(sprite_name)
             if anims_par_etat:
@@ -307,6 +307,15 @@ class PNJ:
         else:
             # Pas de frames → fallback rectangle.
             self.rect = pygame.Rect(x, y, 34, 54)
+
+                        # -- echelles --
+        self.echelle = echelle
+
+        if sprite_name == "nimbus":
+            self.echelle = 2
+
+        if sprite_name and self.echelle != 1:
+            self._rescale_frames(self.echelle)
 
         # Police initialisée paresseusement (au premier draw).
         self._police = None
@@ -574,3 +583,40 @@ class PNJ:
             has_gravity=data.get("has_gravity", True),
             is_save_point=data.get("is_save_point", False),
         )
+    
+    # ═════════════════════════════════════════════════════════════════════════
+    #  9. RESCALE d
+    # ═════════════════════════════════════════════════════════════════════════
+
+    def _rescale_frames(self, echelle):
+        """met le perso à l'echelle"""
+        # Si jamais il il a d'autres animations
+        for etat, anim in self._anims.items():
+            anim.images = [
+                pygame.transform.scale(
+                    f,
+                    (f.get_width() * echelle, f.get_height() * echelle)
+                )
+                for f in anim.images
+            ]
+
+        # Mode mono (fallback)
+        if self._anim:
+            self._anim.images = [
+                pygame.transform.scale(
+                    f,
+                    (f.get_width() * echelle, f.get_height() * echelle)
+                )
+                for f in self._anim.images
+            ]
+
+        # rect
+        if self._anims:
+            premiere = next(iter(self._anims.values()))
+            img = premiere.images[0]
+            self.rect = pygame.Rect(self.rect.x, self.rect.y,
+                                    img.get_width(), img.get_height())
+        elif self._anim:
+            img = self._anim.images[0]
+            self.rect = pygame.Rect(self.rect.x, self.rect.y,
+                                    img.get_width(), img.get_height())
