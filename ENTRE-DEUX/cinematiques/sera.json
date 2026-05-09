@@ -1,0 +1,29 @@
+[
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "camera_focus_pnj",
+    "nom": "Seraphin",
+    "duration": "garde la caméra fixée",
+    "speed": "0.03",
+    "follow": "1"
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Enfin réveillé… Approche-toi, j’ai à te parler.",
+        "auteur": "Seraphin*"
+      }
+    ]
+  },
+  {
+    "type": "wait",
+    "duration": 0.5
+  },
+  {
+    "type": "camera_release"
+  }
+]

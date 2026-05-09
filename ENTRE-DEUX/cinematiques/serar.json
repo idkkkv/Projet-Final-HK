@@ -1,0 +1,27 @@
+[
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Ça suffit. Retourne dans l’ombre avant que je ne change d’avis.",
+        "auteur": "Séraphin"
+      },
+      {
+        "texte": "…Tu t’y es pris trop tôt. Tu as voulu te battre alors que tu ne comprends encore rien à ce monde.",
+        "auteur": "Séraphin"
+      },
+      {
+        "texte": "Ici, la peur ne t’empêche pas seulement d’avancer… elle enchaîne aussi tes mains.",
+        "auteur": "Séraphin"
+      }
+    ]
+  },
+  {
+    "type": "wait",
+    "duration": 0.5
+  },
+  {
+    "type": "revive_player",
+    "cible": "sm1 l"
+  }
+]

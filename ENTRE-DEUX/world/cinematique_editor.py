@@ -250,6 +250,17 @@ TYPES_ETAPES = {
         "resume":  lambda d: f"+{d.get('amount',0)} pièces",
     },
 
+    # ── Mort scriptée (cinématique on_death) ─────────────────────────────
+    "revive_player": {
+        "libelle": "Réanimer le joueur (fin cinématique mort)",
+        "champs":  [
+            ("cible",
+             "Spawn cible : 'map spawn' ou 'spawn' (vide = défaut)",
+             ""),
+        ],
+        "resume":  lambda d: f"Réanime → '{d.get('cible','(défaut)')}'",
+    },
+
     # ── Macro : débloquer la barre quick-use + donner des pommes ─────────
     "unlock_quickuse": {
         "libelle": "Débloquer croix directionnelle (+ pommes)",
@@ -261,12 +272,24 @@ TYPES_ETAPES = {
 
     # ── Story flags (déclencheurs d'événements futurs) ───────────────────
     "set_flag": {
-        "libelle": "Poser un story flag",
+        "libelle": "Poser un story flag (booléen)",
         "champs":  [
             ("key",   "Clé (ex: 'parchemins_lus')", ""),
             ("value", "Valeur (1=true, 0=false)",     1),
         ],
         "resume":  lambda d: f"Flag {d.get('key','?')}={'T' if d.get('value',1) else 'F'}",
+    },
+    "flag_increment": {
+        "libelle": "Incrémenter un story flag (compteur)",
+        "champs":  [
+            ("key",      "Clé du flag (ex: 'tiroir_indices')", ""),
+            ("delta",    "Incrément (+N ou -N)",                 1),
+            ("required", "Required (vide = registre, sinon N)", ""),
+        ],
+        "resume":  lambda d: (f"Flag {d.get('key','?')} +="
+                              f"{d.get('delta',1)}"
+                              + (f" /req={d['required']}"
+                                 if d.get('required') not in (None, "", 0) else "")),
     },
 
     # ── Audio ──────────────────────────────────────────────────────────
@@ -312,18 +335,33 @@ TYPES_ETAPES = {
 class CinematiqueEditor:
     """Mini-IDE pour les cinématiques (s'affiche par-dessus le jeu)."""
 
+    # Hauteur en items visibles dans le popup [Inser] (choix du type).
+    # Avec ~24 types et un popup limité, on en montre 16 et on scrolle
+    # avec ↑↓ / PgUp / PgDn / Home / End.
+    _TYPE_PICK_VISIBLES = 16
+
     def __init__(self):
         self.actif       = False
         self.nom_fichier = ""              # ex: "foret/intro" (sans .json)
         self.steps       = []              # liste de dicts {"type": ..., ...}
         self.selection   = 0               # index de l'étape sélectionnée
 
+        # ── CONDITION D'ACTIVATION ──────────────────────────────────────
+        # Optionnelle : si définie, la cinématique ne se lance que quand
+        # cette condition (sur les story_flags) est vraie. Vérifiée par
+        # game.py après chaque changement de flag, avec un délai (sec).
+        # Format dict : cf. systems/story_flags.tester_condition.
+        self._condition = None             # None | dict
+        self._delay     = 1.0              # secondes d'attente avant déclenchement
+        self._one_shot  = True             # ne se déclenche qu'une seule fois
+
         # Mode interne :
-        #   None         = navigation dans la liste
-        #   "browser"    = affichage de l'arbre des cinématiques (pour [O])
-        #   "type_pick"  = popup du choix de type (pour [Inser])
-        #   "field"      = saisie d'un champ (édition d'une étape)
-        #   "filename"   = saisie du nom de fichier (sauvegarde / nouveau)
+        #   None              = navigation dans la liste
+        #   "browser"         = affichage de l'arbre des cinématiques (pour [O])
+        #   "type_pick"       = popup du choix de type (pour [Inser])
+        #   "field"           = saisie d'un champ (édition d'une étape)
+        #   "filename"        = saisie du nom de fichier (sauvegarde / nouveau)
+        #   "edit_condition"  = saisie de la condition d'activation
         self.mode = None
 
         # Référence à la caméra (posée par world.editor pour le picker [P]).
@@ -338,6 +376,11 @@ class CinematiqueEditor:
         # Reçoit le nom de la cinématique à "oublier" (rendue rejouable).
         # nom=None → reset TOUS les compteurs (Maj+Ctrl+R).
         self.on_reset_counter_callback = None
+
+        # Callback appelée après chaque sauvegarde [Ctrl+S] — posée par game.py.
+        # Permet de re-scanner les cinématiques conditionnelles (un fichier
+        # vient peut-être d'acquérir une condition d'activation).
+        self.on_save_callback = None
 
         # État de saisie de champ
         self._field_step_idx   = -1
@@ -357,6 +400,10 @@ class CinematiqueEditor:
         # Pour [Inser] : liste des types possibles, et l'index sélectionné
         self._type_keys     = list(TYPES_ETAPES.keys())
         self._type_index    = 0
+        self._type_scroll   = 0    # offset de scroll dans le popup type_pick
+
+        # Saisie d'une condition (mode "edit_condition")
+        self._cond_input    = ""
 
         # Police lazy
         self._font   = None
@@ -402,34 +449,76 @@ class CinematiqueEditor:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _charger(self, nom):
-        """nom = chemin relatif sans .json (ex: 'foret/intro')."""
+        """nom = chemin relatif sans .json (ex: 'foret/intro').
+
+        Supporte deux formats JSON :
+          - Liste pure (legacy) : [{...}, {...}]   → steps direct
+          - Dict (enrichi)      : {"steps":[...], "condition":{...},
+                                   "delay":1.0, "one_shot":true}
+        """
         chemin = os.path.join(CINEMATIQUES_DIR, f"{nom}.json")
         if not os.path.exists(chemin):
             self._msg_show(f"Introuvable : {nom}")
-            self.steps = []
+            self.steps      = []
+            self._condition = None
+            self._delay     = 1.0
+            self._one_shot  = True
             self.nom_fichier = nom
             return
         try:
             with open(chemin, encoding="utf-8") as f:
-                self.steps = json.load(f)
+                data = json.load(f)
         except Exception as e:
             self._msg_show(f"Erreur lecture : {e}")
-            self.steps = []
+            data = []
+        # Détection de format
+        if isinstance(data, dict):
+            self.steps      = list(data.get("steps", []))
+            self._condition = data.get("condition")
+            self._delay     = float(data.get("delay", 1.0))
+            self._one_shot  = bool(data.get("one_shot", True))
+        else:
+            self.steps      = list(data) if isinstance(data, list) else []
+            self._condition = None
+            self._delay     = 1.0
+            self._one_shot  = True
         self.nom_fichier = nom
         self.selection   = 0
         self.mode        = None
 
     def _sauver(self):
-        """Sauvegarde dans cinematiques/<nom_fichier>.json."""
+        """Sauvegarde dans cinematiques/<nom_fichier>.json.
+
+        Si une condition d'activation est définie, on sauvegarde le format
+        enrichi (dict). Sinon on garde le format simple (liste) pour
+        rétrocompatibilité avec les cinématiques existantes.
+        """
         if not self.nom_fichier:
             self._demander_nom("save_as")
             return
         chemin = os.path.join(CINEMATIQUES_DIR, f"{self.nom_fichier}.json")
         os.makedirs(os.path.dirname(chemin), exist_ok=True)
+        # Choix du format selon la présence d'une condition
+        if self._condition:
+            data = {
+                "condition": self._condition,
+                "delay":     self._delay,
+                "one_shot":  self._one_shot,
+                "steps":     self.steps,
+            }
+        else:
+            data = self.steps
         try:
             with open(chemin, "w", encoding="utf-8") as f:
-                json.dump(self.steps, f, indent=2, ensure_ascii=False)
+                json.dump(data, f, indent=2, ensure_ascii=False)
             self._msg_show(f"Sauvegardé : {self.nom_fichier}.json")
+            # Notifie game.py pour qu'il re-scanne les cinématiques avec
+            # condition (au cas où on vient d'en ajouter une).
+            if callable(self.on_save_callback):
+                try:
+                    self.on_save_callback()
+                except Exception as e_cb:
+                    print(f"[CineEditor] callback save : {e_cb}")
         except Exception as e:
             self._msg_show(f"Erreur écriture : {e}")
 
@@ -694,7 +783,8 @@ class CinematiqueEditor:
         if key == pygame.K_ESCAPE:
             if self.mode == "field":
                 self._annuler_edition_etape()
-            elif self.mode in ("browser", "type_pick", "filename"):
+            elif self.mode in ("browser", "type_pick", "filename",
+                               "edit_condition"):
                 self.mode = None
             else:
                 self.fermer()
@@ -709,6 +799,8 @@ class CinematiqueEditor:
             return self._handle_key_type_pick(key)
         if self.mode == "field":
             return self._handle_key_field(key)
+        if self.mode == "edit_condition":
+            return self._handle_key_condition(key)
 
         # Mode navigation : la liste des étapes
         return self._handle_key_navigation(key, mods)
@@ -721,6 +813,8 @@ class CinematiqueEditor:
             self._filename_input += text
         elif self.mode == "field":
             self._field_input += text
+        elif self.mode == "edit_condition":
+            self._cond_input += text
 
     def _handle_key_navigation(self, key, mods):
         shift = bool(mods & pygame.KMOD_SHIFT)
@@ -764,6 +858,13 @@ class CinematiqueEditor:
             self._demander_nom("new")
         elif key == pygame.K_o and ctrl:
             self._ouvrir_browser()
+        elif key == pygame.K_c and not ctrl:
+            # [C] = éditer la CONDITION D'ACTIVATION de la cinématique.
+            # Si elle est définie, la cinématique se déclenchera UNIQUEMENT
+            # quand cette condition (sur les story_flags) sera vraie. Le
+            # joueur doit avoir fini un dialogue (~delay sec) pour qu'elle
+            # soit vérifiée.
+            self._commencer_edition_condition()
         elif key == pygame.K_t and self.steps and self.on_test_callback:
             # Tester la cinématique : on ferme l'éditeur et on lance le run
             # via le callback (game.py construit un Cutscene depuis self.steps).
@@ -798,14 +899,56 @@ class CinematiqueEditor:
 
     def _handle_key_type_pick(self, key):
         n = len(self._type_keys)
+        # Nombre d'items visibles : doit correspondre à _draw_popup_type_pick.
+        visibles = self._TYPE_PICK_VISIBLES
         if key == pygame.K_UP and n:
             self._type_index = (self._type_index - 1) % n
         elif key == pygame.K_DOWN and n:
             self._type_index = (self._type_index + 1) % n
+        elif key == pygame.K_PAGEUP and n:
+            self._type_index = max(0, self._type_index - visibles)
+        elif key == pygame.K_PAGEDOWN and n:
+            self._type_index = min(n - 1, self._type_index + visibles)
+        elif key == pygame.K_HOME and n:
+            self._type_index = 0
+        elif key == pygame.K_END and n:
+            self._type_index = n - 1
         elif key == pygame.K_RETURN and n:
             type_cle = self._type_keys[self._type_index]
             self.mode = None
             self._commencer_ajout_etape(type_cle)
+        # Maintient l'item sélectionné dans la fenêtre visible.
+        if self._type_index < self._type_scroll:
+            self._type_scroll = self._type_index
+        elif self._type_index >= self._type_scroll + visibles:
+            self._type_scroll = self._type_index - visibles + 1
+        return True
+
+    # ── Édition de la condition d'activation ──────────────────────────────────
+
+    def _commencer_edition_condition(self):
+        """Ouvre le popup de saisie de la condition d'activation."""
+        from systems.story_flags import formater_condition_texte
+        self.mode        = "edit_condition"
+        self._cond_input = formater_condition_texte(self._condition)
+
+    def _handle_key_condition(self, key):
+        from systems.story_flags import parser_condition_texte
+        mods = pygame.key.get_mods()
+        ctrl = bool(mods & pygame.KMOD_CTRL)
+        if key == pygame.K_RETURN:
+            self._condition = parser_condition_texte(self._cond_input)
+            self.mode = None
+            if self._condition:
+                self._msg_show("Condition d'activation enregistrée ✓")
+            else:
+                self._msg_show("Condition retirée (déclenchement manuel)")
+        elif key == pygame.K_BACKSPACE:
+            self._cond_input = self._cond_input[:-1]
+        elif ctrl and key == pygame.K_v:
+            self._cond_input += _clipboard_get().replace("\n", "").replace("\r", "")
+        elif ctrl and key == pygame.K_c:
+            _clipboard_set(self._cond_input)
         return True
 
     def _handle_key_filename(self, key):
@@ -892,12 +1035,26 @@ class CinematiqueEditor:
 
         # Aide
         aide = ("[↑↓] [A] +  [D] -  [Enter] éditer  [Maj+↑↓] reord  "
-                "[T] Tester  [Ctrl+R] reset compteur  [Ctrl+S/N/O] sauv/new/open  [Esc]")
+                "[C] condition  [T] Tester  [Ctrl+R] reset  [Ctrl+S/N/O] sauv/new/open  [Esc]")
         surf.blit(fontsm.render(aide, True, (140, 140, 140)),
                   (cadre.x + 16, cadre.y + 38))
 
+        # ── Bandeau "Condition d'activation" ─────────────────────────────
+        # Si une condition est définie, elle s'affiche en doré pour rappeler
+        # que la cinématique ne se déclenchera que dans certaines conditions.
+        if self._condition:
+            from systems.story_flags import formater_condition_texte
+            cond_str = formater_condition_texte(self._condition)
+            txt = (f"⏵ Condition : {cond_str}   "
+                   f"(délai: {self._delay:.1f}s, "
+                   f"{'one-shot' if self._one_shot else 'rejouable'})")
+            surf.blit(fontsm.render(txt, True, (255, 215, 70)),
+                      (cadre.x + 16, cadre.y + 60))
+            y = cadre.y + 86
+        else:
+            y = cadre.y + 70
+
         # Liste des étapes
-        y = cadre.y + 70
         for i, step in enumerate(self.steps):
             meta = TYPES_ETAPES.get(step.get("type", ""))
             if meta:
@@ -935,6 +1092,8 @@ class CinematiqueEditor:
             self._draw_popup_type_pick(surf, font, fontsm)
         elif self.mode == "field":
             self._draw_popup_field(surf, font, fontsm)
+        elif self.mode == "edit_condition":
+            self._draw_popup_condition(surf, font, fontsm)
 
     def _is_picking_xy(self):
         """True si l'utilisateur est en train de saisir un champ x ou y."""
@@ -1027,22 +1186,60 @@ class CinematiqueEditor:
                       (box.x + 16, box.y + 50))
 
     def _draw_popup_type_pick(self, surf, font, fontsm):
-        box = self._draw_popup_box(surf, 500, 480)
-        surf.blit(font.render("Type d'étape :", True, (240, 200, 80)),
+        # Box plus large pour accueillir des libellés longs sans déborder.
+        box = self._draw_popup_box(surf, 620, 480)
+        surf.blit(font.render("Type d'étape :  ([↑↓] / [PgUp/PgDn] / [Home/End])",
+                              True, (240, 200, 80)),
                   (box.x + 16, box.y + 12))
-        y = box.y + 50
-        for i, key in enumerate(self._type_keys):
+
+        n        = len(self._type_keys)
+        visibles = self._TYPE_PICK_VISIBLES
+        # Ajuste le scroll au cas où l'index a bougé hors-fenêtre.
+        if self._type_index < self._type_scroll:
+            self._type_scroll = self._type_index
+        elif self._type_index >= self._type_scroll + visibles:
+            self._type_scroll = self._type_index - visibles + 1
+        self._type_scroll = max(0, min(self._type_scroll, max(0, n - visibles)))
+
+        y       = box.y + 50
+        debut   = self._type_scroll
+        fin     = min(n, debut + visibles)
+        # Flèche "↑" si du contenu au-dessus
+        if debut > 0:
+            surf.blit(fontsm.render("▲ ...", True, (180, 180, 200)),
+                      (box.x + 16, y - 14))
+
+        for i in range(debut, fin):
+            key  = self._type_keys[i]
             meta = TYPES_ETAPES[key]
             if i == self._type_index:
                 pygame.draw.rect(surf, (60, 60, 90),
                                  (box.x + 8, y - 2, box.width - 16, 22))
             color = (255, 255, 255) if i == self._type_index else (200, 200, 220)
-            surf.blit(font.render(f"{key:20s}  {meta['libelle']}", True, color),
+            # Tronque les libellés trop longs (sécurité)
+            label = f"{key:20s}  {meta['libelle']}"
+            if font.size(label)[0] > box.width - 30:
+                while label and font.size(label + "…")[0] > box.width - 30:
+                    label = label[:-1]
+                label += "…"
+            surf.blit(font.render(label, True, color),
                       (box.x + 16, y))
             y += 22
 
+        # Flèche "↓" si du contenu en-dessous
+        if fin < n:
+            surf.blit(fontsm.render(f"▼ ... ({n - fin} de plus)",
+                                    True, (180, 180, 200)),
+                      (box.x + 16, y + 2))
+
+        # Indicateur de position globale
+        pos_str = f"{self._type_index + 1}/{n}"
+        surf.blit(fontsm.render(pos_str, True, (160, 160, 180)),
+                  (box.right - 60, box.bottom - 22))
+
     def _draw_popup_field(self, surf, font, fontsm):
-        box = self._draw_popup_box(surf, 700, 160)
+        # Box élargie pour accueillir le wrap multi-lignes.
+        box = self._draw_popup_box(surf, 900, 230)
         meta = TYPES_ETAPES[self._field_pending["type"]]
         champs = meta["champs"]
         nom, libelle, _ = champs[self._field_index]
@@ -1053,19 +1250,90 @@ class CinematiqueEditor:
                   (box.x + 16, box.y + 12))
         surf.blit(font.render(libelle + " :", True, (200, 200, 200)),
                   (box.x + 16, box.y + 46))
-        surf.blit(font.render(self._field_input + "_", True, (255, 255, 255)),
-                  (box.x + 16, box.y + 74))
+
+        # Affichage avec wrap pour ne pas déborder de la box.
+        largeur_max = box.width - 32
+        lignes = self._wrap_texte(self._field_input + "_", font, largeur_max)
+        max_lignes = 4
+        lignes_visibles = lignes[-max_lignes:]
+        y = box.y + 74
+        for ligne in lignes_visibles:
+            surf.blit(font.render(ligne, True, (255, 255, 255)),
+                      (box.x + 16, y))
+            y += 22
+
         # Indication du picker [P] si on est sur un champ x/y
         if nom in ("x", "y"):
             surf.blit(fontsm.render(
                 "[P] = utiliser la position de la souris (monde)",
                 True, (180, 180, 120)),
-                (box.x + 16, box.y + 108))
-            # Affiche les coordonnées MONDE en temps réel pour aider à viser.
+                (box.x + 16, box.bottom - 44))
             self._draw_coords_overlay(surf, font)
         surf.blit(fontsm.render("[Enter] valider | [Esc] annuler",
                                 True, (140, 140, 140)),
-                  (box.x + 16, box.y + 130))
+                  (box.x + 16, box.bottom - 24))
+
+    def _draw_popup_condition(self, surf, font, fontsm):
+        """Popup pour saisir la condition d'activation de la cinématique."""
+        box = self._draw_popup_box(surf, 800, 220)
+        surf.blit(font.render("Condition d'activation de la cinématique :",
+                              True, (255, 215, 70)),
+                  (box.x + 16, box.y + 12))
+        aide_lignes = [
+            "(vide)            = pas de condition (cinématique sur trigger zone uniquement)",
+            "flag:tiroirs      = activée quand le flag 'tiroirs' est COMPLÉTÉ (current >= required)",
+            "flag:tiroirs=2    = activée quand current >= 2 (seuil)",
+            "flag:tiroirs=0    = activée quand le flag est INCOMPLET ou absent",
+            "any:k1,k2         = activée si AU MOINS un des flags est complet",
+            "all:k1,k2         = activée si TOUS les flags sont complets",
+        ]
+        y = box.y + 44
+        for li in aide_lignes:
+            surf.blit(fontsm.render(li, True, (170, 170, 200)),
+                      (box.x + 16, y))
+            y += 16
+
+        # Champ de saisie (wrap si très long)
+        largeur_max = box.width - 32
+        lignes = self._wrap_texte(self._cond_input + "_", font, largeur_max)
+        for ligne in lignes[-2:]:
+            surf.blit(font.render(ligne, True, (255, 255, 255)),
+                      (box.x + 16, y + 6))
+            y += 22
+
+        surf.blit(fontsm.render("[Enter] valider | [Esc] annuler | [Ctrl+V] coller",
+                                True, (140, 140, 140)),
+                  (box.x + 16, box.bottom - 22))
+
+    def _wrap_texte(self, texte, font, largeur_max):
+        """Coupe `texte` en lignes pour rester dans `largeur_max` (px)."""
+        if not texte:
+            return [""]
+        lignes = []
+        for paragraphe in texte.split("\n"):
+            mots  = paragraphe.split(" ")
+            ligne = ""
+            for mot in mots:
+                test = (ligne + " " + mot).strip()
+                if font.size(test)[0] <= largeur_max:
+                    ligne = test
+                else:
+                    if ligne:
+                        lignes.append(ligne)
+                    if font.size(mot)[0] > largeur_max:
+                        cur = ""
+                        for c in mot:
+                            if font.size(cur + c)[0] > largeur_max:
+                                if cur:
+                                    lignes.append(cur)
+                                cur = c
+                            else:
+                                cur += c
+                        ligne = cur
+                    else:
+                        ligne = mot
+            lignes.append(ligne)
+        return lignes or [""]
 
     def _draw_coords_overlay(self, surf, font):
         """Bandeau visible en haut à droite avec les coords MONDE de la souris.

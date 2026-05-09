@@ -29,6 +29,10 @@
       "sprite_name": "marchand"
     },
     {
+      "nom": "Seraphin",
+      "sprite_name": "marchand"
+    },
+    {
       "nom": "louis le marchand",
       "sprite_name": "marchand"
     }
@@ -49,7 +53,7 @@
   ],
   "carte_debut": "map22",
   "hud_mode": "permanent",
-  "nb_compagnons": 3,
+  "nb_compagnons": 0,
   "lucioles_couleurs_idx": [
     1,
     1,
@@ -58,7 +62,7 @@
     4
   ],
   "lucioles_tailles_idx": [
-    0,
+    3,
     2,
     2,
     2,

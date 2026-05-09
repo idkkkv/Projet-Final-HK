@@ -422,7 +422,8 @@ class Cutscene:
 
         elif step_type in ("npc_spawn", "npc_despawn", "grant_skill",
                             "grant_luciole", "give_item", "give_coins",
-                            "set_flag", "unlock_quickuse"):
+                            "set_flag", "flag_increment", "unlock_quickuse",
+                            "revive_player"):
             # Étapes instantanées : tout est fait dans _exec_step.
             pass
 
@@ -716,6 +717,82 @@ class Cutscene:
                     game.notifier(f"+ {n} pièces" if n > 0 else f"{n} pièces")
             return True
 
+        if step_type == "revive_player":
+            # Réanime le joueur après une cinématique de mort scriptée.
+            # - PV remis à max_hp
+            # - position via SPAWN NOMMÉ (cf. mode 14 de l'éditeur) :
+            #   cible = "mapname spawnname" ou juste "spawnname" pour la
+            #   carte courante. Comme pour les portails (target_map).
+            # - dead = False (annule l'écran de mort)
+            # - revive les ennemis de la map d'arrivée
+            game = ctx.game
+            joueur = ctx.joueur
+            if joueur is None or game is None:
+                return True
+
+            joueur.hp           = joueur.max_hp
+            joueur.dead         = False
+            joueur.vx           = 0
+            joueur.vy           = 0
+            joueur.knockback_vx = 0
+            joueur.invincible   = False
+
+            cible = str(params.get("cible", "")).strip()
+            nom_map  = None
+            nom_spawn = None
+            if cible:
+                if " " in cible:
+                    parts = cible.split(" ", 1)
+                    nom_map   = parts[0].strip()
+                    nom_spawn = parts[1].strip()
+                else:
+                    # Pas d'espace → c'est un nom de spawn dans la carte
+                    # courante (raccourci).
+                    nom_spawn = cible
+
+            # Charger la carte cible si différente de l'actuelle.
+            if nom_map and nom_map != game.carte_actuelle:
+                if hasattr(game.editeur, "load_map_for_portal"):
+                    if game.editeur.load_map_for_portal(nom_map):
+                        game.carte_actuelle = nom_map
+                        # Reconstruction des index spatiaux après chgt map.
+                        try:
+                            game._reconstruire_grille()
+                            game._murs_modifies()
+                            game._sync_triggers()
+                        except Exception:
+                            pass
+
+            # Récupère la position du spawn nommé.
+            named = getattr(game.editeur, "named_spawns", {}) or {}
+            pos = None
+            if nom_spawn and nom_spawn in named:
+                pos = named[nom_spawn]
+            if pos is not None:
+                joueur.rect.x = int(pos[0])
+                joueur.rect.y = int(pos[1])
+            else:
+                # Fallback : spawn par défaut de la map.
+                joueur.rect.x = game.editeur.spawn_x
+                joueur.rect.y = game.editeur.spawn_y
+                if cible:
+                    print(f"[Cutscene] revive_player : spawn '{cible}' "
+                          f"introuvable, fallback spawn défaut")
+
+            # Snap caméra sur la nouvelle pos.
+            if hasattr(game.camera, "snap_to"):
+                game.camera.snap_to(joueur.rect)
+            # Revive les ennemis du niveau.
+            for e in getattr(game, "ennemis", []):
+                e.alive = True
+            # Replace les compagnons.
+            if hasattr(game, "compagnons"):
+                try:
+                    game.compagnons.respawn(joueur)
+                except Exception:
+                    pass
+            return True
+
         if step_type == "unlock_quickuse":
             # Macro : pose le flag "quickuse_unlocked", donne N pommes,
             # affiche une notification. Tout-en-un pour la cinématique
@@ -739,15 +816,43 @@ class Cutscene:
             return True
 
         if step_type == "set_flag":
-            # Pose un story flag global accessible depuis les conditions
-            # de dialogue PNJ. Stocké dans game.story_flags (dict str→bool).
+            # Pose un story flag (booléen) — utilise le système avec compteurs.
             game = ctx.game
             if not hasattr(game, "story_flags"):
                 game.story_flags = {}
             key = str(params.get("key", ""))
             val = bool(params.get("value", True))
             if key:
-                game.story_flags[key] = val
+                from systems.story_flags import flag_poser
+                flag_poser(game.story_flags, key, val)
+                # Notifie game.py pour que les cinématiques conditionnelles
+                # puissent se déclencher si la condition vient d'être remplie.
+                if hasattr(game, "_programmer_verif_cine"):
+                    game._programmer_verif_cine()
+            return True
+
+        if step_type == "flag_increment":
+            # Incrémente un flag avec compteur. Crée le flag si absent (avec
+            # le required donné, sinon depuis le registre).
+            game = ctx.game
+            if not hasattr(game, "story_flags"):
+                game.story_flags = {}
+            key      = str(params.get("key", ""))
+            delta    = int(params.get("delta", 1))
+            required = params.get("required", None)
+            if required in ("", None):
+                required = None
+            else:
+                try:
+                    required = int(required)
+                except (TypeError, ValueError):
+                    required = None
+            if key:
+                from systems.story_flags import flag_incrementer
+                vient_de_finir = flag_incrementer(
+                    game.story_flags, key, delta=delta, required=required)
+                if vient_de_finir and hasattr(game, "_programmer_verif_cine"):
+                    game._programmer_verif_cine()
             return True
 
         # ────────────────────────────────────────────────────────────────
@@ -1051,6 +1156,29 @@ def give_coins(amount):
     return ("give_coins", {"amount": int(amount)})
 
 
+def revive_player(cible=""):
+    """Réanime le joueur après une cinématique de mort scriptée.
+
+    cible : spawn nommé où apparaître. Format identique aux portails :
+        "mapname spawnname"  → change de carte ET place sur le spawn
+        "spawnname"          → reste sur la carte courante
+        ""                   → fallback : spawn par défaut de la map
+
+    Effets :
+      - PV remis au max
+      - écran de mort annulé (joueur.dead = False)
+      - téléport vers le spawn nommé (cf. mode 14 de l'éditeur)
+      - ennemis de la map d'arrivée ressuscités
+      - compagnons replacés autour du joueur
+
+    À utiliser à la FIN d'une cinématique CutsceneTrigger en mode
+    on_death : le joueur meurt, le dialogue joue par-dessus l'écran
+    noir, puis cette action le téléporte vers un point safe (lit de
+    Séraphin par exemple) et lui rend la main.
+    """
+    return ("revive_player", {"cible": str(cible)})
+
+
 def unlock_quickuse(pommes=10):
     """Débloque la croix directionnelle de consommables rapides ET
     donne `pommes` pommes au joueur. Macro tout-en-un, à utiliser dans
@@ -1065,6 +1193,20 @@ def set_flag(key, value=True):
     """Pose un story flag global. Lu par les PNJ pour conditionner
     leurs dialogues (PNJ.dialogue_conditions). Cf. game.story_flags."""
     return ("set_flag", {"key": str(key), "value": bool(value)})
+
+
+def flag_increment(key, delta=1, required=None):
+    """Incrémente un flag avec compteur. Crée le flag si absent.
+
+    delta    : entier (peut être négatif).
+    required : à la CRÉATION du flag, fixe combien d'activations il faut
+               pour qu'il soit complet. Si None, lecture du registre.
+               Ignoré si le flag existe déjà.
+    """
+    p = {"key": str(key), "delta": int(delta)}
+    if required is not None:
+        p["required"] = int(required)
+    return ("flag_increment", p)
 
 
 # ── Attente conditionnelle (gameplay au milieu d'une cinématique) ────────────

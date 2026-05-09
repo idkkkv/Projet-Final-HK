@@ -1371,6 +1371,23 @@ class Editor:
                 )
                 return "text_input"
 
+        # [M] = bascule le MODE de la zone trigger sous le curseur :
+        #       enter (défaut, lance à l'entrée) ↔ on_death (lance quand
+        #       le joueur meurt dans la zone). Cf. CutsceneTrigger.mode.
+        elif key == pygame.K_q and self.mode == 12:
+            zone = self._trigger_sous_curseur()
+            if zone is None:
+                self._show_msg("Aucun trigger sous le curseur")
+            elif not hasattr(zone, "mode"):
+                self._show_msg("Cette zone ne supporte pas les modes")
+            else:
+                self._snapshot()
+                cycle = ["enter", "on_death"]
+                cur = getattr(zone, "mode", "enter")
+                idx = cycle.index(cur) if cur in cycle else 0
+                zone.mode = cycle[(idx + 1) % len(cycle)]
+                self._show_msg(f"Mode zone : {zone.mode}")
+
         return None
 
     def _new_map(self, bg_color=None):

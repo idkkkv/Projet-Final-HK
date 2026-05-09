@@ -218,6 +218,13 @@ class TriggerZone:
                 (rect_ecran.centerx - txt.get_width() // 2,
                  rect_ecran.centery - txt.get_height() // 2)
             )
+        # Affiche un tag de mode si défini (ex: "[ON_DEATH]"). Visible en
+        # haut à gauche du rectangle, en doré, pour différencier les zones
+        # à déclenchement spécial des zones d'entrée classiques.
+        mode = getattr(self, "mode", None)
+        if font is not None and mode and mode != "enter":
+            tag = font.render(f"[{mode.upper()}]", True, (255, 215, 70))
+            surface.blit(tag, (rect_ecran.x + 4, rect_ecran.y + 4))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -320,17 +327,26 @@ class CutsceneTrigger(TriggerZone):
     _COULEUR_DEBUG = (240, 200, 80)
 
     def __init__(self, rect, cutscene_nom="", cutscene_factory=None,
-                 nom="", one_shot=True, max_plays=1):
+                 nom="", one_shot=True, max_plays=1, mode="enter"):
         """cutscene_nom  : nom du fichier JSON dans cinematiques/ (ex: "intro").
         cutscene_factory : fabrique Python optionnelle (rétrocompatibilité).
                            Si fournie, elle a priorité sur le chargement JSON.
         max_plays        : nombre TOTAL de lectures dans toute la partie.
                            1 = unique (défaut). 0 = illimité. Compteur stocké
-                           dans la sauvegarde, reset à `Nouvelle partie`."""
+                           dans la sauvegarde, reset à `Nouvelle partie`.
+        mode             : DÉCLENCHEUR.
+                           - "enter" (défaut) : se lance quand le joueur
+                             ENTRE dans la zone.
+                           - "on_death" : se lance quand le joueur MEURT
+                             à l'intérieur de la zone (au lieu du Game
+                             Over normal). La cinématique doit inclure
+                             un revive_player à la fin pour rendre la
+                             main au joueur."""
         super().__init__(rect, nom=nom or cutscene_nom, one_shot=one_shot)
         self.cutscene_nom     = cutscene_nom
         self.cutscene_factory = cutscene_factory
         self.max_plays        = int(max_plays)
+        self.mode             = str(mode)
 
     def _charger_scene(self, ctx):
         """Construit la Cutscene : fabrique Python d'abord, fichier JSON ensuite."""
@@ -341,6 +357,20 @@ class CutsceneTrigger(TriggerZone):
         return None
 
     def on_enter(self, ctx):
+        # Mode "on_death" : on N'AGIT PAS à l'entrée. C'est game.py qui
+        # appellera fire(ctx) au moment du décès si le joueur est dans
+        # la zone. Cf. game._verifier_morts_in_zone().
+        if self.mode == "on_death":
+            return
+        self._lancer(ctx)
+
+    def fire(self, ctx):
+        """Force le déclenchement de la cinématique (utilisé par game.py
+        pour les modes != "enter" comme on_death)."""
+        self._lancer(ctx)
+
+    def _lancer(self, ctx):
+        """Logique commune de lancement (dédupliquée entre on_enter et fire)."""
         game = ctx.get("game")
         if game is None:
             return
@@ -381,6 +411,7 @@ class CutsceneTrigger(TriggerZone):
         d["type"]         = "cutscene"
         d["cutscene_nom"] = self.cutscene_nom
         d["max_plays"]    = self.max_plays
+        d["mode"]         = self.mode
         return d
 
 
@@ -682,6 +713,7 @@ def creer_depuis_dict(data):
             nom=nom,
             one_shot=one_shot,
             max_plays=int(data.get("max_plays", 1)),
+            mode=data.get("mode", "enter"),
         )
     if t == "teleport":
         return TeleportTrigger(
@@ -709,6 +741,11 @@ def creer_depuis_dict(data):
 def _charger_cutscene_fichier(nom, ctx):
     """Charge cinematiques/<nom>.json et renvoie un objet Cutscene.
 
+    Supporte deux formats :
+      - liste pure (legacy) : [{...}, {...}]
+      - dict (enrichi)     : {"steps":[...], "condition":{...},
+                              "delay":1.0, "one_shot":true}
+
     Renvoie None si le fichier est introuvable ou invalide (log console)."""
     from systems.cutscene import Cutscene
 
@@ -722,6 +759,10 @@ def _charger_cutscene_fichier(nom, ctx):
     except Exception as e:
         print(f"[Trigger] Erreur chargement '{nom}' : {e}")
         return None
+
+    # Le format enrichi est un dict ; on extrait juste les steps.
+    if isinstance(data, dict):
+        data = data.get("steps", [])
 
     return Cutscene(_steps_depuis_data(data))
 
@@ -740,9 +781,9 @@ def _steps_depuis_data(data):
         # Nouvelles actions (apparition PNJ, récompenses, story flags, …)
         npc_spawn, npc_despawn,
         grant_skill, grant_luciole, give_item, give_coins,
-        set_flag, wait_for_player_at,
+        set_flag, flag_increment, wait_for_player_at,
         play_music, wait_input,
-        unlock_quickuse,
+        unlock_quickuse, revive_player,
     )
 
     def _opt_float(v):
@@ -853,6 +894,14 @@ def _steps_depuis_data(data):
                 step.get("key", ""),
                 bool(step.get("value", 1)),
             ))
+        elif t == "flag_increment":
+            req_raw = step.get("required")
+            req = None if req_raw in ("", None) else _i(req_raw, 1)
+            steps.append(flag_increment(
+                step.get("key", ""),
+                _i(step.get("delta"), 1),
+                required=req,
+            ))
         elif t == "wait_for_player_at":
             steps.append(wait_for_player_at(
                 _f(step.get("x")), _f(step.get("y")),
@@ -873,4 +922,6 @@ def _steps_depuis_data(data):
             ))
         elif t == "unlock_quickuse":
             steps.append(unlock_quickuse(_i(step.get("pommes"), 10)))
+        elif t == "revive_player":
+            steps.append(revive_player(step.get("cible", "")))
     return steps

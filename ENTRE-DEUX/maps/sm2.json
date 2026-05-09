@@ -194,7 +194,14 @@
       "has_gravity": false,
       "is_save_point": false,
       "events": [
-        []
+        [
+          {
+            "type": "flag_increment",
+            "key": "tiroir_indices",
+            "delta": 1,
+            "required": 2
+          }
+        ]
       ],
       "dialogue_conditions": [
         null
@@ -222,13 +229,32 @@
       "has_gravity": false,
       "is_save_point": false,
       "events": [
-        []
+        [
+          {
+            "type": "flag_increment",
+            "key": "tiroir_indices",
+            "delta": 1
+          }
+        ]
       ],
       "dialogue_conditions": [
         null
       ]
     }
   ],
-  "trigger_zones": [],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": -53,
+      "y": -57,
+      "w": 1331,
+      "h": 495,
+      "nom": "sera4",
+      "one_shot": true,
+      "cutscene_nom": "sera4",
+      "max_plays": 1,
+      "mode": "on_death"
+    }
+  ],
   "danger_zones": []
 }
