@@ -287,10 +287,13 @@ def charger_cinematiques_conditionnelles():
                 continue
             nom_rel = os.path.relpath(chemin, CINEMATIQUES_DIR)
             nom_rel = nom_rel.replace("\\", "/")[:-5]   # retire .json
+            af = data.get("auto_fire", None)
             resultats.append({
                 "nom":       nom_rel,
                 "condition": data["condition"],
                 "delay":     float(data.get("delay", 1.0)),
                 "one_shot":  bool(data.get("one_shot", True)),
+                # auto_fire : None (heuristique), True (toujours), False (jamais)
+                "auto_fire": (None if af is None else bool(af)),
             })
     return resultats

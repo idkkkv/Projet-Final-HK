@@ -253,7 +253,7 @@
       "one_shot": true,
       "cutscene_nom": "sera4",
       "max_plays": 1,
-      "mode": "on_death"
+      "mode": "enter"
     }
   ],
   "danger_zones": []

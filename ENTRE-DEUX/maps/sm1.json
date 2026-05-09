@@ -228,8 +228,12 @@
       "dialogue_mode": "boucle_dernier",
       "has_gravity": true,
       "is_save_point": false,
-      "events": [],
-      "dialogue_conditions": []
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
     }
   ],
   "trigger_zones": [

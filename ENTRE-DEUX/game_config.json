@@ -57,7 +57,7 @@
   ],
   "carte_debut": "map22",
   "hud_mode": "permanent",
-  "nb_compagnons": 0,
+  "nb_compagnons": 2,
   "lucioles_couleurs_idx": [
     1,
     1,
@@ -73,6 +73,6 @@
     2
   ],
   "luminosite": 1.0,
-  "volume_musique": 0.65,
+  "volume_musique": 0.0,
   "volume_sfx": 0.55
 }

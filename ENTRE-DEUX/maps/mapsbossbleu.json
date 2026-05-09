@@ -1,0 +1,123 @@
+{
+  "ground_y": 170,
+  "ceiling_y": 0,
+  "scene_width": 2900,
+  "scene_left": 1600,
+  "camera_y_offset": 150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": -750,
+    "y": 161
+  },
+  "named_spawns": {},
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 1600,
+      "y": 170,
+      "w": 1300,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 1600,
+      "y": -800,
+      "w": 1300,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": 800,
+      "y": -800,
+      "w": 800,
+      "h": 1770
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2900,
+      "y": -800,
+      "w": 800,
+      "h": 1770
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 581,
+      "y": 240,
+      "radius": 129,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -842,
+      "y": 236,
+      "radius": 125,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 214,
+      "y": -318,
+      "radius": 124,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -435,
+      "y": -319,
+      "radius": 133,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -930,
+      "y": -275,
+      "radius": 113,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 714,
+      "y": -276,
+      "radius": 116,
+      "type": "player",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [],
+  "decors": [
+    {
+      "x": -1123,
+      "y": -432,
+      "sprite": "tiled_mapsbossbleu_d_cor_1_x2p70.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": [],
+  "danger_zones": []
+}

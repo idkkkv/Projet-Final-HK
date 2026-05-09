@@ -690,6 +690,16 @@ class Editor:
                 return z
         return None
 
+    def _triggers_sous_curseur(self):
+        """Comme _trigger_sous_curseur mais renvoie TOUTES les zones qui
+        contiennent le curseur (utile quand plusieurs zones se chevauchent
+        et qu'il faut pouvoir cycler dessus)."""
+        mx, my = pygame.mouse.get_pos()
+        wx = int(mx + self.camera.offset_x)
+        wy = int(my + self.camera.offset_y)
+        pt = pygame.Rect(wx, wy, 1, 1)
+        return [z for z in self.trigger_zones if z.rect.colliderect(pt)]
+
     def _decor_sprites_filtrés(self):
         """Liste des décors filtrée par la catégorie courante."""
         if self._decor_cat_index < 0 or not self._decor_categories:
@@ -1113,7 +1123,7 @@ class Editor:
             self._snapshot()
             if   key == pygame.K_UP:    settings.GROUND_Y  = max(100,  settings.GROUND_Y - 20)
             elif key == pygame.K_DOWN:  settings.GROUND_Y  = min(4000, settings.GROUND_Y + 20)
-            elif key == pygame.K_HOME:  settings.CEILING_Y = max(-1500, settings.CEILING_Y - 20)
+            elif key == pygame.K_HOME:  settings.CEILING_Y = max(-3000, settings.CEILING_Y - 20)
             elif key == pygame.K_END:   settings.CEILING_Y = min(settings.GROUND_Y - 100,
                                                                  settings.CEILING_Y + 20)
             elif key == pygame.K_LEFT:
@@ -1371,22 +1381,40 @@ class Editor:
                 )
                 return "text_input"
 
-        # [M] = bascule le MODE de la zone trigger sous le curseur :
+        # [Maj+Q] = bascule le MODE de la zone trigger sous le curseur :
         #       enter (défaut, lance à l'entrée) ↔ on_death (lance quand
         #       le joueur meurt dans la zone). Cf. CutsceneTrigger.mode.
-        elif key == pygame.K_q and self.mode == 12:
-            zone = self._trigger_sous_curseur()
-            if zone is None:
-                self._show_msg("Aucun trigger sous le curseur")
-            elif not hasattr(zone, "mode"):
-                self._show_msg("Cette zone ne supporte pas les modes")
+        # NB : on EXIGE Maj car Q seul sert à se déplacer à gauche dans le
+        # jeu — sans le modificateur, on basculait des modes par accident.
+        # Quand plusieurs zones se chevauchent, chaque Maj+Q sur le même
+        # point passe à la zone suivante (cycle). Le message en bas affiche
+        # le nom de la zone modifiée + sa position dans le cycle.
+        elif (key == pygame.K_q and self.mode == 12
+                and (mods & pygame.KMOD_SHIFT)):
+            zones = self._triggers_sous_curseur()
+            zones = [z for z in zones if hasattr(z, "mode")]
+            if not zones:
+                self._show_msg("Aucun trigger (avec mode) sous le curseur")
             else:
+                # Cycle entre les zones empilées : la même position garde
+                # son index, on incrémente. Si la souris bouge (set de zones
+                # différent), on repart de zéro.
+                cle = tuple(id(z) for z in zones)
+                etat = getattr(self, "_trigger_cycle_state", (None, 0))
+                idx_cycle = etat[1] if etat[0] == cle else 0
+                idx_cycle = idx_cycle % len(zones)
+                zone = zones[idx_cycle]
                 self._snapshot()
                 cycle = ["enter", "on_death"]
                 cur = getattr(zone, "mode", "enter")
-                idx = cycle.index(cur) if cur in cycle else 0
-                zone.mode = cycle[(idx + 1) % len(cycle)]
-                self._show_msg(f"Mode zone : {zone.mode}")
+                idx_mode = cycle.index(cur) if cur in cycle else 0
+                zone.mode = cycle[(idx_mode + 1) % len(cycle)]
+                # Avance l'index pour le prochain Maj+Q.
+                self._trigger_cycle_state = (cle, idx_cycle + 1)
+                nom_z = getattr(zone, "nom", "?") or getattr(zone, "cutscene_nom", "?")
+                self._show_msg(
+                    f"Zone '{nom_z}' ({idx_cycle+1}/{len(zones)}) → mode : {zone.mode}"
+                )
 
         return None
 

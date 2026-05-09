@@ -1,0 +1,40 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "dialogue",
+      "lignes": [
+        {
+          "texte": "Les chemins que l’on t’impose ne sont pas toujours ceux qui mènent à la vérité.",
+          "auteur": "######"
+        },
+        {
+          "texte": "Celui qui t’a recueilli ne détient peut-être pas toutes les réponses que tu cherches.",
+          "auteur": "######"
+        },
+        {
+          "texte": "Devant la maison de Séraphin, sous le tas de bois, quelque chose attend d’être découvert.",
+          "auteur": "######"
+        },
+        {
+          "texte": "Ce qui paraît immobile n’est parfois qu’une porte que l’on n’a pas encore osé ouvrir.",
+          "auteur": "######"
+        }
+      ]
+    },
+    {
+      "type": "revive_player",
+      "cible": "sm1 l"
+    }
+  ],
+  "condition": {
+    "flag": "ent3",
+    "min": 1
+  },
+  "delay": 1.0,
+  "one_shot": true,
+  "auto_fire": false
+}

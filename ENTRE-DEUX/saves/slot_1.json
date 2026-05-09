@@ -1,0 +1,132 @@
+{
+  "_meta": {
+    "version": 1,
+    "saved_at": "2026-05-09T20:26:47",
+    "play_time_s": 465,
+    "slot_label": "Slot 1"
+  },
+  "story": {
+    "mode": "histoire",
+    "current_map": "villag",
+    "cinematics_played": {
+      "tombe": 1,
+      "nym": 1,
+      "serar": 1,
+      "sera": 1,
+      "sera2": 1,
+      "sera4": 1,
+      "ny": 1
+    },
+    "dialog_history": {
+      "PNJ": {
+        "sm2": [
+          [
+            [
+              "Vous distinguez difficilement quelques mots gravés sur ce parchemin ancien",
+              "######"
+            ],
+            [
+              "...la seul sortie est la porte du Seuil. Mais pour l'atteindre, il faut vaincre ce qu'on redoute le plus...",
+              "Parchemin n°05"
+            ]
+          ],
+          [
+            [
+              "L'encre de ce vieux parchemin s'est presque effacée, ne laissant que de rares traces de texte",
+              "######"
+            ],
+            [
+              "...les âmes qui restent trop longtemps oublient pourquoi elles sont venues...",
+              "Parchemin n°01"
+            ],
+            [
+              "...le Gardien se nourrit de leurs peurs. Plus elles ont peur, plus il est fort...",
+              "Parchemin n°01"
+            ]
+          ]
+        ]
+      }
+    },
+    "flags": {
+      "quickuse_unlocked": true,
+      "ent3": {
+        "current": 1,
+        "required": 1
+      },
+      "tiroir_indices": {
+        "current": 2,
+        "required": 2
+      },
+      "ny": {
+        "current": 1,
+        "required": 1
+      }
+    }
+  },
+  "player": {
+    "x": -1109,
+    "y": 388,
+    "hp": 5,
+    "max_hp": 5,
+    "direction": 1
+  },
+  "inventory": {
+    "slots": [
+      {
+        "name": "Cassette",
+        "count": 1
+      },
+      {
+        "name": "Pomme",
+        "count": 10
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "fear": {
+    "current": 100.0,
+    "target": 100.0
+  },
+  "companions": {
+    "count": 1,
+    "sources_obtained": []
+  },
+  "enemies": {
+    "killed_per_map": {}
+  },
+  "skills": {
+    "double_jump": true,
+    "dash": false,
+    "back_dodge": false,
+    "wall_jump": false,
+    "attack": true,
+    "pogo": false
+  }
+}

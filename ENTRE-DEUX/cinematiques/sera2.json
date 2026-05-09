@@ -45,5 +45,11 @@
   {
     "type": "grant_skill",
     "value": "attack"
+  },
+  {
+    "type": "flag_increment",
+    "key": "ent3",
+    "delta": 1,
+    "required": "1"
   }
 ]
