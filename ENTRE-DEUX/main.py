@@ -24,14 +24,14 @@
 #     [D1]  point d'entrée — convention Python pour démarrer une appli
 #
 # ─────────────────────────────────────────────────────────────────────────────
-
 import os
+os.environ['SDL_AUDIODRIVER'] = 'directsound' # On essaie directsound à la place de WASAPI
+import pygame
 import gc
 import sys
 import atexit
 
 from core.game import Game
-
 
 # ─── Désactive les "touches rémanentes" Windows pendant le jeu ─────────────
 # Sur Windows, appuyer 5× rapidement sur Maj ouvre une popup système
