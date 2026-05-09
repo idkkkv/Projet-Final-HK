@@ -741,6 +741,11 @@ def creer_depuis_dict(data):
 def _charger_cutscene_fichier(nom, ctx):
     """Charge cinematiques/<nom>.json et renvoie un objet Cutscene.
 
+    Supporte deux formats :
+      - liste pure (legacy) : [{...}, {...}]
+      - dict (enrichi)     : {"steps":[...], "condition":{...},
+                              "delay":1.0, "one_shot":true}
+
     Renvoie None si le fichier est introuvable ou invalide (log console)."""
     from systems.cutscene import Cutscene
 
@@ -754,6 +759,10 @@ def _charger_cutscene_fichier(nom, ctx):
     except Exception as e:
         print(f"[Trigger] Erreur chargement '{nom}' : {e}")
         return None
+
+    # Le format enrichi est un dict ; on extrait juste les steps.
+    if isinstance(data, dict):
+        data = data.get("steps", [])
 
     return Cutscene(_steps_depuis_data(data))
 
@@ -772,7 +781,7 @@ def _steps_depuis_data(data):
         # Nouvelles actions (apparition PNJ, récompenses, story flags, …)
         npc_spawn, npc_despawn,
         grant_skill, grant_luciole, give_item, give_coins,
-        set_flag, wait_for_player_at,
+        set_flag, flag_increment, wait_for_player_at,
         play_music, wait_input,
         unlock_quickuse, revive_player,
     )
@@ -884,6 +893,14 @@ def _steps_depuis_data(data):
             steps.append(set_flag(
                 step.get("key", ""),
                 bool(step.get("value", 1)),
+            ))
+        elif t == "flag_increment":
+            req_raw = step.get("required")
+            req = None if req_raw in ("", None) else _i(req_raw, 1)
+            steps.append(flag_increment(
+                step.get("key", ""),
+                _i(step.get("delta"), 1),
+                required=req,
             ))
         elif t == "wait_for_player_at":
             steps.append(wait_for_player_at(

@@ -422,7 +422,8 @@ class Cutscene:
 
         elif step_type in ("npc_spawn", "npc_despawn", "grant_skill",
                             "grant_luciole", "give_item", "give_coins",
-                            "set_flag", "unlock_quickuse", "revive_player"):
+                            "set_flag", "flag_increment", "unlock_quickuse",
+                            "revive_player"):
             # Étapes instantanées : tout est fait dans _exec_step.
             pass
 
@@ -815,15 +816,43 @@ class Cutscene:
             return True
 
         if step_type == "set_flag":
-            # Pose un story flag global accessible depuis les conditions
-            # de dialogue PNJ. Stocké dans game.story_flags (dict str→bool).
+            # Pose un story flag (booléen) — utilise le système avec compteurs.
             game = ctx.game
             if not hasattr(game, "story_flags"):
                 game.story_flags = {}
             key = str(params.get("key", ""))
             val = bool(params.get("value", True))
             if key:
-                game.story_flags[key] = val
+                from systems.story_flags import flag_poser
+                flag_poser(game.story_flags, key, val)
+                # Notifie game.py pour que les cinématiques conditionnelles
+                # puissent se déclencher si la condition vient d'être remplie.
+                if hasattr(game, "_programmer_verif_cine"):
+                    game._programmer_verif_cine()
+            return True
+
+        if step_type == "flag_increment":
+            # Incrémente un flag avec compteur. Crée le flag si absent (avec
+            # le required donné, sinon depuis le registre).
+            game = ctx.game
+            if not hasattr(game, "story_flags"):
+                game.story_flags = {}
+            key      = str(params.get("key", ""))
+            delta    = int(params.get("delta", 1))
+            required = params.get("required", None)
+            if required in ("", None):
+                required = None
+            else:
+                try:
+                    required = int(required)
+                except (TypeError, ValueError):
+                    required = None
+            if key:
+                from systems.story_flags import flag_incrementer
+                vient_de_finir = flag_incrementer(
+                    game.story_flags, key, delta=delta, required=required)
+                if vient_de_finir and hasattr(game, "_programmer_verif_cine"):
+                    game._programmer_verif_cine()
             return True
 
         # ────────────────────────────────────────────────────────────────
@@ -1164,6 +1193,20 @@ def set_flag(key, value=True):
     """Pose un story flag global. Lu par les PNJ pour conditionner
     leurs dialogues (PNJ.dialogue_conditions). Cf. game.story_flags."""
     return ("set_flag", {"key": str(key), "value": bool(value)})
+
+
+def flag_increment(key, delta=1, required=None):
+    """Incrémente un flag avec compteur. Crée le flag si absent.
+
+    delta    : entier (peut être négatif).
+    required : à la CRÉATION du flag, fixe combien d'activations il faut
+               pour qu'il soit complet. Si None, lecture du registre.
+               Ignoré si le flag existe déjà.
+    """
+    p = {"key": str(key), "delta": int(delta)}
+    if required is not None:
+        p["required"] = int(required)
+    return ("flag_increment", p)
 
 
 # ── Attente conditionnelle (gameplay au milieu d'une cinématique) ────────────

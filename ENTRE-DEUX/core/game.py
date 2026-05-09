@@ -298,6 +298,10 @@ class Game:
         # une cinématique 'unique' déjà consommée — utile en dev/test).
         self.editeur.cine_editor.on_reset_counter_callback = \
             self._reset_compteur_cinematique
+        # [Ctrl+S] dans le cine_editor = re-scan des cinématiques avec condition
+        # (au cas où on vient d'ajouter une condition à un fichier).
+        self.editeur.cine_editor.on_save_callback = \
+            self._charger_cine_flag_watchers
 
         # On branche l'éditeur dans le menu Paramètres : la page
         # "Compagnons" (couleur/taille/nb des Lueurs) n'est accessible
@@ -482,10 +486,20 @@ class Game:
         # (carte, x, y) du dernier save manuel — utilisé par Recommencer
         # après mort pour respawn au banc plutôt qu'au spawn de map.
         self._dernier_save_pos = None
-        # Story flags : dict str→bool. Posé par cutscene set_flag() ou
-        # par PNJ events. Lu par les PNJ pour conditionner les dialogues
-        # (PNJ.dialogue_conditions). Sauvegardé / restauré dans le slot.
+        # Story flags : dict {key: {"current": N, "required": M}}.
+        # (Anciens flags booléens automatiquement normalisés à la lecture.)
+        # Posé par cutscene set_flag/flag_increment ou PNJ events. Lu pour
+        # conditionner dialogues (PNJ.dialogue_conditions) et cinématiques
+        # (cinématique JSON enrichi avec "condition"). Sauvegardé.
         self.story_flags = {}
+        # ── Cinématiques conditionnelles ─────────────────────────────────
+        # Liste des cinematiques avec une condition de déclenchement (scan
+        # de cinematiques/*.json au démarrage). Vérifiée après chaque flag
+        # event avec un délai (1s par défaut) pour laisser le dialogue se
+        # fermer proprement avant d'enchaîner sur la cinématique.
+        self._cine_flag_watchers = []
+        self._cine_verif_pending = False
+        self._cine_verif_delay   = 0.0
         # File de notifications éphémères (haut-centre). Une notif =
         # (texte, timer_restant). Posée via self.notifier(text).
         # Affichée au-dessus du HUD pendant ~3 secondes.
@@ -499,6 +513,8 @@ class Game:
             title="FIN",
             style="panneau",
         )
+        # Scan initial des cinématiques conditionnelles (cf. systems/story_flags).
+        self._charger_cine_flag_watchers()
 
     def _init_audio_menu(self):
         """Lance la musique du menu + prépare l'effet de réveil."""
@@ -1289,17 +1305,136 @@ class Game:
                     pass
 
         elif etype == "flag":
-            # Pose un story flag global. Lu par les PNJ pour conditionner
-            # leurs dialogues (PNJ.dialogue_conditions).
+            # Pose un story flag (booléen). Utilise le système avec compteurs
+            # (flag_poser normalise vers {current, required}).
             key = event.get("key", "")
             val = bool(event.get("value", True))
             if key:
                 if not hasattr(self, "story_flags"):
                     self.story_flags = {}
-                self.story_flags[key] = val
+                from systems.story_flags import flag_poser
+                flag_poser(self.story_flags, key, val)
+                # Si la condition d'une cinématique est désormais remplie,
+                # elle se déclenchera après un court délai.
+                self._programmer_verif_cine()
+
+        elif etype == "flag_increment":
+            # Incrémente un flag avec compteur. Crée le flag si absent (avec
+            # le required donné en argument, sinon depuis le registre).
+            key      = event.get("key", "")
+            delta    = int(event.get("delta", 1))
+            required = event.get("required", None)
+            if not key:
+                return
+            if not hasattr(self, "story_flags"):
+                self.story_flags = {}
+            from systems.story_flags import flag_incrementer, flag_valeur
+            vient_de_finir = flag_incrementer(
+                self.story_flags, key, delta=delta, required=required)
+            cur, req = flag_valeur(self.story_flags, key)
+            self.notifier(f"{key} : {cur}/{req}")
+            # On vérifie TOUJOURS (pas seulement à la complétion) — certaines
+            # conditions utilisent un seuil (flag:k=N avec N < required).
+            self._programmer_verif_cine()
 
         else:
             print(f"[event PNJ] type inconnu : {etype!r}")
+
+    # ─────────────────────────────────────────────────────────────────────
+    #  CINÉMATIQUES CONDITIONNELLES (déclenchées par flags)
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _charger_cine_flag_watchers(self):
+        """Scanne cinematiques/ et met à jour la liste des cinématiques avec
+        condition. Appelé au démarrage et à chaque chargement de map."""
+        try:
+            from systems.story_flags import charger_cinematiques_conditionnelles
+            self._cine_flag_watchers = charger_cinematiques_conditionnelles()
+        except Exception as e:
+            print(f"[Cine watchers] échec scan : {e}")
+            self._cine_flag_watchers = []
+
+    def _programmer_verif_cine(self, delai=None):
+        """Programme une vérification des cinématiques conditionnelles.
+
+        Le délai par défaut est lu sur chaque watcher individuellement
+        (à la vérification). Ici on stocke juste l'attente max parmi
+        tous les watchers définis (ou 1.0s si aucun)."""
+        if not self._cine_flag_watchers:
+            return
+        # Délai = max des délais des watchers (laisse à TOUS le temps de jouer)
+        if delai is None:
+            delai = max((w.get("delay", 1.0)
+                         for w in self._cine_flag_watchers), default=1.0)
+        self._cine_verif_pending = True
+        # Si une vérification est déjà en attente, on prend le délai le plus long
+        # pour qu'aucune ne soit oubliée.
+        self._cine_verif_delay = max(self._cine_verif_delay, float(delai))
+
+    def _avancer_verif_cine(self, dt):
+        """Décompte du timer + déclenchement quand il atteint 0. Appelé
+        depuis _update_jeu chaque frame."""
+        if not self._cine_verif_pending:
+            return
+        self._cine_verif_delay -= dt
+        if self._cine_verif_delay > 0:
+            return
+        # Timer expiré : on vérifie maintenant.
+        self._cine_verif_pending = False
+        self._cine_verif_delay   = 0.0
+        # Ne déclenche pas une cinématique pendant un dialogue, une cinématique
+        # en cours ou un overlay éditeur — sinon on perturbe l'écran courant.
+        if self.dialogue.actif or self.cutscene is not None:
+            # On reprogramme pour plus tard
+            self._cine_verif_pending = True
+            self._cine_verif_delay   = 0.5
+            return
+        if self.editeur.active:
+            return
+        self._verifier_cinematiques_conditionnelles()
+
+    def _verifier_cinematiques_conditionnelles(self):
+        """Vérifie chaque watcher : si sa condition est vraie ET qu'il n'a pas
+        déjà été déclenché (one_shot), on lance la cinématique."""
+        from systems.story_flags import tester_condition
+
+        for watcher in self._cine_flag_watchers:
+            nom       = watcher.get("nom", "")
+            condition = watcher.get("condition")
+            one_shot  = watcher.get("one_shot", True)
+            if not nom or not condition:
+                continue
+            # Compteur de déclenchement (one_shot = max 1)
+            joues = self.cinematiques_jouees.get(nom, 0)
+            if one_shot and joues >= 1:
+                continue
+            if not tester_condition(self.story_flags, condition):
+                continue
+            # Tout est OK → on lance la cinématique
+            self._lancer_cinematique_par_nom(nom)
+            self.cinematiques_jouees[nom] = joues + 1
+            # Une seule cinématique à la fois (on n'enchaîne pas).
+            return
+
+    def _lancer_cinematique_par_nom(self, nom):
+        """Charge cinematiques/<nom>.json et lance la cinématique."""
+        try:
+            from world.triggers import _charger_cutscene_fichier
+            ctx = {"game": self}
+            scene = _charger_cutscene_fichier(nom, ctx)
+            if scene is None:
+                print(f"[Cine watcher] introuvable : {nom}")
+                return
+            self.cutscene = scene
+            self.state    = "cinematic"
+            # Stoppe net la marche du joueur.
+            if hasattr(self.joueur, "forcer_idle"):
+                try:
+                    self.joueur.forcer_idle()
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[Cine watcher] échec lancement '{nom}' : {e}")
 
     def _reset_compteur_cinematique(self, nom):
         """Remet à zéro le compteur de lectures pour la cinématique `nom`.
@@ -2608,6 +2743,10 @@ class Game:
         # Zones-déclencheurs (téléportation / cinématiques) — front-montant
         # sur la collision joueur/zone. Vide tant qu'aucune carte n'en pose.
         self.triggers.check(self.joueur, {"game": self})
+
+        # Cinématiques conditionnelles (déclenchées par flags). On décompte
+        # le délai post-dialogue puis on lance la cinématique éligible.
+        self._avancer_verif_cine(dt)
 
         # Cinématique en cours : on l'avance, et quand elle est terminée
         # on rend la main au joueur. Le contexte donne accès à camera,

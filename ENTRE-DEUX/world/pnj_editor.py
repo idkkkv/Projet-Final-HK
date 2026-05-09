@@ -81,7 +81,15 @@ class PNJEditor:
 
         self.mode        = None        # cf. docstring
         self._input      = ""
-        self._input_for  = ""          # "line" | "orator"
+        self._input_for  = ""          # "line" | "orator" | "cond" | "events" | "flag_req"
+
+        # ── Popup "nouveau flag" ─────────────────────────────────────────
+        # Quand l'utilisateur écrit flag:key+=N sans :req=M et que "key"
+        # n'est pas encore dans le registre, on demande le required count
+        # avant de finaliser les events. Ces attributs gèrent cette file.
+        self._pending_events   = []    # events parsés en attente de validation
+        self._new_flags_queue  = []    # noms de flags qui ont besoin d'un required
+        self._asking_flag      = ""    # flag actuellement en cours de demande
 
         # Polices lazy
         self._font   = None
@@ -147,7 +155,14 @@ class PNJEditor:
             return False
 
         if key == pygame.K_ESCAPE:
-            if self.mode is not None:
+            if self.mode == "ask_flag_req":
+                # Annule toute la saisie des events (y compris la file)
+                self._pending_events  = []
+                self._new_flags_queue = []
+                self._asking_flag     = ""
+                self.mode   = None
+                self._input = ""
+            elif self.mode is not None:
                 self.mode   = None
                 self._input = ""
             elif self.niveau == "line":
@@ -156,7 +171,8 @@ class PNJEditor:
                 self.fermer()
             return True
 
-        if self.mode in ("edit_line", "edit_orator", "edit_cond", "edit_events"):
+        if self.mode in ("edit_line", "edit_orator", "edit_cond",
+                         "edit_events", "ask_flag_req"):
             return self._handle_key_text(key)
 
         if self.niveau == "conv":
@@ -167,7 +183,8 @@ class PNJEditor:
     def handle_textinput(self, text):
         if not self.actif:
             return
-        if self.mode in ("edit_line", "edit_orator", "edit_cond", "edit_events"):
+        if self.mode in ("edit_line", "edit_orator", "edit_cond",
+                         "edit_events", "ask_flag_req"):
             self._input += text
 
     def _handle_key_text(self, key):
@@ -311,6 +328,10 @@ class PNJEditor:
         self._input     = orateur
 
     def _confirmer_saisie(self):
+        # Réponse au popup "required count d'un nouveau flag"
+        if self._input_for == "flag_req":
+            self._confirmer_flag_req()
+            return
         # Édition d'une condition (mode "edit_cond")
         if self._input_for == "cond":
             self._enregistrer_condition(self._input)
@@ -319,9 +340,17 @@ class PNJEditor:
             return
         # Édition des events de fin de conv (mode "edit_events")
         if self._input_for == "events":
-            self._enregistrer_events(self._input)
-            self.mode   = None
-            self._input = ""
+            events, nouveaux_flags = self._parser_events(self._input)
+            if nouveaux_flags:
+                # Il y a des flags inconnus → on demande leur required avant
+                # de finaliser. On stocke les events parsés et on lance la
+                # file d'attente.
+                self._pending_events  = events
+                self._new_flags_queue = list(nouveaux_flags)
+                self._input = ""
+                self._start_ask_flag_req()
+            else:
+                self._finaliser_events(events)
             return
         conv = self._conv_courante()
         if conv is None or not (0 <= self.line_idx < len(conv)):
@@ -430,6 +459,53 @@ class PNJEditor:
         self._input_for = "events"
         self._input     = self._format_events(events_actuels)
 
+    # ── Gestion des nouveaux flags (popup required count) ────────────────────
+
+    def _start_ask_flag_req(self):
+        """Lance (ou avance) la file de demande de required count."""
+        if not self._new_flags_queue:
+            # File vide : on peut finaliser
+            self._finaliser_events(self._pending_events)
+            return
+        self._asking_flag   = self._new_flags_queue[0]
+        self.mode           = "ask_flag_req"
+        self._input_for     = "flag_req"
+        self._input         = "1"   # valeur par défaut
+
+    def _confirmer_flag_req(self):
+        """L'utilisateur vient de valider le required count pour un flag."""
+        try:
+            req = max(1, int(self._input.strip()))
+        except ValueError:
+            req = 1
+        from systems.story_flags import ajouter_au_registre
+        ajouter_au_registre(self._asking_flag, required=req)
+        # Cherche dans _pending_events cet event flag_increment et lui injecte required
+        for ev in self._pending_events:
+            if (ev.get("type") == "flag_increment"
+                    and ev.get("key") == self._asking_flag
+                    and ev.get("required") is None):
+                ev["required"] = req
+        self._new_flags_queue.pop(0)
+        self._input = ""
+        self._start_ask_flag_req()   # continue avec le suivant
+
+    def _finaliser_events(self, events):
+        """Enregistre la liste d'events finalisée pour la conv courante."""
+        if not hasattr(self.pnj, "events"):
+            self.pnj.events = []
+        while len(self.pnj.events) < len(self._convs()):
+            self.pnj.events.append([])
+        self.pnj.events[self.conv_idx] = events
+        self._pending_events  = []
+        self._new_flags_queue = []
+        self._asking_flag     = ""
+        self.mode             = None
+        self._input           = ""
+        self._msg_show(f"Événements enregistrés ({len(events)}) ✓")
+
+    # ── Format / parse des events ────────────────────────────────────────────
+
     def _format_events(self, events):
         """Convertit une liste d'events en texte éditable."""
         parts = []
@@ -451,24 +527,34 @@ class PNJEditor:
                 v = e.get("value", True)
                 k = e.get("key", "")
                 parts.append(f"flag:{k}" if v else f"flag:{k}=0")
+            elif t == "flag_increment":
+                k     = e.get("key", "")
+                delta = int(e.get("delta", 1))
+                req   = e.get("required")
+                sign  = f"+={delta}" if delta >= 0 else f"-={abs(delta)}"
+                suffix = f":req={req}" if req is not None else ""
+                parts.append(f"flag:{k}{sign}{suffix}")
         return "; ".join(parts)
 
-    def _enregistrer_events(self, texte):
-        """Parse le texte et stocke la liste d'events pour la conv courante."""
-        if not hasattr(self.pnj, "events"):
-            self.pnj.events = []
-        while len(self.pnj.events) < len(self._convs()):
-            self.pnj.events.append([])
-        events = []
+    def _parser_events(self, texte):
+        """Parse le texte et retourne (events_list, nouveaux_flags).
+
+        nouveaux_flags = set des clés flag_increment non présentes dans le
+        registre et sans :req= explicite → ils nécessitent une popup.
+        """
+        from systems.story_flags import flag_dans_registre
+
+        events         = []
+        nouveaux_flags = []
+
         for seg in texte.split(";"):
             seg = seg.strip()
-            if not seg:
-                continue
-            if ":" not in seg:
+            if not seg or ":" not in seg:
                 continue
             t, rest = seg.split(":", 1)
-            t = t.strip()
+            t    = t.strip()
             rest = rest.strip()
+
             if t == "skill":
                 events.append({"type": "skill", "value": rest})
             elif t == "luciole":
@@ -479,7 +565,6 @@ class PNJEditor:
                 except ValueError:
                     pass
             elif t == "item":
-                # "Pomme" ou "Pomme:5"
                 if ":" in rest:
                     name, cnt = rest.split(":", 1)
                     try:
@@ -491,8 +576,43 @@ class PNJEditor:
                 else:
                     events.append({"type": "item", "value": rest})
             elif t == "flag":
-                # "key" ou "key=0"
-                if "=" in rest:
+                # Syntaxe flag:key            → booléen True
+                # Syntaxe flag:key=0          → booléen False
+                # Syntaxe flag:key+=N         → incrémentation (N peut être omis = 1)
+                # Syntaxe flag:key+=N:req=M   → incrémentation avec required explicite
+                if "+=" in rest or "-=" in rest:
+                    op  = "+=" if "+=" in rest else "-="
+                    key_part, delta_part = rest.split(op, 1)
+                    key   = key_part.strip()
+                    delta = 1 if op == "+=" else -1
+                    req   = None
+                    # Cherche :req=N dans delta_part
+                    if ":req=" in delta_part:
+                        dp, rp = delta_part.split(":req=", 1)
+                        try:
+                            delta = int(dp.strip()) if dp.strip() else 1
+                        except ValueError:
+                            delta = 1
+                        try:
+                            req = max(1, int(rp.strip()))
+                        except ValueError:
+                            req = None
+                    else:
+                        try:
+                            delta = int(delta_part.strip()) if delta_part.strip() else 1
+                        except ValueError:
+                            delta = 1
+                    if op == "-=":
+                        delta = -abs(delta)
+                    ev = {"type": "flag_increment", "key": key, "delta": delta}
+                    if req is not None:
+                        ev["required"] = req
+                    events.append(ev)
+                    # Est-ce un nouveau flag sans required explicite ?
+                    if req is None and not flag_dans_registre(key):
+                        if key not in nouveaux_flags:
+                            nouveaux_flags.append(key)
+                elif "=" in rest:
                     k, v = rest.split("=", 1)
                     events.append({"type": "flag", "key": k.strip(),
                                    "value": v.strip() not in ("0", "false", "False", "")})
@@ -500,9 +620,21 @@ class PNJEditor:
                     events.append({"type": "flag", "key": rest, "value": True})
             else:
                 self._msg_show(f"Event inconnu : {t}", 4)
-        self.pnj.events[self.conv_idx] = events
-        n = len(events)
-        self._msg_show(f"Événements enregistrés ({n}) ✓")
+
+        return events, nouveaux_flags
+
+    def _enregistrer_events(self, texte):
+        """Parse le texte et stocke la liste d'events pour la conv courante.
+
+        Méthode de compatibilité — appelle _parser_events + _finaliser_events.
+        """
+        events, nouveaux_flags = self._parser_events(texte)
+        if nouveaux_flags:
+            self._pending_events  = events
+            self._new_flags_queue = list(nouveaux_flags)
+            self._start_ask_flag_req()
+        else:
+            self._finaliser_events(events)
 
     # ─────────────────────────────────────────────────────────────────────────
     #  Rendu
@@ -569,6 +701,8 @@ class PNJEditor:
         # Popup d'édition
         if self.mode in ("edit_line", "edit_orator", "edit_cond", "edit_events"):
             self._draw_popup_edit(surf, font, fontsm)
+        elif self.mode == "ask_flag_req":
+            self._draw_popup_flag_req(surf, font, fontsm)
 
     def _draw_convs(self, surf, font, cadre, y):
         convs = self._convs()
@@ -638,7 +772,8 @@ class PNJEditor:
 
     def _draw_popup_edit(self, surf, font, fontsm):
         sw, sh = surf.get_size()
-        bw, bh = 700, 130
+        # Plus large + plus haut pour accueillir le wrap multi-lignes.
+        bw, bh = 900, 230
         box = pygame.Rect(sw // 2 - bw // 2, sh // 2 - bh // 2, bw, bh)
         pygame.draw.rect(surf, (30, 30, 45), box)
         pygame.draw.rect(surf, (190, 175, 240), box, 2)
@@ -655,10 +790,85 @@ class PNJEditor:
         else:  # events
             titre = "Événements de fin de conversation :"
             aide  = ("Ex: skill:double_jump; coins:50; item:Pomme:5; "
-                     "flag:parchemins=1  —  [Enter] valider [Esc]")
+                     "flag:parchemins; flag:tiroirs+=1; flag:tiroirs+=1:req=2  "
+                     "—  [Enter] | [Esc]")
         surf.blit(font.render(titre, True, (190, 175, 240)),
                   (box.x + 16, box.y + 12))
-        surf.blit(font.render(self._input + "_", True, (255, 255, 255)),
-                  (box.x + 16, box.y + 50))
+
+        # ── Affichage avec wrap automatique ──────────────────────────────
+        # Le texte saisi peut être très long ; on coupe en lignes pour
+        # rester dans la box au lieu de déborder.
+        largeur_max = box.width - 32
+        lignes = self._wrap_texte(self._input + "_", font, largeur_max)
+        # On affiche au plus 5 lignes (en gardant les dernières si besoin)
+        max_lignes_visibles = 5
+        lignes_visibles = lignes[-max_lignes_visibles:]
+        y = box.y + 46
+        for ligne in lignes_visibles:
+            surf.blit(font.render(ligne, True, (255, 255, 255)),
+                      (box.x + 16, y))
+            y += 22
+
         surf.blit(fontsm.render(aide, True, (140, 140, 140)),
-                  (box.x + 16, box.y + 90))
+                  (box.x + 16, box.bottom - 24))
+
+    def _draw_popup_flag_req(self, surf, font, fontsm):
+        """Popup demandant le nombre d'activations requises pour un nouveau flag."""
+        sw, sh = surf.get_size()
+        bw, bh = 700, 170
+        box = pygame.Rect(sw // 2 - bw // 2, sh // 2 - bh // 2, bw, bh)
+        pygame.draw.rect(surf, (30, 30, 45), box)
+        pygame.draw.rect(surf, (255, 215, 70), box, 2)
+
+        titre = f"Nouveau flag : '{self._asking_flag}'"
+        surf.blit(font.render(titre, True, (255, 215, 70)),
+                  (box.x + 16, box.y + 12))
+        question = "Combien d'activations sont nécessaires pour le compléter ?"
+        surf.blit(fontsm.render(question, True, (220, 220, 220)),
+                  (box.x + 16, box.y + 44))
+        surf.blit(font.render(self._input + "_", True, (255, 255, 255)),
+                  (box.x + 16, box.y + 76))
+        # Indication de la file d'attente
+        if len(self._new_flags_queue) > 1:
+            reste = len(self._new_flags_queue) - 1
+            surf.blit(fontsm.render(
+                f"({reste} autre(s) flag(s) à définir après celui-ci)",
+                True, (180, 180, 120)),
+                (box.x + 16, box.y + 110))
+        surf.blit(fontsm.render("[Enter] valider | [Esc] annuler tout",
+                                True, (140, 140, 140)),
+                  (box.x + 16, box.bottom - 24))
+
+    def _wrap_texte(self, texte, font, largeur_max):
+        """Coupe `texte` en lignes pour rester dans `largeur_max` (px).
+
+        On respecte les espaces si possible, sinon on coupe au caractère
+        (utile pour des chaînes sans espaces ou des URL longues)."""
+        if not texte:
+            return [""]
+        lignes = []
+        for paragraphe in texte.split("\n"):
+            mots  = paragraphe.split(" ")
+            ligne = ""
+            for mot in mots:
+                test = (ligne + " " + mot).strip()
+                if font.size(test)[0] <= largeur_max:
+                    ligne = test
+                else:
+                    if ligne:
+                        lignes.append(ligne)
+                    # Si le mot seul dépasse, on coupe au caractère.
+                    if font.size(mot)[0] > largeur_max:
+                        cur = ""
+                        for c in mot:
+                            if font.size(cur + c)[0] > largeur_max:
+                                if cur:
+                                    lignes.append(cur)
+                                cur = c
+                            else:
+                                cur += c
+                        ligne = cur
+                    else:
+                        ligne = mot
+            lignes.append(ligne)
+        return lignes or [""]
