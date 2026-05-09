@@ -751,19 +751,27 @@
     {
       "type": "pnj",
       "x": 1935,
-      "y": 3906,
+      "y": 3865,
       "nom": "Nymbus",
-      "sprite_name": null,
+      "sprite_name": "nimbus",
       "dialogues": [
         [
           [
-            "",
-            "Nymbus"
+            "mouhahhahhahah, c'est moi nymbus.. >D",
+            "nymbus"
+          ],
+          [
+            "j'Ai FAiM... Tu Ne vOUdRaiS PAs quE j'EN meUre QUaNd meME ????",
+            "nymbus"
+          ],
+          [
+            "DONNE MOI UNE POMME!! D:<",
+            "nymbus"
           ]
         ]
       ],
       "dialogue_mode": "boucle_dernier",
-      "has_gravity": true,
+      "has_gravity": false,
       "is_save_point": false,
       "events": [
         []

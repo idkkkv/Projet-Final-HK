@@ -4,6 +4,9 @@ import time
 from utils import find_file
 import threading
 
+import ui.inventory as inventory
+from ui.inventory import ITEMS
+
 def play_cassette(visuel, sonore, screen):
     if not pygame.mixer.get_init():
         pygame.mixer.init()
