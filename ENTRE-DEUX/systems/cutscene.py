@@ -160,11 +160,19 @@ class Cutscene:
     #  2.1 Construction
     # ─────────────────────────────────────────────────────────────────────
 
-    def __init__(self, steps):
+    def __init__(self, steps, player_libre=False):
         """steps : liste d'étapes, soit produites par les fabriques en bas
-        du fichier (recommandé), soit des tuples (type, params) bruts."""
+        du fichier (recommandé), soit des tuples (type, params) bruts.
+
+        player_libre : si True, le joueur GARDE le contrôle de son personnage
+        pendant TOUTE la cinématique (mouvements, gravité, etc.). Utile pour
+        les cinématiques "ambiance" qui doivent jouer pendant que le gameplay
+        continue : ex. shake d'écran à la chute, fade pendant que le joueur
+        marche, dialogue 'voix off' qui n'arrête pas le mouvement.
+        Par défaut False = comportement classique (mouvement bloqué)."""
         self.steps = list(steps)
         self.index = 0
+        self.player_libre = bool(player_libre)
 
         # État local de l'étape courante (timers, cibles intermédiaires, etc.).
         # Réinitialisé à chaque passage à une nouvelle étape — ça évite de

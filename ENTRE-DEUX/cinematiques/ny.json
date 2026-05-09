@@ -1,0 +1,50 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "camera_focus_pnj",
+      "nom": "Nymbus",
+      "duration": "garde la caméra fixée",
+      "speed": "0.03",
+      "follow": "1"
+    },
+    {
+      "type": "dialogue",
+      "lignes": [
+        {
+          "texte": "Je vois que tu as trouvé une Luciole… sa lumière atténue la peur qui te retenait.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Le monde autour de toi réagit désormais différemment à tes pas.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Dirige-toi vers ta droite. Là où le chemin te semblait fermé auparavant.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Ce passage ne t’était pas destiné quand la peur guidait encore tes mouvements.",
+          "auteur": "Nymbus"
+        }
+      ]
+    },
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "camera_release"
+    }
+  ],
+  "condition": {
+    "flag": "ny",
+    "min": 1
+  },
+  "delay": 1.0,
+  "one_shot": true,
+  "auto_fire": false
+}

@@ -1,0 +1,14 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 0.1
+    },
+    {
+      "type": "shake",
+      "amplitude": 20.0,
+      "duration": 1.0
+    }
+  ],
+  "player_libre": true
+}

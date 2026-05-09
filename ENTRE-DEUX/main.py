@@ -35,7 +35,7 @@ from core.game import Game
 # ─── Désactive les "touches rémanentes" Windows pendant le jeu ─────────────
 # Sur Windows, appuyer 5× rapidement sur Maj ouvre une popup système
 # (Sticky Keys). Comme on spamme Shift pour le dash, ça flingue le jeu.
-# On désactive l'activation auto au lancement et on restaure à la fermeture.
+# On d sactive l'activation auto au lancement et on restaure à la fermeture.
 def _desactiver_touches_remanentes():
     if not sys.platform.startswith("win"):
         return  # Linux/Mac : rien à faire

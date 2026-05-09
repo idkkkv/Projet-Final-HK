@@ -384,6 +384,31 @@ class CutsceneTrigger(TriggerZone):
             if deja >= self.max_plays:
                 return
 
+        # ── CONDITION D'ACTIVATION (story flags) ────────────────────────
+        # Si le JSON de la cinématique a une "condition", on la vérifie
+        # AVANT de déclencher. Sinon les zones trigger ignoraient la
+        # condition et lançaient la cine quoi qu'il arrive — bug.
+        # NB : pour les triggers spatiaux on garde le déclenchement direct
+        # (à l'entrée du joueur), mais SOUMIS à la condition. Le mécanisme
+        # post-dialogue (game._verifier_cinematiques_conditionnelles) reste
+        # complémentaire pour les cinématiques sans zone associée.
+        if self.cutscene_nom:
+            cond, _delay = _lire_condition_cinematique(self.cutscene_nom)
+            if cond is not None:
+                try:
+                    from systems.story_flags import tester_condition
+                    flags = getattr(game, "story_flags", {}) or {}
+                    if not tester_condition(flags, cond):
+                        # Condition non remplie : on ne lance pas, et on
+                        # ne consomme pas le compteur. La zone reste
+                        # "armée" tant qu'elle est rearmable, et même en
+                        # one_shot on laisse une chance au joueur de
+                        # revenir une fois la condition remplie.
+                        self.declenchee = False
+                        return
+                except Exception as e:
+                    print(f"[Trigger] check condition '{self.cutscene_nom}' : {e}")
+
         scene = self._charger_scene(ctx)
         if scene is None:
             return
@@ -395,7 +420,9 @@ class CutsceneTrigger(TriggerZone):
         # Stoppe net la course/marche du joueur à l'entrée d'une
         # cinématique déclenchée par zone trigger. Sinon il glisse
         # avec son anim "run" pendant le 1er fade.
-        if hasattr(game, "joueur") and hasattr(game.joueur, "forcer_idle"):
+        # SAUF si la cinématique est "joueur libre" — on ne touche à rien.
+        if (hasattr(game, "joueur") and hasattr(game.joueur, "forcer_idle")
+                and not getattr(scene, "player_libre", False)):
             try:
                 game.joueur.forcer_idle()
             except Exception:
@@ -738,6 +765,23 @@ def creer_depuis_dict(data):
     return TriggerZone(rect, nom=nom, one_shot=one_shot)
 
 
+def _lire_condition_cinematique(nom):
+    """Lit UNIQUEMENT la condition d'activation d'une cinématique JSON.
+
+    Retourne (condition, delay) ou (None, 1.0) si pas de condition.
+    Léger : ne charge pas les steps. Utilisé par CutsceneTrigger pour
+    décider s'il doit lancer la cinématique à l'entrée du joueur."""
+    chemin = os.path.join(CINEMATIQUES_DIR, f"{nom}.json")
+    try:
+        with open(chemin, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return (None, 1.0)
+    if isinstance(data, dict):
+        return (data.get("condition"), float(data.get("delay", 1.0)))
+    return (None, 1.0)
+
+
 def _charger_cutscene_fichier(nom, ctx):
     """Charge cinematiques/<nom>.json et renvoie un objet Cutscene.
 
@@ -760,11 +804,13 @@ def _charger_cutscene_fichier(nom, ctx):
         print(f"[Trigger] Erreur chargement '{nom}' : {e}")
         return None
 
-    # Le format enrichi est un dict ; on extrait juste les steps.
+    # Le format enrichi est un dict ; on extrait steps + options annexes.
+    player_libre = False
     if isinstance(data, dict):
+        player_libre = bool(data.get("player_libre", False))
         data = data.get("steps", [])
 
-    return Cutscene(_steps_depuis_data(data))
+    return Cutscene(_steps_depuis_data(data), player_libre=player_libre)
 
 
 def _steps_depuis_data(data):
