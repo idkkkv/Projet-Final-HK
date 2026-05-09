@@ -7,9 +7,10 @@
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 691,
-    "y": 531
+    "x": 711,
+    "y": 560
   },
+  "named_spawns": {},
   "bg_color": [
     0,
     0,
@@ -149,14 +150,15 @@
   ],
   "portals": [
     {
-      "x": 678,
-      "y": 485,
-      "w": 84,
-      "h": 91,
-      "target_map": "villag",
+      "x": 667,
+      "y": 462,
+      "w": 94,
+      "h": 145,
+      "target_map": "villag m1s",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": true,
+      "need_key": false
     }
   ],
   "decors": [
@@ -190,5 +192,6 @@
     }
   ],
   "pnjs": [],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": []
 }
