@@ -3,12 +3,12 @@
   "ceiling_y": 0,
   "scene_width": 4670,
   "scene_left": 0,
-  "camera_y_offset": -270,
+  "camera_y_offset": -230,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 1847,
-    "y": 604
+    "x": 1921,
+    "y": 606
   },
   "named_spawns": {
     "h": [
@@ -795,6 +795,30 @@
       "nom": "nym",
       "one_shot": true,
       "cutscene_nom": "nym",
+      "max_plays": 1,
+      "mode": "enter"
+    },
+    {
+      "type": "cutscene",
+      "x": 1713,
+      "y": 3837,
+      "w": 66,
+      "h": 152,
+      "nom": "ny",
+      "one_shot": true,
+      "cutscene_nom": "ny",
+      "max_plays": 1,
+      "mode": "enter"
+    },
+    {
+      "type": "cutscene",
+      "x": 1860,
+      "y": 3947,
+      "w": 146,
+      "h": 22,
+      "nom": "tombe",
+      "one_shot": true,
+      "cutscene_nom": "tombe",
       "max_plays": 1,
       "mode": "enter"
     }

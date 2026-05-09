@@ -355,6 +355,22 @@ class CinematiqueEditor:
         self._delay     = 1.0              # secondes d'attente avant déclenchement
         self._one_shot  = True             # ne se déclenche qu'une seule fois
 
+        # ── JOUEUR LIBRE ────────────────────────────────────────────────
+        # Si True, le joueur garde le contrôle pendant TOUTE la cinématique
+        # (gravité, mouvement, anim). Utile pour : secousse à l'atterrissage
+        # d'une chute, fade pendant que le perso marche, voix off ambiante.
+        # Toggle avec [J] dans l'éditeur.
+        self._player_libre = False
+
+        # ── AUTO-DÉCLENCHEMENT (auto_fire) ──────────────────────────────
+        # Par défaut, une cine avec condition s'auto-déclenche dès que
+        # la condition est vraie. Toggle [F] désactive cet auto-fire pour
+        # les rares cas (ex. cine on_death où la condition n'est qu'un
+        # filtre, sinon elle fire avant même la mort).
+        #   None / True → auto-fire (défaut)
+        #   False       → jamais d'auto-fire, ne fire que via trigger zone
+        self._auto_fire = None
+
         # Mode interne :
         #   None              = navigation dans la liste
         #   "browser"         = affichage de l'arbre des cinématiques (pour [O])
@@ -459,11 +475,13 @@ class CinematiqueEditor:
         chemin = os.path.join(CINEMATIQUES_DIR, f"{nom}.json")
         if not os.path.exists(chemin):
             self._msg_show(f"Introuvable : {nom}")
-            self.steps      = []
-            self._condition = None
-            self._delay     = 1.0
-            self._one_shot  = True
-            self.nom_fichier = nom
+            self.steps        = []
+            self._condition   = None
+            self._delay       = 1.0
+            self._one_shot    = True
+            self._player_libre = False
+            self._auto_fire   = None
+            self.nom_fichier  = nom
             return
         try:
             with open(chemin, encoding="utf-8") as f:
@@ -473,15 +491,20 @@ class CinematiqueEditor:
             data = []
         # Détection de format
         if isinstance(data, dict):
-            self.steps      = list(data.get("steps", []))
-            self._condition = data.get("condition")
-            self._delay     = float(data.get("delay", 1.0))
-            self._one_shot  = bool(data.get("one_shot", True))
+            self.steps         = list(data.get("steps", []))
+            self._condition    = data.get("condition")
+            self._delay        = float(data.get("delay", 1.0))
+            self._one_shot     = bool(data.get("one_shot", True))
+            self._player_libre = bool(data.get("player_libre", False))
+            af = data.get("auto_fire", None)
+            self._auto_fire    = (None if af is None else bool(af))
         else:
-            self.steps      = list(data) if isinstance(data, list) else []
-            self._condition = None
-            self._delay     = 1.0
-            self._one_shot  = True
+            self.steps         = list(data) if isinstance(data, list) else []
+            self._condition    = None
+            self._delay        = 1.0
+            self._one_shot     = True
+            self._player_libre = False
+            self._auto_fire    = None
         self.nom_fichier = nom
         self.selection   = 0
         self.mode        = None
@@ -498,14 +521,19 @@ class CinematiqueEditor:
             return
         chemin = os.path.join(CINEMATIQUES_DIR, f"{self.nom_fichier}.json")
         os.makedirs(os.path.dirname(chemin), exist_ok=True)
-        # Choix du format selon la présence d'une condition
-        if self._condition:
-            data = {
-                "condition": self._condition,
-                "delay":     self._delay,
-                "one_shot":  self._one_shot,
-                "steps":     self.steps,
-            }
+        # Choix du format : enrichi (dict) si on a une condition, joueur
+        # libre, ou auto_fire explicite — sinon format simple (liste pure)
+        # pour rester léger et rétrocompatible avec les cines existantes.
+        if self._condition or self._player_libre or self._auto_fire is not None:
+            data = {"steps": self.steps}
+            if self._condition:
+                data["condition"] = self._condition
+                data["delay"]     = self._delay
+                data["one_shot"]  = self._one_shot
+            if self._player_libre:
+                data["player_libre"] = True
+            if self._auto_fire is not None:
+                data["auto_fire"] = bool(self._auto_fire)
         else:
             data = self.steps
         try:
@@ -865,10 +893,37 @@ class CinematiqueEditor:
             # joueur doit avoir fini un dialogue (~delay sec) pour qu'elle
             # soit vérifiée.
             self._commencer_edition_condition()
+        elif key == pygame.K_j and not ctrl:
+            # [J] = toggle "Joueur libre". La cinématique tourne mais le
+            # joueur garde le contrôle de son perso (gravité, mouvement).
+            # Idéal pour shake d'écran à l'atterrissage, fade en marchant,
+            # voix off ambiante…
+            self._player_libre = not self._player_libre
+            etat = "ON" if self._player_libre else "OFF"
+            self._msg_show(f"Joueur libre : {etat}")
+        elif key == pygame.K_f and not ctrl:
+            # [F] = toggle auto-déclenchement.
+            # Par défaut (None ou True), la cine s'auto-déclenche quand sa
+            # condition devient vraie. Le toggle bascule à False pour
+            # désactiver. Re-toggle remet à True (= défaut explicite).
+            if self._auto_fire is False:
+                self._auto_fire = True
+                self._msg_show("Auto-déclenchement : ACTIVÉ (défaut)")
+            else:
+                self._auto_fire = False
+                self._msg_show("Auto-déclenchement : DÉSACTIVÉ "
+                               "(la cine ne fire que via trigger zone)")
         elif key == pygame.K_t and self.steps and self.on_test_callback:
             # Tester la cinématique : on ferme l'éditeur et on lance le run
             # via le callback (game.py construit un Cutscene depuis self.steps).
-            self.on_test_callback(list(self.steps))
+            # On passe aussi les options pour que le test reflète exactement
+            # ce qu'il se passera en jeu (joueur libre, etc.).
+            try:
+                self.on_test_callback(list(self.steps),
+                                      player_libre=self._player_libre)
+            except TypeError:
+                # Rétrocompat : ancien callback à 1 seul argument.
+                self.on_test_callback(list(self.steps))
             self.fermer()
         elif key == pygame.K_r and ctrl and self.on_reset_counter_callback:
             # Reset le compteur "cinematiques_jouees" pour la cinématique
@@ -1035,13 +1090,15 @@ class CinematiqueEditor:
 
         # Aide
         aide = ("[↑↓] [A] +  [D] -  [Enter] éditer  [Maj+↑↓] reord  "
-                "[C] condition  [T] Tester  [Ctrl+R] reset  [Ctrl+S/N/O] sauv/new/open  [Esc]")
+                "[C] cond  [J] joueur libre  [F] auto-fire  [T] Test  "
+                "[Ctrl+R] reset  [Ctrl+S/N/O]  [Esc]")
         surf.blit(fontsm.render(aide, True, (140, 140, 140)),
                   (cadre.x + 16, cadre.y + 38))
 
-        # ── Bandeau "Condition d'activation" ─────────────────────────────
-        # Si une condition est définie, elle s'affiche en doré pour rappeler
-        # que la cinématique ne se déclenchera que dans certaines conditions.
+        # ── Bandeau "Condition d'activation" / "Joueur libre" ────────────
+        # Affichés en doré (condition) et vert (joueur libre) pour rappeler
+        # les options actives sans avoir à fouiller dans le JSON.
+        y = cadre.y + 70
         if self._condition:
             from systems.story_flags import formater_condition_texte
             cond_str = formater_condition_texte(self._condition)
@@ -1049,10 +1106,21 @@ class CinematiqueEditor:
                    f"(délai: {self._delay:.1f}s, "
                    f"{'one-shot' if self._one_shot else 'rejouable'})")
             surf.blit(fontsm.render(txt, True, (255, 215, 70)),
-                      (cadre.x + 16, cadre.y + 60))
-            y = cadre.y + 86
-        else:
-            y = cadre.y + 70
+                      (cadre.x + 16, y - 10))
+            y += 16
+        if self._player_libre:
+            txt = "⏵ Joueur libre : le perso garde le contrôle pendant la cinématique"
+            surf.blit(fontsm.render(txt, True, (140, 220, 140)),
+                      (cadre.x + 16, y - 10))
+            y += 16
+        if self._auto_fire is False:
+            # Seul le cas "désactivé" mérite un bandeau (le défaut activé
+            # n'a pas besoin d'être affiché — c'est… le défaut).
+            txt = ("⏵ Auto-fire DÉSACTIVÉ : la cinématique ne se déclenche "
+                   "que via sa trigger zone")
+            surf.blit(fontsm.render(txt, True, (220, 140, 140)),
+                      (cadre.x + 16, y - 10))
+            y += 16
 
         # Liste des étapes
         for i, step in enumerate(self.steps):

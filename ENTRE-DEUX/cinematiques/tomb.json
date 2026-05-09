@@ -1,0 +1,10 @@
+[
+  {
+    "type": "camera_release"
+  },
+  {
+    "type": "shake",
+    "amplitude": 10.0,
+    "duration": 1.0
+  }
+]

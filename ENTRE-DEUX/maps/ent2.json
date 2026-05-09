@@ -3,7 +3,7 @@
   "ceiling_y": 0,
   "scene_width": 2100,
   "scene_left": 0,
-  "camera_y_offset": -170,
+  "camera_y_offset": -210,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
@@ -101,7 +101,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 1298,
+      "x": 1596,
       "y": 619,
       "has_gravity": true,
       "has_collision": true,
@@ -267,6 +267,18 @@
       "nom": "serar",
       "one_shot": true,
       "cutscene_nom": "serar",
+      "max_plays": 1,
+      "mode": "on_death"
+    },
+    {
+      "type": "cutscene",
+      "x": 272,
+      "y": 347,
+      "w": 1830,
+      "h": 555,
+      "nom": "sera5",
+      "one_shot": true,
+      "cutscene_nom": "sera5",
       "max_plays": 1,
       "mode": "on_death"
     }

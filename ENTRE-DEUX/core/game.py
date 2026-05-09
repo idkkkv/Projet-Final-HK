@@ -1152,12 +1152,18 @@ class Game:
 
     def _declencher_cinematique_mort(self):
         """Cherche une CutsceneTrigger en mode "on_death" qui couvre la
-        position du joueur. Si trouvée, la lance et renvoie True. Sinon
+        position du joueur. Si trouvée et déclenchée, renvoie True. Sinon
         renvoie False → game.py basculera en GAME_OVER normal.
 
         Permet de scripter une "mort narrative" (PNJ qui parle pendant
         l'écran noir, téléport vers un lieu safe, etc.) au lieu du Game
-        Over basique. Voir CutsceneTrigger(mode="on_death")."""
+        Over basique. Voir CutsceneTrigger(mode="on_death").
+
+        Si plusieurs zones on_death se chevauchent (cas typique : une cine
+        de secours sans condition + une cine alternative conditionnée par
+        un flag), on essaie toutes les zones tant qu'aucune ne démarre.
+        Permet à la cine alternative de se lancer une fois que la cine de
+        secours est consommée (max_plays=1)."""
         from world.triggers import CutsceneTrigger
         for zone in (self.editeur.trigger_zones or []):
             if not isinstance(zone, CutsceneTrigger):
@@ -1166,17 +1172,22 @@ class Game:
                 continue
             if not zone.rect.colliderect(self.joueur.rect):
                 continue
-            # Lance la cinématique. fire() applique la même logique que
-            # on_enter (compteur max_plays, _lancer scene, forcer_idle…).
+            # On capture l'état avant fire() pour détecter si la cine a
+            # vraiment démarré (fire peut être no-op si max_plays atteint
+            # ou si la condition d'activation n'est pas remplie).
+            cutscene_avant = self.cutscene
             try:
                 zone.fire({"game": self})
             except Exception as e:
                 print(f"[Mort scriptée] fire échoué : {e}")
-                return False
-            # On garde joueur.dead = True jusqu'à ce que la cinématique
-            # appelle revive_player → la physique reste figée (pas
-            # d'attaque ennemie pendant les dialogues d'agonie).
-            return True
+                continue
+            if self.cutscene is not cutscene_avant and self.cutscene is not None:
+                # Une cinématique a bien démarré. On garde joueur.dead = True
+                # jusqu'à ce qu'elle appelle revive_player → la physique
+                # reste figée pendant les dialogues d'agonie.
+                return True
+            # Sinon, la zone n'a rien lancé (consommée, condition non remplie) ;
+            # on passe à la suivante.
         return False
 
     def notifier(self, texte, duree=3.0):
@@ -1346,13 +1357,48 @@ class Game:
 
     def _charger_cine_flag_watchers(self):
         """Scanne cinematiques/ et met à jour la liste des cinématiques avec
-        condition. Appelé au démarrage et à chaque chargement de map."""
+        condition. Appelé au démarrage et à chaque chargement de map.
+
+        On scanne ÉGALEMENT toutes les maps pour construire la liste des
+        cinématiques référencées par un trigger zone N'IMPORTE OÙ dans le
+        jeu — sinon une cine on_death sur la map B serait auto-déclenchée
+        depuis la map A (le trigger n'étant pas encore chargé)."""
         try:
             from systems.story_flags import charger_cinematiques_conditionnelles
             self._cine_flag_watchers = charger_cinematiques_conditionnelles()
         except Exception as e:
             print(f"[Cine watchers] échec scan : {e}")
             self._cine_flag_watchers = []
+        # Scan de TOUTES les maps pour collecter les cinématiques liées à
+        # un trigger zone (même si le trigger n'est pas chargé maintenant).
+        self._cines_avec_trigger_global = self._scanner_cines_avec_trigger()
+
+    def _scanner_cines_avec_trigger(self):
+        """Renvoie le set des cutscene_nom référencés par un trigger zone
+        dans n'importe quelle map de maps/. Très léger (lecture JSON)."""
+        import json, os
+        cines = set()
+        maps_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "maps")
+        if not os.path.isdir(maps_dir):
+            return cines
+        for nom_fichier in os.listdir(maps_dir):
+            if not nom_fichier.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(maps_dir, nom_fichier),
+                          encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                continue
+            if not isinstance(data, dict):
+                continue
+            for z in data.get("trigger_zones", []) or []:
+                nom_cine = z.get("cutscene_nom", "")
+                if nom_cine:
+                    cines.add(nom_cine)
+        return cines
 
     def _programmer_verif_cine(self, delai=None):
         """Programme une vérification des cinématiques conditionnelles.
@@ -1395,14 +1441,33 @@ class Game:
 
     def _verifier_cinematiques_conditionnelles(self):
         """Vérifie chaque watcher : si sa condition est vraie ET qu'il n'a pas
-        déjà été déclenché (one_shot), on lance la cinématique."""
+        déjà été déclenché (one_shot), on lance la cinématique.
+
+        Comportement par défaut : toute cine avec une condition s'auto-
+        déclenche dès que la condition devient vraie. Les éventuels triggers
+        zone offrent une autre voie (enter, on_death) ; le compteur
+        max_plays empêche le double-fire.
+
+        Pour les cines qui doivent fire UNIQUEMENT via leur trigger zone
+        (cas d'une on_death où la condition n'est qu'un filtre), l'utilisateur
+        désactive explicitement l'auto-fire via [F] dans l'éditeur de
+        cinématique → le JSON gagne "auto_fire": false."""
         from systems.story_flags import tester_condition
 
         for watcher in self._cine_flag_watchers:
             nom       = watcher.get("nom", "")
             condition = watcher.get("condition")
             one_shot  = watcher.get("one_shot", True)
+            auto_fire = watcher.get("auto_fire", None)  # None=auto-fire, True=auto-fire, False=jamais
             if not nom or not condition:
+                continue
+            # Auto-fire par défaut. L'utilisateur désactive explicitement
+            # via [F] dans l'éditeur (auto_fire=False) pour les rares cines
+            # qui ne doivent fire QUE via leur trigger zone — typiquement
+            # une cine on_death où la condition n'est qu'un filtre. Le
+            # compteur max_plays empêche le double-fire si une trigger
+            # zone existe par ailleurs.
+            if auto_fire is False:
                 continue
             # Compteur de déclenchement (one_shot = max 1)
             joues = self.cinematiques_jouees.get(nom, 0)
@@ -1427,8 +1492,11 @@ class Game:
                 return
             self.cutscene = scene
             self.state    = "cinematic"
-            # Stoppe net la marche du joueur.
-            if hasattr(self.joueur, "forcer_idle"):
+            # Stoppe net la marche du joueur. SAUF si la cinématique est
+            # "joueur libre" — auquel cas on ne touche à rien (chute en
+            # cours, course, etc.).
+            if (hasattr(self.joueur, "forcer_idle")
+                    and not getattr(scene, "player_libre", False)):
                 try:
                     self.joueur.forcer_idle()
                 except Exception:
@@ -1483,26 +1551,31 @@ class Game:
                 # Pas de méthode fermer : on coupe à la dure
                 self.dialogue.actif = False
 
-    def _tester_cinematique(self, steps_data):
+    def _tester_cinematique(self, steps_data, player_libre=False):
         """Lance une cinématique depuis les données JSON brutes (touche [T]
         de l'éditeur de cinématiques). Permet de prévisualiser sans avoir
-        à sauvegarder + recharger la carte + entrer dans la zone trigger."""
+        à sauvegarder + recharger la carte + entrer dans la zone trigger.
+
+        player_libre : reflète l'option de l'éditeur — si True le joueur
+        garde le contrôle pendant la cinématique (test fidèle au comportement
+        en jeu)."""
         from systems.cutscene import Cutscene
         from world.triggers   import _steps_depuis_data
         try:
-            scene = Cutscene(_steps_depuis_data(steps_data))
+            scene = Cutscene(_steps_depuis_data(steps_data),
+                             player_libre=player_libre)
         except Exception as e:
             print(f"[Cutscene] Erreur construction : {e}")
             return
         self.cutscene = scene
         self.state    = "cinematic"
-        # Stoppe net la course/marche du joueur à l'entrée d'une
-        # cinématique. Sinon il glisse 1-2 frames avec son anim run
-        # avant que mouvement_bloque prenne effet (= peu naturel).
-        try:
-            self.joueur.forcer_idle()
-        except Exception:
-            pass
+        # Si le joueur est libre, on ne le force PAS en idle (sinon on
+        # casse l'animation de chute / course en cours).
+        if not player_libre:
+            try:
+                self.joueur.forcer_idle()
+            except Exception:
+                pass
 
     def _dessiner_fondu(self):
         """Dessine le voile noir si l'alpha est > 0."""
@@ -2580,11 +2653,24 @@ class Game:
         # le rallumera chaque frame tant qu'elle est active.
         fondu_freeze = (self._fondu_etat != "none"
                         and getattr(self, "_portail_freeze_pendant_fondu", True))
+        # 3 façons de laisser le joueur bouger pendant une cinématique :
+        #   1. _cutscene_player_libre : drapeau frame-by-frame posé par
+        #      l'étape wait_for_player_at (joueur libre durant cette étape).
+        #   2. cutscene.player_libre  : drapeau permanent posé sur l'objet
+        #      Cutscene tout entier — ex. shake d'ambiance à la chute, le
+        #      joueur garde sa gravité du début à la fin de la cinématique.
+        #   3. Pas de cutscene en cours : trivial, freeze=False.
+        cine_libre = (self.cutscene is not None
+                      and getattr(self.cutscene, "player_libre", False))
         cutscene_freeze = (self.cutscene is not None
-                           and not getattr(self, "_cutscene_player_libre", False))
+                           and not getattr(self, "_cutscene_player_libre", False)
+                           and not cine_libre)
         self._cutscene_player_libre = False
+        # Pareil pour le dialogue : si la cinématique est "joueur libre",
+        # l'éventuelle étape dialogue ne doit pas bloquer la course/gravité.
+        dialogue_freeze = self.dialogue.actif and not cine_libre
         mouvement_bloque = (fondu_freeze
-                            or self.dialogue.actif
+                            or dialogue_freeze
                             or cutscene_freeze)
         # Drapeau "mode éditeur" pour le gating des compétences (toutes
         # débloquées en mode éditeur, restrictif en mode histoire).
@@ -2755,14 +2841,17 @@ class Game:
             # Stoppe net la marche du joueur : sinon il garde sa vitesse et
             # son animation walking jusqu'à la fin de la cinématique. Le son
             # de pas est aussi arrêté pour éviter qu'il continue.
-            self.joueur.vx           = 0
-            self.joueur.knockback_vx = 0
-            self.joueur.walking      = False
-            try:
-                from audio import sound_manager
-                sound_manager.arreter("pas")
-            except Exception:
-                pass
+            # SAUF si la cinématique est "joueur libre" (ex. shake à la chute) :
+            # on laisse les contrôles et l'animation telle quelle.
+            if not getattr(self.cutscene, "player_libre", False):
+                self.joueur.vx           = 0
+                self.joueur.knockback_vx = 0
+                self.joueur.walking      = False
+                try:
+                    from audio import sound_manager
+                    sound_manager.arreter("pas")
+                except Exception:
+                    pass
 
             from systems.cutscene import CutsceneContext
             self.cutscene.update(dt, CutsceneContext(self))
@@ -3808,6 +3897,12 @@ class Game:
         # rebasculera l'état en GAME via _verifier_revive_post_cutscene.
         if self.cutscene is not None:
             try:
+                # IMPORTANT : on doit aussi avancer la boîte de dialogue
+                # pendant l'état GAME_OVER, sinon le texte n'apparaît pas
+                # lettre par lettre et le bip ne joue pas (l'anim dépend
+                # de dialogue.update(dt) qui n'est appelé que dans
+                # _update_jeu — branche non exécutée en GAME_OVER).
+                self.dialogue.update(self._dt)
                 from systems.cutscene import CutsceneContext
                 self.cutscene.update(self._dt, CutsceneContext(self))
                 if self.cutscene.is_done():
