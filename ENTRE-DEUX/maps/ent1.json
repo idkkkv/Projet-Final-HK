@@ -638,7 +638,8 @@
       "target_map": "ent2",
       "target_x": -1,
       "target_y": -1,
-      "require_up": false
+      "require_up": false,
+      "need_key": false
     },
     {
       "x": 2,
@@ -648,7 +649,8 @@
       "target_map": "map23 e",
       "target_x": -1,
       "target_y": -1,
-      "require_up": false
+      "require_up": false,
+      "need_key": false
     }
   ],
   "decors": [
@@ -700,28 +702,28 @@
   "trigger_zones": [],
   "danger_zones": [
     {
-      "x": 208,
-      "y": 829,
-      "w": 384,
-      "h": 88,
-      "rx": 19,
-      "ry": 765
-    },
-    {
-      "x": 684,
-      "y": 847,
-      "w": 280,
-      "h": 159,
-      "rx": 632,
+      "x": 680,
+      "y": 962,
+      "w": 286,
+      "h": 54,
+      "rx": 649,
       "ry": 767
     },
     {
-      "x": 1119,
-      "y": 738,
-      "w": 709,
-      "h": 77,
-      "rx": 989,
-      "ry": 754
+      "x": 201,
+      "y": 879,
+      "w": 382,
+      "h": 46,
+      "rx": 60,
+      "ry": 768
+    },
+    {
+      "x": 1138,
+      "y": 771,
+      "w": 689,
+      "h": 31,
+      "rx": 990,
+      "ry": 762
     }
   ]
 }
