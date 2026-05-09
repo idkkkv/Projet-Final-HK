@@ -2,5 +2,9 @@
   "tiroir_indices": {
     "required": 2,
     "description": ""
+  },
+  "vil": {
+    "required": 3,
+    "description": ""
   }
 }

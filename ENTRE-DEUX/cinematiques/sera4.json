@@ -14,7 +14,7 @@
       "nom": "Seraphin",
       "x": 786,
       "y": 302,
-      "sprite": null,
+      "sprite": "fox",
       "dialogue_mode": "boucle_dernier",
       "has_gravity": 1,
       "dialogues": []

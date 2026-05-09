@@ -163,6 +163,7 @@ class Enemy:
     # Chacun a une valeur par défaut adaptée à un ennemi "standard".
 
     def __init__(self, x, y, 
+                 nb_dgt=1,
                  nb_frames=1,
                  sprite_name="boss",
                  scale_factor = 2,
@@ -196,13 +197,14 @@ class Enemy:
         self.pieces_donnees = False
 
         # -- Vie --
+        self.nb_dgt = nb_dgt
         self.alive = True
         self.invincible = False
         self.invincible_timer = 0.0
         self.hit = False
         self.max_vie = {
             "mushroom": 1,
-            "flamur": 4,
+            "flamur": 2,
             "monstre_perdu": 1,
             "golem": 2,
             "boss": 1
@@ -698,10 +700,8 @@ class Enemy:
 
         # changer d'animation
         if self.hit:
-            print("yas")
             self.current_anim = "hit"
             self.hit = False
-            print(self.current_anim, self.hit)
         elif self.atk_active:
             self.current_anim = "atk"
         elif self.chasing:

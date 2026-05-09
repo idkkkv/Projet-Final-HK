@@ -347,6 +347,12 @@ class CutsceneTrigger(TriggerZone):
         self.cutscene_factory = cutscene_factory
         self.max_plays        = int(max_plays)
         self.mode             = str(mode)
+        # Cohérence one_shot ↔ max_plays : si max_plays != 1, la zone est
+        # forcément rearmable (sinon on ne pourrait pas la déclencher
+        # plusieurs fois — bug observé sur le rappel "vil" du village,
+        # max_plays=0 mais one_shot=True bloquait après le 1er fire).
+        if self.max_plays != 1:
+            self.one_shot = False
 
     def _charger_scene(self, ctx):
         """Construit la Cutscene : fabrique Python d'abord, fichier JSON ensuite."""

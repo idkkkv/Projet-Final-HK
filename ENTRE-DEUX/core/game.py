@@ -836,7 +836,8 @@ class Game:
                 continue
 
             if getattr(portail, "need_key", False):
-                if not self.inventory.utiliser("Keys"):
+                key_type = getattr(portail, "key_type", "Keys")
+                if not self.inventory.utiliser(key_type):
 
                     # afficher "Il te faut une clé"
 
@@ -846,7 +847,7 @@ class Game:
                         self._last_key_msg = 0
 
                     if now - self._last_key_msg > 3000:
-                        self.notifier("Il te faut une clé")
+                        self.notifier(f"Il te faut une {key_type}")
                         self._last_key_msg = now
 
                     continue
@@ -2625,18 +2626,70 @@ class Game:
             self.camera.update_drag(event.pos)
 
     def respawn_player_at(self, x, y):
-        """Téléporte le joueur au point de respawn spécifique et reset sa physique."""
-        # 1. On déplace le joueur
+        """Téléporte le joueur au respawn d'une danger_zone et applique 1 PV
+        de dégât (sans l'animation de hurt qui figerait le perso).
+
+        Comportement attendu :
+          - 1 cœur de dégât par chute dans la zone
+          - téléport au point de respawn défini avec la zone
+          - invincibilité courte pour ne pas reprendre des dégâts en boucle
+            si on retombe immédiatement dans la zone
+          - si le joueur meurt (hp ≤ 0) → flag dead = True → l'écran de
+            mort prend le relais et le bouton « Recommencer » respawne au
+            dernier point de sauvegarde (cf. _gerer_fin)."""
+        # ── 1. Si déjà invincible : on ignore (anti-spam des dégâts) ──
+        # mais on laisse quand même la téléportation se faire pour ne pas
+        # rester coincé dans la zone.
+        applique_degat = (not getattr(self.joueur, "invincible", False)
+                          and not getattr(self.joueur, "dead", False))
+
+        # ── 2. Téléportation ──
         self.joueur.rect.x = x
         self.joueur.rect.y = y
-        
-        # 2. pn reset les vitesses (important pour pas qu'il garde son élan)
-        if hasattr(self.joueur, 'vel_x'): self.joueur.vel_x = 0
-        if hasattr(self.joueur, 'vel_y'): self.joueur.vel_y = 0
-        
-        # 3. petit effet visuel (ScreenShake) puisque tu as le système juice
+
+        # ── 3. Reset des vitesses (vx/vy + knockback) pour ne pas garder
+        # l'élan de chute et retomber instantanément. Attention : les
+        # attributs sont vx/vy, pas vel_x/vel_y.
+        self.joueur.vx           = 0
+        self.joueur.vy           = 0
+        self.joueur.knockback_vx = 0
+
+        # ── 4. Dégât + invincibilité (sans animation hurt) ──
+        if applique_degat:
+            self.joueur.hp -= 1
+            try:
+                from audio import sound_manager
+                sound_manager.jouer("degat")
+            except Exception:
+                pass
+            # Affichage des cœurs au-dessus du joueur
+            try:
+                import settings
+                self.joueur.show_hp_timer  = settings.HP_DISPLAY_DURATION
+                self.joueur.invincible       = True
+                self.joueur.invincible_timer = settings.INVINCIBLE_DURATION
+            except Exception:
+                # Fallback si settings ne charge pas (ne devrait pas arriver)
+                self.joueur.invincible       = True
+                self.joueur.invincible_timer = 1.0
+            # Mort ? Le bouton Recommencer respawnera au dernier save.
+            if self.joueur.hp <= 0:
+                self.joueur.dead = True
+                try:
+                    from audio import sound_manager
+                    sound_manager.jouer("mort")
+                except Exception:
+                    pass
+
+        # ── 5. Effet visuel (screen shake) ──
+        # API : trigger(amplitude, duree). Avant on appelait ajouter(...)
+        # qui n'existait pas → crash.
         if hasattr(self, "shake"):
-            self.shake.ajouter(duration=0.2, amplitude=8) # secousse de 0.2s
+            self.shake.trigger(amplitude=8, duree=0.2)
+
+        # ── 6. Snap caméra sur le nouveau point (évite le glissement) ──
+        if hasattr(self.camera, "snap_to"):
+            self.camera.snap_to(self.joueur.rect)
         
 
     def _simuler_jeu(self, dt):

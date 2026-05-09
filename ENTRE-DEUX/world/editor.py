@@ -168,6 +168,43 @@ from world.pnj_editor         import PNJEditor
 from utils                   import find_file
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  HELPERS PRESSE-PAPIERS (Ctrl+V / Ctrl+C dans toutes les saisies de texte)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Permet de coller des noms, dialogues, paramètres depuis Word / Notepad /
+#  Google Docs sans avoir à tout retaper. Implémentation : tkinter (livré
+#  avec Python, pas de dépendance externe).
+
+def _editor_clipboard_get():
+    """Renvoie le texte du presse-papiers (ou "" si vide / erreur)."""
+    try:
+        import tkinter
+        r = tkinter.Tk()
+        r.withdraw()
+        try:
+            text = r.clipboard_get()
+        except Exception:
+            text = ""
+        r.destroy()
+        return text or ""
+    except Exception:
+        return ""
+
+
+def _editor_clipboard_set(text):
+    """Pose `text` dans le presse-papiers."""
+    try:
+        import tkinter
+        r = tkinter.Tk()
+        r.withdraw()
+        r.clipboard_clear()
+        r.clipboard_append(str(text))
+        r.update()       # nécessaire pour rendre le contenu accessible
+        r.destroy()
+    except Exception:
+        pass
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  Constantes du fichier
 # ═════════════════════════════════════════════════════════════════════════════
@@ -311,7 +348,7 @@ class Portal:
     """
 
     def __init__(self, x, y, w, h, target_map, target_x=-1, target_y=-1,
-                 require_up=False, need_key=False):
+                 require_up=False, need_key=False, key_type="CleRouge"):
         self.rect       = pygame.Rect(x, y, w, h)
         self.target_map = target_map
         # target_x / target_y = position d'arrivée dans la map cible.
@@ -321,6 +358,7 @@ class Portal:
         # Si True → portail "porte" : il faut appuyer sur HAUT pour entrer.
         self.require_up = bool(require_up)
         self.need_key = bool(need_key)
+        self.key_type = key_type
 
     def to_dict(self):
         """Sérialisation pour JSON."""
@@ -1123,7 +1161,7 @@ class Editor:
             self._snapshot()
             if   key == pygame.K_UP:    settings.GROUND_Y  = max(100,  settings.GROUND_Y - 20)
             elif key == pygame.K_DOWN:  settings.GROUND_Y  = min(4000, settings.GROUND_Y + 20)
-            elif key == pygame.K_HOME:  settings.CEILING_Y = max(-1500, settings.CEILING_Y - 20)
+            elif key == pygame.K_HOME:  settings.CEILING_Y = max(-3000, settings.CEILING_Y - 20)
             elif key == pygame.K_END:   settings.CEILING_Y = min(settings.GROUND_Y - 100,
                                                                  settings.CEILING_Y + 20)
             elif key == pygame.K_LEFT:
@@ -1618,6 +1656,17 @@ class Editor:
                 z.cutscene_nom = self._pending_trigger_nom
                 z.nom          = self._pending_trigger_nom or z.nom
                 z.max_plays    = max_plays
+                # Cohérence one_shot ↔ max_plays. max_plays=1 → unique
+                # (one_shot=True). max_plays != 1 (0=illimité ou >1) →
+                # zone rearmable, sinon le trigger se "verrouille" après
+                # le 1er fire et le max_plays>1 n'a plus aucun effet.
+                z.one_shot     = (max_plays == 1)
+                # Réarme aussi tout de suite : si la zone avait déjà été
+                # déclenchée et qu'on change max_plays pour permettre
+                # plus de fires, on n'attend pas que le joueur sorte.
+                if max_plays != 1:
+                    z.declenchee     = False
+                    z._dedans_avant  = False
                 self._show_msg(
                     f"Trigger mis à jour : '{z.cutscene_nom}'  (max {max_plays})"
                 )
@@ -1642,6 +1691,22 @@ class Editor:
 
         elif key == pygame.K_BACKSPACE:
             self._text_input = self._text_input[:-1]
+
+        elif key == pygame.K_v and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            # Ctrl+V : colle le presse-papiers. Permet d'écrire les
+            # dialogues / noms / configs dans Word ou Notepad puis de
+            # les coller en bloc dans l'éditeur, plutôt que de tout
+            # retaper à la main. On normalise les retours de ligne
+            # pour ne pas casser les modes mono-ligne.
+            txt = _editor_clipboard_get()
+            txt = txt.replace("\r\n", "\n").replace("\r", "\n")
+            # Pour les saisies multi-conv (// entre lignes, ; entre conv)
+            # on garde le \n converti en espace pour rester sur une ligne.
+            self._text_input += txt.replace("\n", " ")
+
+        elif key == pygame.K_c and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            # Ctrl+C : copie le contenu actuel vers le presse-papiers.
+            _editor_clipboard_set(self._text_input)
 
         else:
             # ── Modes "riches" : saisie via TEXTINPUT (gère majuscules,
@@ -3479,6 +3544,7 @@ class Editor:
         for e in data.get("enemies", []):
             self.enemies.append(Enemy(
                 e["x"], e["y"],
+                nb_dgt=e.get("nb_dgt", 1),
                 has_gravity=e.get("has_gravity", True),
                 has_collision=e.get("has_collision", True),
                 sprite_name=e.get("sprite_name", "monstre_perdu.png"),
@@ -3519,6 +3585,7 @@ class Editor:
                 # Absent dans les vieilles saves → défaut False (classique).
                 require_up=p.get("require_up", False),
                 need_key=p.get("need_key", False),
+                key_type=p.get("key_type", "Keys"),
             ))
 
         # Décors.

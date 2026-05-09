@@ -1,0 +1,227 @@
+{
+  "ground_y": 630,
+  "ceiling_y": 0,
+  "scene_width": 1700,
+  "scene_left": 100,
+  "camera_y_offset": 150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 849,
+    "y": 560
+  },
+  "named_spawns": {
+    "m2s": [
+      -144,
+      393
+    ],
+    "m1s": [
+      1763,
+      398
+    ]
+  },
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 227,
+      "y": 269,
+      "w": 42,
+      "h": 358
+    },
+    {
+      "x": 227,
+      "y": 582,
+      "w": 717,
+      "h": 42
+    },
+    {
+      "x": 228,
+      "y": 268,
+      "w": 1341,
+      "h": 45
+    },
+    {
+      "x": 915,
+      "y": 561,
+      "w": 28,
+      "h": 20
+    },
+    {
+      "x": 944,
+      "y": 538,
+      "w": 627,
+      "h": 90
+    },
+    {
+      "x": 1526,
+      "y": 269,
+      "w": 45,
+      "h": 358
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 100,
+      "y": 630,
+      "w": 1600,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 100,
+      "y": -800,
+      "w": 1600,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -700,
+      "y": -800,
+      "w": 800,
+      "h": 2230
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 1700,
+      "y": -800,
+      "w": 800,
+      "h": 2230
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 560,
+      "y": 376,
+      "radius": 170,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1367,
+      "y": 373,
+      "radius": 239,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 862,
+      "y": -40,
+      "radius": 1042,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 655,
+      "y": 1165,
+      "radius": 1324,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 811,
+      "y": 467,
+      "w": 84,
+      "h": 127,
+      "target_map": "villag m3s",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true,
+      "need_key": false
+    }
+  ],
+  "decors": [
+    {
+      "x": 224,
+      "y": 269,
+      "sprite": "tiled_m3_d_cor_1_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 1212,
+      "y": 498,
+      "nom": "Arken",
+      "sprite_name": "marchand",
+      "dialogues": [
+        [
+          [
+            "Tu reviens... bien. Personne ne s'attarde par ici, d'habitude.",
+            "Arken"
+          ],
+          [
+            "Tu te demandes peut-\u00eatre d'o\u00f9 viennent les \u00c9chos.",
+            "Arken"
+          ],
+          [
+            "On dit que chaque pi\u00e8ce contient un fragment de m\u00e9moire. Un \u00e9clat de quelqu'un qui n'est plus.",
+            "Arken"
+          ],
+          [
+            "Avant que la peur n'engloutisse ce monde, on les frappait \u00e0 la forge du roi. Une vraie monnaie, alors.",
+            "Arken"
+          ],
+          [
+            "Aujourd'hui... on les ramasse. Sur les morts, dans les ruines, parfois au fond des coffres oubli\u00e9s.",
+            "Arken"
+          ],
+          [
+            "Chaque transaction est un petit deuil. Mais sans elles, plus rien ne se transmet ici.",
+            "Arken"
+          ],
+          [
+            "Va, voyageur. Le marchand t'attend. Et la cl\u00e9 que tu cherches, peut-\u00eatre aussi.",
+            "Arken"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    }
+  ],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": 1109,
+      "y": 313,
+      "w": 132,
+      "h": 229,
+      "nom": "arken",
+      "one_shot": true,
+      "cutscene_nom": "arken",
+      "max_plays": 1,
+      "mode": "enter"
+    }
+  ],
+  "danger_zones": []
+}

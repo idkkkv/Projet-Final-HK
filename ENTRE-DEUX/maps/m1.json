@@ -7,9 +7,10 @@
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 691,
-    "y": 531
+    "x": 711,
+    "y": 560
   },
+  "named_spawns": {},
   "bg_color": [
     0,
     0,
@@ -149,14 +150,15 @@
   ],
   "portals": [
     {
-      "x": 678,
-      "y": 485,
-      "w": 84,
-      "h": 91,
-      "target_map": "villag",
+      "x": 667,
+      "y": 462,
+      "w": 94,
+      "h": 145,
+      "target_map": "villag m1s",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": true,
+      "need_key": false
     }
   ],
   "decors": [
@@ -189,6 +191,81 @@
       "echelle": 1.0
     }
   ],
-  "pnjs": [],
-  "trigger_zones": []
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 1155,
+      "y": 536,
+      "nom": "Na\u00efs",
+      "sprite_name": "marchand",
+      "dialogues": [
+        [
+          [
+            "Tu reviens. Bien. Je commen\u00e7ais \u00e0 craindre que la peur t'ait pris.",
+            "Na\u00efs"
+          ],
+          [
+            "Ce monde a cinq paliers, sais-tu cela. Cinq stades de la peur.",
+            "Na\u00efs"
+          ],
+          [
+            "Au premier, tu marches normalement. Tu doutes seulement. Au cinqui\u00e8me... tu n'avances plus du tout.",
+            "Na\u00efs"
+          ],
+          [
+            "Chaque Luciole qui t'accompagne te ram\u00e8ne d'un palier. Cinq Lucioles, et la peur ne pourra plus t'atteindre.",
+            "Na\u00efs"
+          ],
+          [
+            "On dit qu'elles sont les \u00e2mes de ceux qui ont refus\u00e9 de plier. Quand la Chute est venue, ils ont br\u00fbl\u00e9 plut\u00f4t que de s'\u00e9teindre.",
+            "Na\u00efs"
+          ],
+          [
+            "Moi-m\u00eame, j'ai vu mon fr\u00e8re devenir lumi\u00e8re. Il flotte quelque part dans les ruines de l'Est, je crois.",
+            "Na\u00efs"
+          ],
+          [
+            "Si tu le croises, dis-lui que sa s\u0153ur attend toujours.",
+            "Na\u00efs"
+          ],
+          [
+            "Le Voile, c'est cette fronti\u00e8re entre les vivants et nous. Avant, on pouvait la traverser. Maintenant... presque plus.",
+            "Na\u00efs"
+          ],
+          [
+            "Toi, tu sembles encore pouvoir. C'est pour \u00e7a que je t'aide.",
+            "Na\u00efs"
+          ],
+          [
+            "Trouve les autres Lucioles, voyageur. Et essaie, si tu le peux, de rouvrir le Voile.",
+            "Na\u00efs"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    }
+  ],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": 870,
+      "y": 333,
+      "w": 194,
+      "h": 249,
+      "nom": "nais",
+      "one_shot": true,
+      "cutscene_nom": "nais",
+      "max_plays": 1,
+      "mode": "enter"
+    }
+  ],
+  "danger_zones": []
 }
