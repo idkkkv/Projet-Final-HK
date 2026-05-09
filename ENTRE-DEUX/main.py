@@ -25,7 +25,6 @@
 #
 # ─────────────────────────────────────────────────────────────────────────────
 import os
-os.environ['SDL_AUDIODRIVER'] = 'directsound'
 import pygame
 import gc
 import sys
