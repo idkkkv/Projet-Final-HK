@@ -1,0 +1,16 @@
+[
+  {
+    "type": "set_flag",
+    "key": "p",
+    "value": 1
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "c ok",
+        "auteur": ""
+      }
+    ]
+  }
+]
