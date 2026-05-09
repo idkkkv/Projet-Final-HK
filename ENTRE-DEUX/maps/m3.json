@@ -159,7 +159,69 @@
       "echelle": 1.0
     }
   ],
-  "pnjs": [],
-  "trigger_zones": [],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 1212,
+      "y": 498,
+      "nom": "Arken",
+      "sprite_name": "marchand",
+      "dialogues": [
+        [
+          [
+            "Tu reviens... bien. Personne ne s'attarde par ici, d'habitude.",
+            "Arken"
+          ],
+          [
+            "Tu te demandes peut-\u00eatre d'o\u00f9 viennent les \u00c9chos.",
+            "Arken"
+          ],
+          [
+            "On dit que chaque pi\u00e8ce contient un fragment de m\u00e9moire. Un \u00e9clat de quelqu'un qui n'est plus.",
+            "Arken"
+          ],
+          [
+            "Avant que la peur n'engloutisse ce monde, on les frappait \u00e0 la forge du roi. Une vraie monnaie, alors.",
+            "Arken"
+          ],
+          [
+            "Aujourd'hui... on les ramasse. Sur les morts, dans les ruines, parfois au fond des coffres oubli\u00e9s.",
+            "Arken"
+          ],
+          [
+            "Chaque transaction est un petit deuil. Mais sans elles, plus rien ne se transmet ici.",
+            "Arken"
+          ],
+          [
+            "Va, voyageur. Le marchand t'attend. Et la cl\u00e9 que tu cherches, peut-\u00eatre aussi.",
+            "Arken"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    }
+  ],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": 1109,
+      "y": 313,
+      "w": 132,
+      "h": 229,
+      "nom": "arken",
+      "one_shot": true,
+      "cutscene_nom": "arken",
+      "max_plays": 1,
+      "mode": "enter"
+    }
+  ],
   "danger_zones": []
 }

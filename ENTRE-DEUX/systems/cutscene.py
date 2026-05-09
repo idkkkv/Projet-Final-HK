@@ -856,10 +856,17 @@ class Cutscene:
                 except (TypeError, ValueError):
                     required = None
             if key:
-                from systems.story_flags import flag_incrementer
-                vient_de_finir = flag_incrementer(
+                from systems.story_flags import flag_incrementer, flag_valeur
+                flag_incrementer(
                     game.story_flags, key, delta=delta, required=required)
-                if vient_de_finir and hasattr(game, "_programmer_verif_cine"):
+                # Affiche le toast "key : current/required" comme pour les
+                # events PNJ — feedback indispensable pour le joueur.
+                cur, req = flag_valeur(game.story_flags, key)
+                if hasattr(game, "notifier"):
+                    game.notifier(f"{key} : {cur}/{req}")
+                # Vérification des cinématiques conditionnelles (peu importe
+                # qu'on vienne de finir : un seuil intermédiaire compte aussi).
+                if hasattr(game, "_programmer_verif_cine"):
                     game._programmer_verif_cine()
             return True
 

@@ -1,0 +1,80 @@
+[
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "camera_focus_pnj",
+    "nom": "Eldris",
+    "duration": "garde la caméra fixée",
+    "speed": "0.03",
+    "follow": "1"
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Tu es nouveau ici. Cela se voit à ta manière de regarder les ombres.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Ce monde n'a pas toujours porté ce nom. L'Entre-Deux est venu après... après que le Voile soit tombé.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Avant, il y avait un royaume. Une lumière. Des rires, dit-on, dans les rues.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Puis la peur est venue. Lentement d'abord, comme une brume qui s'installe. Puis tout s'est figé.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Maintenant nous sommes là, entre deux mondes. Ni tout à fait morts, ni tout à fait vivants.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Toi... ta lumière n'est pas encore éteinte. C'est rare. Reviens me voir, je te raconterai le reste.",
+        "auteur": "Eldris"
+      }
+    ]
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Mais avant que tu repartes... j'ai vu comment tu te déplaces.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Il te manque quelque chose. Une mémoire que ton corps a oubliée.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Dans l'Entre-Deux, les murs eux-mêmes se souviennent. Si tu poses le pied contre eux, ils te répondront.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Saute, frôle la pierre, puis saute encore. Ton élan te portera plus haut que tu ne le crois.",
+        "auteur": "Eldris"
+      },
+      {
+        "texte": "Va, voyageur. Apprivoise les murs. Ils te mèneront là où aucune porte ne s'ouvre.",
+        "auteur": "Eldris"
+      }
+    ]
+  },
+  {
+    "type": "camera_release"
+  },
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "flag_increment",
+    "key": "vil",
+    "delta": 1,
+    "required": "3"
+  }
+]

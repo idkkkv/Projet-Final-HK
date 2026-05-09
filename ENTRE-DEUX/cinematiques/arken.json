@@ -1,0 +1,59 @@
+[
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "flag_increment",
+    "key": "vil",
+    "delta": 1,
+    "required": "3"
+  },
+  {
+    "type": "camera_focus_pnj",
+    "nom": "Arken",
+    "duration": "garde la caméra fixée",
+    "speed": "0.03",
+    "follow": "1"
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Approche, voyageur... tu marches depuis trop longtemps les mains vides.",
+        "auteur": "Arken"
+      },
+      {
+        "texte": "Tiens, prends ceci. Quelques Échos, pour commencer.",
+        "auteur": "Arken"
+      },
+      {
+        "texte": "Dans ce monde, les Échos sont la seule chose que les vivants et les ombres acceptent encore d'échanger.",
+        "auteur": "Arken"
+      },
+      {
+        "texte": "Au cœur du village, tu trouveras un marchand. Il a installé son étal il y a longtemps... très longtemps.",
+        "auteur": "Arken"
+      },
+      {
+        "texte": "D'autres comme lui se cachent un peu partout, dans les coins oubliés du monde. Ouvre l'œil.",
+        "auteur": "Arken"
+      },
+      {
+        "texte": "Et surtout — il possède des clés. Des clés étranges, qui ouvrent ce qui était scellé.",
+        "auteur": "Arken"
+      },
+      {
+        "texte": "Sans elles, certaines portes resteront closes pour toujours. Et tu n'iras nulle part.",
+        "auteur": "Arken"
+      }
+    ]
+  },
+  {
+    "type": "camera_release"
+  },
+  {
+    "type": "give_coins",
+    "amount": 30
+  }
+]

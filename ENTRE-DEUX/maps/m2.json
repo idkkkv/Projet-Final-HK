@@ -157,7 +157,85 @@
       "echelle": 1.0
     }
   ],
-  "pnjs": [],
-  "trigger_zones": [],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 384,
+      "y": 542,
+      "nom": "Eldris",
+      "sprite_name": "marchand",
+      "dialogues": [
+        [
+          [
+            "Te voil\u00e0 revenu. Je savais que tu marcherais jusqu'ici.",
+            "Eldris"
+          ],
+          [
+            "Avant la Chute, j'\u00e9tais Chroniqueur \u2014 celui qui consignait les noms et les jours. Plus personne ne tient ce r\u00f4le aujourd'hui.",
+            "Eldris"
+          ],
+          [
+            "Le royaume s'appelait Lumeran. Un nom qu'on n'ose plus prononcer \u00e0 voix haute.",
+            "Eldris"
+          ],
+          [
+            "Le roi \u00e9tait jeune. Trop jeune, peut-\u00eatre. On dit qu'il a pass\u00e9 un pacte pour pr\u00e9server son peuple de la guerre qui venait.",
+            "Eldris"
+          ],
+          [
+            "Mais ce qu'il a invoqu\u00e9 n'\u00e9tait pas la paix. C'\u00e9tait la peur \u2014 sous sa forme la plus pure.",
+            "Eldris"
+          ],
+          [
+            "Elle s'est gliss\u00e9e dans les r\u00eaves d'abord. Puis dans les regards. Puis dans la chair m\u00eame des vivants.",
+            "Eldris"
+          ],
+          [
+            "Ceux qui r\u00e9sistaient se changeaient en lumi\u00e8re. Tu en croises certains, sous forme de Lucioles.",
+            "Eldris"
+          ],
+          [
+            "Les autres... sont rest\u00e9s ici. Coinc\u00e9s entre deux \u00e9tats. Comme moi. Comme presque tout le monde.",
+            "Eldris"
+          ],
+          [
+            "Une vieille proph\u00e9tie parle d'un voyageur dont la peur n'a pas pris racine. Quelqu'un capable de traverser sans se perdre.",
+            "Eldris"
+          ],
+          [
+            "Je ne dirai pas que c'est toi. Mais je ne dirai pas non plus que ce n'est pas toi.",
+            "Eldris"
+          ],
+          [
+            "Cherche les fragments. \u00c9coute les Lucioles. Et ne crois pas tout ce que ce monde te montre.",
+            "Eldris"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    }
+  ],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": 533,
+      "y": 358,
+      "w": 140,
+      "h": 230,
+      "nom": "eldris",
+      "one_shot": true,
+      "cutscene_nom": "eldris",
+      "max_plays": 1,
+      "mode": "enter"
+    }
+  ],
   "danger_zones": []
 }

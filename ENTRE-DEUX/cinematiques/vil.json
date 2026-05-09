@@ -1,0 +1,37 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "dialogue",
+      "lignes": [
+        {
+          "texte": "Tu repars déjà, voyageur ?",
+          "auteur": "######"
+        },
+        {
+          "texte": "Trois foyers veillent ici, et chacun a une voix à te confier. Trois mémoires, avant la route.",
+          "auteur": "######"
+        },
+        {
+          "texte": "Reviens quand tu auras fait le tour.",
+          "auteur": "######"
+        }
+      ]
+    },
+    {
+      "type": "set_player_pos",
+      "x": 2524,
+      "y": 391
+    }
+  ],
+  "condition": {
+    "flag": "vil",
+    "value": false
+  },
+  "delay": 1.0,
+  "one_shot": true,
+  "auto_fire": false
+}

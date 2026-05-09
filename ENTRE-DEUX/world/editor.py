@@ -168,6 +168,43 @@ from world.pnj_editor         import PNJEditor
 from utils                   import find_file
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  HELPERS PRESSE-PAPIERS (Ctrl+V / Ctrl+C dans toutes les saisies de texte)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Permet de coller des noms, dialogues, paramètres depuis Word / Notepad /
+#  Google Docs sans avoir à tout retaper. Implémentation : tkinter (livré
+#  avec Python, pas de dépendance externe).
+
+def _editor_clipboard_get():
+    """Renvoie le texte du presse-papiers (ou "" si vide / erreur)."""
+    try:
+        import tkinter
+        r = tkinter.Tk()
+        r.withdraw()
+        try:
+            text = r.clipboard_get()
+        except Exception:
+            text = ""
+        r.destroy()
+        return text or ""
+    except Exception:
+        return ""
+
+
+def _editor_clipboard_set(text):
+    """Pose `text` dans le presse-papiers."""
+    try:
+        import tkinter
+        r = tkinter.Tk()
+        r.withdraw()
+        r.clipboard_clear()
+        r.clipboard_append(str(text))
+        r.update()       # nécessaire pour rendre le contenu accessible
+        r.destroy()
+    except Exception:
+        pass
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  Constantes du fichier
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1618,6 +1655,17 @@ class Editor:
                 z.cutscene_nom = self._pending_trigger_nom
                 z.nom          = self._pending_trigger_nom or z.nom
                 z.max_plays    = max_plays
+                # Cohérence one_shot ↔ max_plays. max_plays=1 → unique
+                # (one_shot=True). max_plays != 1 (0=illimité ou >1) →
+                # zone rearmable, sinon le trigger se "verrouille" après
+                # le 1er fire et le max_plays>1 n'a plus aucun effet.
+                z.one_shot     = (max_plays == 1)
+                # Réarme aussi tout de suite : si la zone avait déjà été
+                # déclenchée et qu'on change max_plays pour permettre
+                # plus de fires, on n'attend pas que le joueur sorte.
+                if max_plays != 1:
+                    z.declenchee     = False
+                    z._dedans_avant  = False
                 self._show_msg(
                     f"Trigger mis à jour : '{z.cutscene_nom}'  (max {max_plays})"
                 )
@@ -1642,6 +1690,22 @@ class Editor:
 
         elif key == pygame.K_BACKSPACE:
             self._text_input = self._text_input[:-1]
+
+        elif key == pygame.K_v and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            # Ctrl+V : colle le presse-papiers. Permet d'écrire les
+            # dialogues / noms / configs dans Word ou Notepad puis de
+            # les coller en bloc dans l'éditeur, plutôt que de tout
+            # retaper à la main. On normalise les retours de ligne
+            # pour ne pas casser les modes mono-ligne.
+            txt = _editor_clipboard_get()
+            txt = txt.replace("\r\n", "\n").replace("\r", "\n")
+            # Pour les saisies multi-conv (// entre lignes, ; entre conv)
+            # on garde le \n converti en espace pour rester sur une ligne.
+            self._text_input += txt.replace("\n", " ")
+
+        elif key == pygame.K_c and (pygame.key.get_mods() & pygame.KMOD_CTRL):
+            # Ctrl+C : copie le contenu actuel vers le presse-papiers.
+            _editor_clipboard_set(self._text_input)
 
         else:
             # ── Modes "riches" : saisie via TEXTINPUT (gère majuscules,

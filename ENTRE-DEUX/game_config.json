@@ -39,6 +39,22 @@
     {
       "nom": "louis le marchand",
       "sprite_name": "marchand"
+    },
+    {
+      "nom": "Orhen",
+      "sprite_name": "marchand"
+    },
+    {
+      "nom": "Arken",
+      "sprite_name": "marchand"
+    },
+    {
+      "nom": "Eldris",
+      "sprite_name": "marchand"
+    },
+    {
+      "nom": "Na\u00efs",
+      "sprite_name": "marchand"
     }
   ],
   "histoire": [

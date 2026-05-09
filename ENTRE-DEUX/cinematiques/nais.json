@@ -1,0 +1,51 @@
+[
+  {
+    "type": "wait",
+    "duration": 1.0
+  },
+  {
+    "type": "camera_focus_pnj",
+    "nom": "Naïs",
+    "duration": "garde la caméra fixée",
+    "speed": "0.03",
+    "follow": "1*"
+  },
+  {
+    "type": "dialogue",
+    "lignes": [
+      {
+        "texte": "Attends, voyageur. Tu portes la peur sur tes épaules — je la vois.",
+        "auteur": "Naïs"
+      },
+      {
+        "texte": "Approche. J'ai quelque chose pour toi.",
+        "auteur": "Naïs"
+      },
+      {
+        "texte": "Tiens. Une Luciole. Garde-la près de toi, elle veillera.",
+        "auteur": "Naïs"
+      },
+      {
+        "texte": "Tant qu'elle brûle à tes côtés, la peur ne pourra pas tout à fait te dévorer.",
+        "auteur": "Naïs"
+      },
+      {
+        "texte": "Va, maintenant. Et si un jour tu en trouves d'autres... ramène-les. Elles savent où retourner.",
+        "auteur": "Naïs"
+      }
+    ]
+  },
+  {
+    "type": "camera_release"
+  },
+  {
+    "type": "grant_luciole",
+    "source": "merci_Naïs"
+  },
+  {
+    "type": "flag_increment",
+    "key": "vil",
+    "delta": 1,
+    "required": "3"
+  }
+]

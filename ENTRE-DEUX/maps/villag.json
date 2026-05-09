@@ -22,6 +22,10 @@
     "m1s": [
       2413,
       399
+    ],
+    "ko": [
+      2527,
+      396
     ]
   },
   "bg_color": [
@@ -601,6 +605,19 @@
       ]
     }
   ],
-  "trigger_zones": [],
+  "trigger_zones": [
+    {
+      "type": "cutscene",
+      "x": 2596,
+      "y": 272,
+      "w": 161,
+      "h": 144,
+      "nom": "vil",
+      "one_shot": false,
+      "cutscene_nom": "vil",
+      "max_plays": 0,
+      "mode": "enter"
+    }
+  ],
   "danger_zones": []
 }
