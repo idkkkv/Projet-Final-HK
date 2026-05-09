@@ -835,6 +835,22 @@ class Game:
             if getattr(portail, "require_up", False) and not input_up:
                 continue
 
+            if getattr(portail, "need_key", False):
+                if not self.inventory.utiliser("Keys"):
+
+                    # afficher "Il te faut une clé"
+
+                    now = pygame.time.get_ticks()
+
+                    if not hasattr(self, "_last_key_msg"):
+                        self._last_key_msg = 0
+
+                    if now - self._last_key_msg > 3000:
+                        self.notifier("Il te faut une clé")
+                        self._last_key_msg = now
+
+                    continue
+
             # On mémorise où on doit arriver, le chargement se fera
             # quand l'écran sera complètement noir.
             self._portail_en_attente = (
@@ -3085,10 +3101,28 @@ class Game:
         self.particles.draw(self.screen, self.camera)
 
         # 10. Portails (visibles seulement avec hitbox ou éditeur actif).
+        police = self.editeur._get_font()
+
         if self.editeur.show_hitboxes or self.editeur.active:
-            police = self.editeur._get_font()
             for portail in self.editeur.portals:
                 portail.draw(self.screen, self.camera, police)
+
+        # affiche Z quand tu t'approches d'un portail 
+
+        for portail in self.editeur.portals:
+            
+            dx = abs(portail.rect.centerx - self.joueur.rect.centerx)
+            dy = abs(portail.rect.centery - self.joueur.rect.centery)
+            if dx > 150 or dy > 100:
+                continue
+
+            cam = self.camera.apply(portail.rect)
+            text = police.render("[Z]", True, (220, 200, 50))
+
+            self.screen.blit(
+                text, (cam.centerx - text.get_width() // 2,
+                cam.top - 22
+                ))
 
         # 10.b Zones-déclencheurs (rectangles colorés) — éditeur uniquement.
         # Vert = téléportation, jaune = cinématique. cf. world/triggers.py

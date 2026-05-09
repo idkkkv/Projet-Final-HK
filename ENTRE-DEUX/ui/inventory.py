@@ -131,6 +131,13 @@ class ItemContainer:
             self.slots[index] = None
             return True
         return False
+    
+    def utiliser(self, name):
+        """utilise l'item mais ne la retire pas"""
+        for s in self.slots:
+            if s is not None and s.name == name:
+                return True
+        return False
 
     def consommer(self, name, n=1):
         """Retire n unités d'un item nommé (cumule sur tous les slots).

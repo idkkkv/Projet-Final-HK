@@ -136,7 +136,9 @@
       "h": 13,
       "target_map": "nymbus",
       "target_x": -1,
-      "target_y": -1
+      "target_y": -1,
+      "require_up": false,
+      "need_key": true
     }
   ],
   "decors": [],
