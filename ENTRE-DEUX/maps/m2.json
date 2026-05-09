@@ -1,0 +1,163 @@
+{
+  "ground_y": 775,
+  "ceiling_y": 60,
+  "scene_width": 1700,
+  "scene_left": 100,
+  "camera_y_offset": -150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 1160,
+    "y": 602
+  },
+  "named_spawns": {},
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": 224,
+      "y": 314,
+      "w": 45,
+      "h": 358
+    },
+    {
+      "x": 224,
+      "y": 582,
+      "w": 627,
+      "h": 90
+    },
+    {
+      "x": 224,
+      "y": 313,
+      "w": 1341,
+      "h": 45
+    },
+    {
+      "x": 850,
+      "y": 606,
+      "w": 28,
+      "h": 20
+    },
+    {
+      "x": 851,
+      "y": 627,
+      "w": 717,
+      "h": 42
+    },
+    {
+      "x": 1523,
+      "y": 314,
+      "w": 42,
+      "h": 358
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 100,
+      "y": 775,
+      "w": 1600,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 100,
+      "y": -740,
+      "w": 1600,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -700,
+      "y": -740,
+      "w": 800,
+      "h": 2315
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 1700,
+      "y": -740,
+      "w": 800,
+      "h": 2315
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 292,
+      "y": 424,
+      "radius": 226,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 831,
+      "y": 423,
+      "radius": 217,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1325,
+      "y": 425,
+      "radius": 210,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 836,
+      "y": -38,
+      "radius": 1354,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 1113,
+      "y": 481,
+      "w": 99,
+      "h": 166,
+      "target_map": "villag m2s",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true,
+      "need_key": false
+    }
+  ],
+  "decors": [
+    {
+      "x": 224,
+      "y": 314,
+      "sprite": "tiled_m2_d_cor_2_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    },
+    {
+      "x": 493,
+      "y": 358,
+      "sprite": "tiled_m2_d_cor_1_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": [],
+  "danger_zones": []
+}

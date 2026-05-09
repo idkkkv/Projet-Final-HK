@@ -10,7 +10,20 @@
     "x": -1359,
     "y": 395
   },
-  "named_spawns": {},
+  "named_spawns": {
+    "m2s": [
+      -144,
+      393
+    ],
+    "m3s": [
+      509,
+      392
+    ],
+    "m1s": [
+      2413,
+      399
+    ]
+  },
   "bg_color": [
     38,
     19,
@@ -274,50 +287,6 @@
   ],
   "portals": [
     {
-      "x": 1730,
-      "y": 309,
-      "w": 68,
-      "h": 107,
-      "target_map": "m1",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": true,
-      "need_key": false
-    },
-    {
-      "x": -173,
-      "y": 313,
-      "w": 66,
-      "h": 107,
-      "target_map": "p",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": true,
-      "need_key": false
-    },
-    {
-      "x": 481,
-      "y": 316,
-      "w": 63,
-      "h": 104,
-      "target_map": "s",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": true,
-      "need_key": false
-    },
-    {
-      "x": 2383,
-      "y": 313,
-      "w": 63,
-      "h": 106,
-      "target_map": "bossseraphin",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": true,
-      "need_key": false
-    },
-    {
       "x": -1397,
       "y": 281,
       "w": 14,
@@ -326,6 +295,39 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": false,
+      "need_key": false
+    },
+    {
+      "x": -176,
+      "y": 300,
+      "w": 81,
+      "h": 121,
+      "target_map": "m2",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true,
+      "need_key": false
+    },
+    {
+      "x": 470,
+      "y": 305,
+      "w": 83,
+      "h": 113,
+      "target_map": "m3",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true,
+      "need_key": false
+    },
+    {
+      "x": 2375,
+      "y": 304,
+      "w": 78,
+      "h": 115,
+      "target_map": "m1",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": true,
       "need_key": false
     }
   ],
@@ -508,83 +510,95 @@
     },
     {
       "type": "marchand",
-      "x": 1455,
-      "y": 318,
+      "x": 1405,
+      "y": 238,
       "nom": "louis le marchand",
       "sprite_name": "marchand",
-      "dialogues": [[["Bonjour, que puis-je pour toi ?", "louis"]]],
+      "dialogues": [
+        [
+          [
+            "Bonjour, que puis-je pour toi ?",
+            "louis"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [
+        []
+      ],
+      "dialogue_conditions": [
+        null
+      ],
       "inventaire": [
         {
           "nom": "Pomme",
           "prix": 0,
-          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose à faire\ndonc NAN. D:<"
+          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose \u00c3\u00a0 faire\ndonc NAN. D:<"
         },
         {
           "nom": "Cassette",
           "prix": 20,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant (tkt est tres tres utile)",
-          "stock":1
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant (tkt est tres tres utile)",
+          "stock": 1
         },
         {
           "nom": "CleJaune",
           "prix": 10,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile",
-          "stock":1
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile",
+          "stock": 1
         },
         {
           "nom": "CleRouge",
           "prix": 5,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "CleBleue",
           "prix": 10,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "Soupe",
           "prix": 25,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "Champignon",
           "prix": 2,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "Salade",
           "prix": 67,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "Rossier hairs",
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "Macron",
           "prix": 493,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "1l essence",
           "prix": 999,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "Requin",
           "prix": 255,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
         },
         {
           "nom": "Cassette",
           "prix": 20,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
-        }],
-      "dialogue_mode": "boucle_dernier",
-      "has_gravity": true,
-      "is_save_point": false,
-      "events": [],
-      "dialogue_conditions": []
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        }
+      ]
     }
   ],
   "trigger_zones": [],
