@@ -25,7 +25,7 @@
 #
 # ─────────────────────────────────────────────────────────────────────────────
 import os
-os.environ['SDL_AUDIODRIVER'] = 'directsound' # On essaie directsound à la place de WASAPI
+os.environ['SDL_AUDIODRIVER'] = 'directsound'
 import pygame
 import gc
 import sys
