@@ -1,0 +1,34 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "npc_spawn",
+      "nom": "Nymbus",
+      "x": 192,
+      "y": 205,
+      "sprite": "nimbus",
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": 1,
+      "dialogues": [
+        [
+          [
+            "Viens… cet endroit n’a plus rien à t’apprendre.",
+            "Nymbus"
+          ],
+          [
+            "Je vais te ramener en lieu sûr.",
+            "Nymbus"
+          ]
+        ]
+      ]
+    }
+  ],
+  "condition": {
+    "flag": "mort_Boss1"
+  },
+  "delay": 1.0,
+  "one_shot": true
+}

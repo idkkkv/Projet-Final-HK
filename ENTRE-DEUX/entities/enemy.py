@@ -184,8 +184,27 @@ class Enemy:
                  respawn_timeout=10.0,         # s avant téléportation si bloqué hors zone
                  can_turn_randomly=False,      # fait-il des demi-tours aléatoires ?
                  patrol_speed=120,             # vitesse en patrouille (px/s)
-                 chase_speed=200):             # vitesse en poursuite (px/s)
+                 chase_speed=200,              # vitesse en poursuite (px/s)
+                 nom=""):                      # nom unique (pour les flags de mort de boss)
         
+        # ── NOM UNIQUE (optionnel) ──────────────────────────────────────
+        # Pour les boss et ennemis scénarisés. Quand l'ennemi meurt, le
+        # jeu pose automatiquement un story_flag "mort_<nom>" qu'une
+        # cinématique peut utiliser comme condition d'activation.
+        # Exemple : nom="boss_foret" → flag posé "mort_boss_foret".
+        # Vide ou None = ennemi anonyme, pas de flag posé à sa mort.
+        self.nom = (nom or "").strip()
+
+        # ── CATÉGORIE BOSS (0 = pas un boss, 1/2/3 = niveau) ───────────
+        # 1 → mêlée seulement, détection 360°
+        # 2 → + tire des boules d'ombre (3-5s)
+        # 3 → + dash imprévisible toutes les 5-10s
+        # Modifié par l'éditeur via le popup "boss_tier" après le nommage.
+        self.boss_tier = 0
+        # Timer du dash boss (tier 3). Quand il atteint 0 → dash de 0.4s.
+        self._boss_dash_cooldown = random.uniform(5.0, 10.0)
+        self._boss_dash_timer    = 0.0   # >0 = dash en cours
+
         # -- Pieces recuperees --
         self.pieces_recup = {
             "mushroom": 10,
@@ -281,6 +300,14 @@ class Enemy:
         self._random_turn_timer = random.uniform(3.0, 6.0)
         # Temps de retour avant téléportation.
         self._returning_timer   = 0.0
+
+        # ── Attaque à distance (boss : projectiles d'ombre) ─────────
+        # Délai aléatoire entre 3 et 5 s entre 2 tirs. Chaque tir crée
+        # un objet ShadowProjectile qui poursuit le joueur quelques sec.
+        # Seuls les ennemis NOMMÉS (boss) tirent — les mobs anonymes
+        # n'ont pas de projectiles pour rester légers.
+        self._shoot_timer  = random.uniform(2.0, 4.0)
+        self.projectiles   = []          # liste de ShadowProjectile actifs
         self.respawn_timeout    = respawn_timeout
         # Après un demi-tour au bord d'un trou : on attend avant de re-tester.
         self._hole_cooldown     = 0.0
@@ -331,14 +358,27 @@ class Enemy:
     # ═════════════════════════════════════════════════════════════════════════
 
     def _detect_rect(self):
-        """Renvoie le rectangle de détection devant l'ennemi.
+        """Renvoie le rectangle de détection.
 
-        C'est un cône horizontal de `detect_range` pixels de long et
-        `detect_height` pixels de haut, positionné du côté où regarde
-        l'ennemi.
+        Cas standard (mob anonyme) : cône directionnel devant l'ennemi.
+        Cas BOSS (ennemi nommé) : zone symétrique des deux côtés —
+        le joueur ne peut pas se cacher derrière lui pour le taper dans
+        le dos. Le boss se retournera tout seul si le joueur est derrière
+        (cf. _detecter_joueur qui inverse self.direction quand le joueur
+        sort du côté actuel).
         """
         # Calage vertical : centré sur le centre de la hitbox.
         y = self.rect.y - (self.detect_height - self.hitbox_h) // 2
+
+        # Boss (tier ≥ 1) : zone des DEUX côtés (devant + derrière).
+        # Le joueur ne peut pas se planquer derrière pour taper dans le dos.
+        if getattr(self, "boss_tier", 0) >= 1:
+            return pygame.Rect(
+                self.rect.centerx - self.detect_range,
+                y,
+                self.detect_range * 2 + self.rect.width,
+                self.detect_height,
+            )
 
         if self.direction > 0:
             # Regarde à droite → zone à DROITE de la hitbox.
@@ -636,8 +676,50 @@ class Enemy:
             self._turn_cooldown = max(0.0, self._turn_cooldown - dt)
         if self.invincible_timer > 0:
             self.invincible_timer = max(0.0, self.invincible_timer - dt)
-            if self.invincible_timer == 0:
-                self.invincible = False
+
+        # ── Tir périodique de boules d'ombre (boss tier ≥ 2) ──
+        # Tier 1 : pas de projectile (mêlée pure).
+        # Tier 2/3 : tire des boules d'ombre quand il chase le joueur.
+        if self.boss_tier >= 2 and self.chasing and player_rect is not None:
+            self._shoot_timer -= dt
+            if self._shoot_timer <= 0:
+                try:
+                    from entities.projectile import ShadowProjectile
+                    self.projectiles.append(ShadowProjectile(
+                        self.rect.centerx, self.rect.centery,
+                        player_rect.centerx, player_rect.centery,
+                    ))
+                except Exception as e:
+                    print(f"[Boss tir] échec : {e}")
+                self._shoot_timer = random.uniform(3.0, 5.0)
+        # Avance les projectiles existants (touche-joueur géré côté game.py)
+        for p in self.projectiles:
+            p.update(dt, player_rect)
+        # Nettoyage : on supprime les projectiles morts
+        self.projectiles[:] = [p for p in self.projectiles if p.alive]
+
+        # ── Dash imprévisible (boss tier 3) ──
+        # Toutes les 5-10s en chase, le boss s'élance brièvement à grande
+        # vitesse vers le joueur (esquive plus dure). Durée du dash : 0.4s.
+        if self.boss_tier >= 3 and self.chasing and player_rect is not None:
+            if self._boss_dash_timer > 0:
+                # Dash en cours : on décrémente. La vitesse boostée est
+                # appliquée plus loin dans _appliquer_mouvement (multiplié
+                # par 3 si _boss_dash_timer > 0).
+                self._boss_dash_timer -= dt
+            else:
+                self._boss_dash_cooldown -= dt
+                if self._boss_dash_cooldown <= 0:
+                    self._boss_dash_timer    = 0.4
+                    self._boss_dash_cooldown = random.uniform(5.0, 10.0)
+                    # Cible le joueur (utile s'il est passé à l'opposé)
+                    if player_rect.centerx < self.rect.centerx:
+                        self.direction = -1
+                    else:
+                        self.direction = 1
+
+        if self.invincible_timer == 0:
+            self.invincible = False
 
         # ── 2. Murs proches (culling) ─────────────────────────────────────
         if walls:
@@ -813,7 +895,9 @@ class Enemy:
                     self.direction = -1
                 else:
                     self.direction = 1
-            self.vx = self.chase_speed * self.direction
+            # Boss tier 3 en plein dash : ×3 sur la vitesse pendant 0.4s.
+            mult = 3.0 if self._boss_dash_timer > 0 else 1.0
+            self.vx = self.chase_speed * self.direction * mult
 
         elif self.returning:
             self.vx = self.patrol_speed * self.direction
@@ -873,44 +957,43 @@ class Enemy:
     # patrouille, saut max possible, flèche de direction, etc.
 
     def draw(self, surf, camera, show_hitbox=False):
-        # FIX critique : on utilise la VRAIE taille de la frame courante,
-        # pas self.sprite_w/sprite_h qui est figé au 1er chargement. Les
-        # anims atk/run/die peuvent avoir des frames PLUS LARGES que
-        # idle → sans ça la zone de collision saute de 100+ px quand
-        # l'ennemi se retourne ou change d'anim.
+        # ANCRAGE CENTRE-BAS : le sprite est dessiné centré horizontalement
+        # sur la hitbox et aligné par le bas (les pieds touchent le sol).
+        # Avantage : robuste à tout changement de taille de frame entre
+        # animations (idle/atk/run/die avec largeurs différentes) et au
+        # flip horizontal — le sprite ne décale jamais. C'est l'approche
+        # standard des platformers 2D et elle marche pour les TRÈS gros
+        # sprites où l'ancien système basé sur hitbox_ox déraillait.
+        #
+        # Pré-requis côté art : le personnage doit être centré horizontalement
+        # dans chacune de ses frames (convention universelle des spritesheets).
+        # S'il y a du padding, il doit être SYMÉTRIQUE.
         if not self.alive:
             img = self.animations["die"].img()
             img_w, img_h = img.get_width(), img.get_height()
-
             if self.direction < 0:
                 img = pygame.transform.flip(img, True, False)
-            if self.direction >= 0:
-                sx = self.rect.x - self.hitbox_ox
-            else:
-                sx = self.rect.x - (img_w - self.hitbox_ox - self.hitbox_w)
-            sy = self.rect.y - self.hitbox_oy
-
+            sx = self.rect.centerx - img_w // 2
+            sy = self.rect.bottom  - img_h
             surf.blit(img, camera.apply(pygame.Rect(sx, sy, img_w, img_h)))
             return
 
         # ── 1. Sprite ──
         img = self.animations[self.current_anim].img()
         self.animations[self.current_anim].update()
-        # Taille EFFECTIVE de cette frame (peut différer de sprite_w/h)
         img_w, img_h = img.get_width(), img.get_height()
 
-        # Se retourner (mirror horizontal)
         if self.direction < 0:
             img = pygame.transform.flip(img, True, False)
 
-        # Position du sprite : on calcule l'offset pour que la HITBOX
-        # tombe pile sur self.rect, peu importe la taille de la frame.
-        if self.direction >= 0:
-            sx = self.rect.x - self.hitbox_ox
-        else:
-            sx = self.rect.x - (img_w - self.hitbox_ox - self.hitbox_w)
-        sy = self.rect.y - self.hitbox_oy
+        # Centre horizontal sur la hitbox + alignement par les pieds.
+        sx = self.rect.centerx - img_w // 2
+        sy = self.rect.bottom  - img_h
         surf.blit(img, camera.apply(pygame.Rect(sx, sy, img_w, img_h)))
+
+        # ── Projectiles (boules d'ombre des boss) ──
+        for p in self.projectiles:
+            p.draw(surf, camera)
 
         if not show_hitbox:
             return
@@ -1045,4 +1128,7 @@ class Enemy:
             "can_turn_randomly": self.can_turn_randomly,
             "patrol_speed":      self.patrol_speed,
             "chase_speed":       self.chase_speed,
+            "nom":               self.nom,
+            "max_vie":           self.max_vie,
+            "boss_tier":         self.boss_tier,
         }
