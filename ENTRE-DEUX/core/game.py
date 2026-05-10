@@ -105,6 +105,7 @@ from utils import draw_mouse_coords
 from audio import music_manager as music
 from audio import sound_manager as sfx
 
+os.environ["SDL_AUDIODRIVER"] = "coreaudio"
 pygame.mixer.init()
 
 class Game:
