@@ -122,7 +122,8 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "max_vie": 1000
     }
   ],
   "lights": [
