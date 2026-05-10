@@ -3,11 +3,12 @@
     {
       "type": "npc_spawn",
       "nom": "Nymbus",
-      "x": 2046,
-      "y": 1830,
+      "x": 2034,
+      "y": 1832,
       "sprite": "nimbus",
       "dialogue_mode": "boucle_dernier",
       "has_gravity": 1,
+      "facing": -1,
       "dialogues": [
         [
           [
@@ -34,9 +35,9 @@
     }
   ],
   "condition": {
-    "flag": "boss",
-    "value": false
+    "flag": "boss"
   },
+  "auto_fire": false,
   "delay": 1.0,
   "one_shot": true
 }

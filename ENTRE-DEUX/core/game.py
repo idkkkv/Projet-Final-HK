@@ -1785,6 +1785,11 @@ class Game:
         # video de depart
         self._intro_jouee = False
         self._credits_joues = False
+        # Reset de la mémoire "dernière musique appliquée" — sinon, si
+        # la musique de la nouvelle map est identique à celle qui jouait
+        # avant le menu, le système croit qu'elle est déjà jouée et ne
+        # déclenche pas la transition → silence sur la 1re map.
+        self._derniere_musique_carte = None
 
         # Reset des compétences en mode histoire : le joueur démarre avec
         # SEULEMENT le saut. Les autres compétences (double saut, dash,
@@ -2175,7 +2180,11 @@ class Game:
         """
         self._menu_fondu_etat   = "out"
         self._menu_fondu_alpha  = 0
-        self._menu_fondu_action = self._wrap_action(action)
+        # play_intro = True UNIQUEMENT pour la première nouvelle partie.
+        # Cf. _wrap_action ci-dessous.
+        play_intro = bool(getattr(self, "_demande_intro_video", False))
+        self._demande_intro_video = False    # consume le flag
+        self._menu_fondu_action = self._wrap_action(action, play_intro=play_intro)
         # Fadeout musique du menu : court (1.5s) pour qu'elle soit
         # silencieuse au moment où le voile noir est plein → on ne
         # l'entend pas dans le jeu.
@@ -2184,7 +2193,7 @@ class Game:
         # avant qu'on entre vraiment en jeu.
         self.effet_reveil.forcer_extinction()
 
-    def _wrap_action(self, action):
+    def _wrap_action(self, action, play_intro=False):
         """Wrappe l'action de transition pour CASSER NET les artefacts du
         menu juste avant d'exécuter le code de transition.
 
@@ -2193,6 +2202,10 @@ class Game:
             n'a pas fini)
           - on remet l'intensité de l'effet_reveil à 0 (hard cut → pas de
             résidu lumineux qui traîne au début du jeu)
+
+        play_intro : si True, la vidéo d'intro (debut.mp4) se joue AVANT
+        l'action de chargement. Réservé à la "Nouvelle partie" — pas
+        joué pour "Continuer" ni pour les chargements en mode éditeur.
         """
         def _wrapped():
             # Hard cut musique
@@ -2206,17 +2219,16 @@ class Game:
                 self.effet_reveil._cible    = 0.0
             except AttributeError:
                 pass
-            # Maintenant on lance vraiment l'action (chargement / nouvelle partie)
 
-            # video 
-            action()
-
-            if not getattr(self, "_intro_jouee", False):
-                self._intro_jouee = True
+            # Vidéo d'intro AVANT l'action — seulement pour Nouvelle partie.
+            if play_intro:
                 try:
                     play_cassette("debut.mp4", "debut.mp3", self.screen)
                 except Exception as e:
                     print(f"[Intro] {e}")
+
+            # Maintenant on lance vraiment l'action (chargement / nouvelle partie)
+            action()
 
         return _wrapped
 
@@ -2269,6 +2281,10 @@ class Game:
                     supprimer_tout()
                     self.mode = "histoire"
                     self._nouvelle_partie()
+                # Drapeau lu par _lancer_fondu_menu → la vidéo d'intro
+                # debut.mp4 ne se joue QUE pour ce chemin (pas pour
+                # "Continuer" ni "Mode éditeur").
+                self._demande_intro_video = True
                 self._lancer_fondu_menu(_action)
 
             elif choix == "Mode éditeur":
@@ -2359,6 +2375,43 @@ class Game:
                 self.etats.switch(MENU)
             elif choix == "Quitter":
                 self.running = False
+
+    def _verifier_flag_credits(self):
+        """Si le flag 'fin_jeu' est posé ET les crédits pas encore joués,
+        lance la vidéo credits.mp4 puis renvoie le joueur au menu titre.
+
+        Le flag 'fin_jeu' est à poser via une cinématique (set_flag) ou
+        un event PNJ à la fin du parcours (ex: zone trigger en fin de
+        pont). Voir cinematique_editor → étape set_flag → key='fin_jeu'.
+        """
+        if getattr(self, "_credits_joues", False):
+            return False
+        from systems.story_flags import flag_complet
+        if not flag_complet(getattr(self, "story_flags", {}), "fin_jeu"):
+            return False
+        self._credits_joues = True
+        # Coupe la musique immédiatement (la vidéo a son propre son)
+        try:
+            music.arreter(fadeout_ms=300)
+        except Exception:
+            pass
+        # Lance la vidéo des crédits (bloquant)
+        try:
+            play_cassette("credits.mp4", None, self.screen)
+        except Exception as e:
+            print(f"[Credits] {e}")
+        # Retour au menu titre + relance musique du menu
+        try:
+            self._menu_fondu_etat  = "none"
+            self._menu_fondu_alpha = 0
+            music.transition(self._musique_menu, volume=0.7,
+                             fadeout_ms=600, fadein_ms=1500)
+            self.effet_reveil.reactiver()
+            self._rafraichir_menu_titre()
+            self.etats.switch(MENU)
+        except Exception as e:
+            print(f"[Credits → menu] {e}")
+        return True
 
     def _verifier_fin_jeu(self):
         """Renvoie True si les 3 boss sont tous morts"""
@@ -2468,6 +2521,11 @@ class Game:
 
         # ── 2. Événements clavier / souris ────────────────────────────────
         self._traiter_evenements_jeu(events)
+
+        # ── Vérif flag de fin → lance les crédits si fin_jeu est posé.
+        # Bloque tout le reste du frame (la vidéo joue, puis menu).
+        if self._verifier_flag_credits():
+            return
 
         # ── 3-9. Logique de simulation ────────────────────────────────────
         self._simuler_jeu(dt)
@@ -2627,8 +2685,12 @@ class Game:
             if self.editeur.active and self.editeur._text_mode:
                 self.editeur.handle_key(key)
             elif self.cutscene is not None:
-                # Skip : on saute jusqu'à la fin et on libère tout.
-                self._skipper_cinematique()
+                # Skip cinématique DÉSACTIVÉ : skip_all sautait toutes
+                # les étapes restantes, ce qui faisait foirer les events
+                # de fin (téléport, set_flag, give_item…) qui n'étaient
+                # jamais déclenchés. Le joueur doit attendre la fin
+                # normale. Échap ne fait plus rien pendant une cine.
+                return
             elif not self.dialogue.actif:
                 self.etats.switch(PAUSE)
                 self.menu_pause.selection = 0

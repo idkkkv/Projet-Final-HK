@@ -1368,7 +1368,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 158,
+      "x": 117,
       "y": 999,
       "has_gravity": true,
       "has_collision": true,
@@ -1381,7 +1381,7 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -159,
+      "patrol_left": -142,
       "patrol_right": 406,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
@@ -1393,7 +1393,7 @@
       "boss_tier": 0
     },
     {
-      "x": -736,
+      "x": -648,
       "y": 1090,
       "has_gravity": true,
       "has_collision": true,
@@ -1406,8 +1406,8 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -963,
-      "patrol_right": -363,
+      "patrol_left": -1036,
+      "patrol_right": -436,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
@@ -1418,7 +1418,7 @@
       "boss_tier": 0
     },
     {
-      "x": -116,
+      "x": -85,
       "y": 594,
       "has_gravity": true,
       "has_collision": true,
@@ -1431,7 +1431,7 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -456,
+      "patrol_left": -416,
       "patrol_right": 120,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
@@ -1443,7 +1443,7 @@
       "boss_tier": 0
     },
     {
-      "x": 181,
+      "x": 176,
       "y": 1345,
       "has_gravity": true,
       "has_collision": true,
@@ -1468,7 +1468,7 @@
       "boss_tier": 0
     },
     {
-      "x": 562,
+      "x": 739,
       "y": 236,
       "has_gravity": true,
       "has_collision": true,
@@ -1493,7 +1493,7 @@
       "boss_tier": 0
     },
     {
-      "x": 43,
+      "x": 83,
       "y": -434,
       "has_gravity": true,
       "has_collision": true,
@@ -1518,7 +1518,7 @@
       "boss_tier": 0
     },
     {
-      "x": -614,
+      "x": -493,
       "y": -663,
       "has_gravity": true,
       "has_collision": true,
@@ -1531,8 +1531,8 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -878,
-      "patrol_right": -278,
+      "patrol_left": -914,
+      "patrol_right": -314,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
@@ -1543,7 +1543,7 @@
       "boss_tier": 0
     },
     {
-      "x": -370,
+      "x": -301,
       "y": -693,
       "has_gravity": true,
       "has_collision": true,
@@ -1556,7 +1556,7 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -543,
+      "patrol_left": -670,
       "patrol_right": 160,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
@@ -1568,7 +1568,7 @@
       "boss_tier": 0
     },
     {
-      "x": 219,
+      "x": 268,
       "y": -1048,
       "has_gravity": true,
       "has_collision": true,
@@ -1593,7 +1593,7 @@
       "boss_tier": 0
     },
     {
-      "x": 229,
+      "x": 495,
       "y": -1048,
       "has_gravity": true,
       "has_collision": true,
@@ -1776,5 +1776,12 @@
   "pnjs": [],
   "trigger_zones": [],
   "danger_zones": [],
-  "autosave_zones": []
+  "autosave_zones": [
+    {
+      "x": 873,
+      "y": -1215,
+      "w": 260,
+      "h": 183
+    }
+  ]
 }

@@ -931,6 +931,8 @@ def _steps_depuis_data(data):
             # has_gravity : tolère None (champ laissé vide en éditeur) → True.
             hg_raw = step.get("has_gravity", 1)
             hg = True if hg_raw is None else bool(hg_raw)
+            fc_raw = step.get("facing", 1)
+            fc = 1 if fc_raw in (None, "") else (-1 if _i(fc_raw, 1) < 0 else 1)
             steps.append(npc_spawn(
                 step.get("nom", "PNJ"),
                 _f(step.get("x")), _f(step.get("y")),
@@ -939,6 +941,7 @@ def _steps_depuis_data(data):
                 dialogue_mode=step.get("dialogue_mode", "boucle_dernier"),
                 has_gravity=hg,
                 events=step.get("events"),
+                facing=fc,
             ))
         elif t == "npc_despawn":
             steps.append(npc_despawn(step.get("nom", "")))

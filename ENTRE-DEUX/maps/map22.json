@@ -433,6 +433,30 @@
       "peur_max": 0,
       "direction_mur": "d",
       "texte": "Vous avez trop peur pour avancer|Rebrousser chemin.."
+    },
+    {
+      "type": "cutscene",
+      "x": 1971,
+      "y": 1514,
+      "w": 434,
+      "h": 326,
+      "nom": "end",
+      "one_shot": true,
+      "cutscene_nom": "end",
+      "max_plays": 1,
+      "mode": "enter"
+    },
+    {
+      "type": "cutscene",
+      "x": 3592,
+      "y": 1555,
+      "w": 897,
+      "h": 278,
+      "nom": "endd",
+      "one_shot": true,
+      "cutscene_nom": "endd",
+      "max_plays": 1,
+      "mode": "enter"
     }
   ],
   "danger_zones": [],

@@ -1,0 +1,11 @@
+{
+  "steps": [
+    {
+      "type": "flag_increment",
+      "key": "fin_jeu",
+      "delta": 1,
+      "required": "1"
+    }
+  ],
+  "auto_fire": true
+}

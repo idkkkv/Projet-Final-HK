@@ -227,6 +227,7 @@ TYPES_ETAPES = {
                 ""),
             ("dialogue_mode",  "Mode (boucle_dernier / restart)", "boucle_dernier"),
             ("has_gravity",    "Gravité (1=oui, 0=flottant, défaut=1)", 1),
+            ("facing",         "Direction regard (1=droite, -1=gauche)", 1),
         ],
         "resume":  lambda d: f"Spawn PNJ '{d.get('nom','?')}' → ({d.get('x',0)},{d.get('y',0)})",
     },

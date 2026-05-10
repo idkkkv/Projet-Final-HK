@@ -264,11 +264,13 @@ class Cutscene:
                 self._local["satisfied"] = True
                 return True
 
-        # Échap = annuler la cinématique (saute toutes les étapes restantes).
-        # Volontairement permissif : utile en debug et en cas de blocage.
-        if key == ECHAP:
-            self.skip_all(ctx)
-            return True
+        # Échap = DÉSACTIVÉ : skip_all sautait toutes les étapes restantes,
+        # ce qui foirait les events de fin de cine (téléport, set_flag,
+        # give_item, revive_player…) qui n'étaient jamais exécutés. Le
+        # joueur doit attendre la fin normale (les dialogues peuvent
+        # toujours être avancés avec Espace/Entrée).
+        # La méthode skip_all reste disponible pour les appels internes
+        # (ex: nettoyage d'urgence sur game over forcé).
 
         return False
 
@@ -709,6 +711,19 @@ class Cutscene:
             except Exception as e:
                 print(f"[Cutscene] npc_spawn échoué : {e}")
                 return True
+            # Direction initiale du PNJ : 1 = regarde à droite (défaut),
+            # -1 = regarde à gauche. L'éditeur expose le champ "facing"
+            # (1 ou -1) pour les PNJ scénarisés (ex: Nimbus qui doit
+            # accueillir le joueur en lui faisant face).
+            facing_raw = params.get("facing", 1)
+            try:
+                facing = -1 if int(facing_raw) < 0 else 1
+            except (TypeError, ValueError):
+                facing = 1
+            try:
+                nv._facing = facing
+            except Exception:
+                pass
             # Cible privilégiée : ctx.editeur.pnjs (rebuild via _sync_triggers
             # n'est pas nécessaire : ctx.pnjs pointe sur la même liste).
             target_list = None
@@ -1204,7 +1219,8 @@ def teleport_player(cible="", x=None, y=None):
 # ── Apparition / disparition de PNJ ──────────────────────────────────────────
 
 def npc_spawn(nom, x, y, dialogues=None, sprite=None,
-              dialogue_mode="boucle_dernier", has_gravity=True, events=None):
+              dialogue_mode="boucle_dernier", has_gravity=True, events=None,
+              facing=1):
     """Fait apparaître un PNJ au point (x, y).
 
     Cas typique : à la fin d'un dialogue avec un parchemin, séraphin
@@ -1228,6 +1244,7 @@ def npc_spawn(nom, x, y, dialogues=None, sprite=None,
         "dialogue_mode": str(dialogue_mode),
         "has_gravity": bool(has_gravity),
         "events": events,
+        "facing": -1 if int(facing) < 0 else 1,
     })
 
 

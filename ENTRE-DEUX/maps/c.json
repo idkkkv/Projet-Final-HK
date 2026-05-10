@@ -205,8 +205,7 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": true, 
-      "key_type": "CleJaune"
+      "need_key": true
     },
     {
       "x": 1020,
@@ -217,8 +216,7 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": true, 
-      "key_type": "CleBleue"
+      "need_key": true
     },
     {
       "x": 1541,
@@ -229,8 +227,7 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": true, 
-      "key_type": "CleRouge"
+      "need_key": true
     }
   ],
   "decors": [
@@ -381,5 +378,13 @@
       "mode": "enter"
     }
   ],
-  "danger_zones": []
+  "danger_zones": [],
+  "autosave_zones": [
+    {
+      "x": 190,
+      "y": 669,
+      "w": 180,
+      "h": 182
+    }
+  ]
 }

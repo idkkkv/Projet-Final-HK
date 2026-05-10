@@ -1542,7 +1542,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 889,
+      "x": 817,
       "y": 2994,
       "has_gravity": true,
       "has_collision": true,
@@ -1567,7 +1567,7 @@
       "boss_tier": 0
     },
     {
-      "x": 589,
+      "x": 533,
       "y": 1788,
       "has_gravity": true,
       "has_collision": true,
@@ -1592,7 +1592,7 @@
       "boss_tier": 0
     },
     {
-      "x": 916,
+      "x": 933,
       "y": 767,
       "has_gravity": true,
       "has_collision": true,
@@ -1617,7 +1617,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1535,
+      "x": 1494,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1642,7 +1642,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1414,
+      "x": 1752,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1667,7 +1667,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1784,
+      "x": 1680,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1692,7 +1692,7 @@
       "boss_tier": 0
     },
     {
-      "x": 438,
+      "x": 479,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1717,7 +1717,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1150,
+      "x": 1155,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1742,7 +1742,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1758,
+      "x": 1591,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1767,7 +1767,7 @@
       "boss_tier": 0
     },
     {
-      "x": 333,
+      "x": 632,
       "y": 71,
       "has_gravity": true,
       "has_collision": true,
@@ -1792,7 +1792,7 @@
       "boss_tier": 0
     },
     {
-      "x": 401,
+      "x": 519,
       "y": 505,
       "has_gravity": true,
       "has_collision": true,
@@ -2483,5 +2483,12 @@
   "pnjs": [],
   "trigger_zones": [],
   "danger_zones": [],
-  "autosave_zones": []
+  "autosave_zones": [
+    {
+      "x": 579,
+      "y": 51,
+      "w": 209,
+      "h": 137
+    }
+  ]
 }

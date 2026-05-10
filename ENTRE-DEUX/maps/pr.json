@@ -2544,7 +2544,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 520,
+      "x": 499,
       "y": 1583,
       "has_gravity": true,
       "has_collision": true,
@@ -2563,10 +2563,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -1251,
+      "x": -1250,
       "y": 1898,
       "has_gravity": true,
       "has_collision": true,
@@ -2579,16 +2582,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1420,
-      "patrol_right": -820,
+      "patrol_left": -1551,
+      "patrol_right": -951,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -965,
+      "x": -1136,
       "y": 1898,
       "has_gravity": true,
       "has_collision": true,
@@ -2601,16 +2607,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1055,
-      "patrol_right": -455,
+      "patrol_left": -1265,
+      "patrol_right": -665,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -989,
+      "x": -864,
       "y": 954,
       "has_gravity": true,
       "has_collision": true,
@@ -2623,16 +2632,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1185,
-      "patrol_right": -585,
+      "patrol_left": -1289,
+      "patrol_right": -689,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -300,
+      "x": -238,
       "y": 954,
       "has_gravity": true,
       "has_collision": true,
@@ -2645,16 +2657,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -553,
+      "patrol_left": -600,
       "patrol_right": 39,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 508,
+      "x": 438,
       "y": 953,
       "has_gravity": true,
       "has_collision": true,
@@ -2673,10 +2688,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 602,
+      "x": 580,
       "y": 550,
       "has_gravity": true,
       "has_collision": true,
@@ -2695,10 +2713,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -77,
+      "x": -270,
       "y": 550,
       "has_gravity": true,
       "has_collision": true,
@@ -2711,16 +2732,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -429,
+      "patrol_left": -377,
       "patrol_right": 162,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -899,
+      "x": -856,
       "y": 550,
       "has_gravity": true,
       "has_collision": true,
@@ -2733,16 +2757,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -989,
-      "patrol_right": -389,
+      "patrol_left": -1199,
+      "patrol_right": -599,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -936,
+      "x": -746,
       "y": 550,
       "has_gravity": true,
       "has_collision": true,
@@ -2755,16 +2782,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1026,
-      "patrol_right": -426,
+      "patrol_left": -1236,
+      "patrol_right": -636,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -1214,
+      "x": -1190,
       "y": -299,
       "has_gravity": true,
       "has_collision": true,
@@ -2777,16 +2807,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1482,
-      "patrol_right": -882,
+      "patrol_left": -1514,
+      "patrol_right": -914,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -494,
+      "x": -465,
       "y": -168,
       "has_gravity": true,
       "has_collision": true,
@@ -2799,16 +2832,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -920,
-      "patrol_right": -320,
+      "patrol_left": -794,
+      "patrol_right": -194,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -481,
+      "x": -506,
       "y": -168,
       "has_gravity": true,
       "has_collision": true,
@@ -2821,16 +2857,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -855,
-      "patrol_right": -255,
+      "patrol_left": -781,
+      "patrol_right": -181,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -18,
+      "x": 49,
       "y": -837,
       "has_gravity": true,
       "has_collision": true,
@@ -2843,16 +2882,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -337,
+      "patrol_left": -318,
       "patrol_right": 310,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 396,
+      "x": 302,
       "y": 145,
       "has_gravity": true,
       "has_collision": true,
@@ -2871,10 +2913,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 177,
+      "x": 176,
       "y": -303,
       "has_gravity": true,
       "has_collision": true,
@@ -2887,13 +2932,16 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -118,
+      "patrol_left": -123,
       "patrol_right": 525,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
       "x": 1100,
@@ -2915,10 +2963,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 1115,
+      "x": 1082,
       "y": -1016,
       "has_gravity": true,
       "has_collision": true,
@@ -2937,10 +2988,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -604,
+      "x": -775,
       "y": -1241,
       "has_gravity": true,
       "has_collision": true,
@@ -2953,16 +3007,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -693,
-      "patrol_right": -93,
+      "patrol_left": -904,
+      "patrol_right": -304,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -764,
+      "x": -755,
       "y": -1241,
       "has_gravity": true,
       "has_collision": true,
@@ -2975,16 +3032,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1136,
-      "patrol_right": -536,
+      "patrol_left": -1064,
+      "patrol_right": -464,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -905,
+      "x": -934,
       "y": -1421,
       "has_gravity": true,
       "has_collision": true,
@@ -2997,16 +3057,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1192,
-      "patrol_right": -592,
+      "patrol_left": -1205,
+      "patrol_right": -605,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -736,
+      "x": -757,
       "y": -1600,
       "has_gravity": true,
       "has_collision": true,
@@ -3019,16 +3082,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1018,
-      "patrol_right": -418,
+      "patrol_left": -1036,
+      "patrol_right": -436,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -508,
+      "x": -426,
       "y": -1914,
       "has_gravity": true,
       "has_collision": true,
@@ -3041,16 +3107,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -694,
-      "patrol_right": -94,
+      "patrol_left": -808,
+      "patrol_right": -208,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -1,
+      "x": 36,
       "y": -1914,
       "has_gravity": true,
       "has_collision": true,
@@ -3063,16 +3132,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -260,
+      "patrol_left": -301,
       "patrol_right": 336,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 420,
+      "x": 404,
       "y": -1602,
       "has_gravity": true,
       "has_collision": true,
@@ -3091,10 +3163,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 220,
+      "x": 389,
       "y": -1602,
       "has_gravity": true,
       "has_collision": true,
@@ -3107,16 +3182,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -46,
+      "patrol_left": -80,
       "patrol_right": 537,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 229,
+      "x": 52,
       "y": -1271,
       "has_gravity": true,
       "has_collision": true,
@@ -3129,13 +3207,16 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -61,
+      "patrol_left": -71,
       "patrol_right": 408,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 2,
+      "boss_tier": 0
     }
   ],
   "lights": [
@@ -3899,5 +3980,13 @@
   ],
   "pnjs": [],
   "trigger_zones": [],
-  "danger_zones": []
+  "danger_zones": [],
+  "autosave_zones": [
+    {
+      "x": 1140,
+      "y": -2102,
+      "w": 149,
+      "h": 188
+    }
+  ]
 }

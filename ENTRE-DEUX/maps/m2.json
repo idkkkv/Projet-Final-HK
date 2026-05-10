@@ -162,7 +162,7 @@
     {
       "type": "pnj",
       "x": 384,
-      "y": 542,
+      "y": 486,
       "nom": "Eldris",
       "sprite_name": "armadillo",
       "dialogues": [
@@ -238,5 +238,6 @@
       "mode": "enter"
     }
   ],
-  "danger_zones": []
+  "danger_zones": [],
+  "autosave_zones": []
 }

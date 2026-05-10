@@ -76,5 +76,9 @@
     "key": "vil",
     "delta": 1,
     "required": "3"
+  },
+  {
+    "type": "grant_skill",
+    "value": "wall_jump"
   }
 ]
