@@ -55,6 +55,10 @@
     {
       "nom": "Na\u00efs",
       "sprite_name": "marchand"
+    },
+    {
+      "nom": "Louis le marchand",
+      "sprite_name": "marchand"
     }
   ],
   "histoire": [

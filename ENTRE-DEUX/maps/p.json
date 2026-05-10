@@ -3,12 +3,12 @@
   "ceiling_y": -500,
   "scene_width": 2600,
   "scene_left": 0,
-  "camera_y_offset": -130,
+  "camera_y_offset": -270,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": 49,
-    "y": 3098
+    "x": 126,
+    "y": 3100
   },
   "named_spawns": {},
   "bg_color": [
@@ -1541,7 +1541,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 1022,
+      "x": 873,
       "y": 2994,
       "has_gravity": true,
       "has_collision": true,
@@ -1563,7 +1563,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1141,
+      "x": 1402,
       "y": 2716,
       "has_gravity": true,
       "has_collision": true,
@@ -1585,7 +1585,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1568,
+      "x": 1151,
       "y": 2716,
       "has_gravity": true,
       "has_collision": true,
@@ -1607,7 +1607,7 @@
       "chase_speed": 200
     },
     {
-      "x": 420,
+      "x": 473,
       "y": 1788,
       "has_gravity": true,
       "has_collision": true,
@@ -1629,7 +1629,7 @@
       "chase_speed": 200
     },
     {
-      "x": 923,
+      "x": 986,
       "y": 767,
       "has_gravity": true,
       "has_collision": true,
@@ -1651,7 +1651,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1445,
+      "x": 1448,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1673,7 +1673,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1481,
+      "x": 1560,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1695,7 +1695,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1899,
+      "x": 1632,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1717,7 +1717,7 @@
       "chase_speed": 200
     },
     {
-      "x": 370,
+      "x": 452,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1739,7 +1739,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1095,
+      "x": 1194,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1761,7 +1761,7 @@
       "chase_speed": 200
     },
     {
-      "x": 1604,
+      "x": 1565,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1783,7 +1783,7 @@
       "chase_speed": 200
     },
     {
-      "x": 528,
+      "x": 605,
       "y": 71,
       "has_gravity": true,
       "has_collision": true,
@@ -1805,7 +1805,7 @@
       "chase_speed": 200
     },
     {
-      "x": 710,
+      "x": 845,
       "y": 505,
       "has_gravity": true,
       "has_collision": true,
@@ -2323,18 +2323,78 @@
       "type": "torch",
       "flicker": false,
       "flicker_speed": 3
+    },
+    {
+      "x": -204,
+      "y": 2424,
+      "radius": 1094,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -193,
+      "y": 549,
+      "radius": 1485,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1310,
+      "y": -213,
+      "radius": 1492,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1531,
+      "y": 3668,
+      "radius": 1522,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2254,
+      "y": 1981,
+      "radius": 948,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2384,
+      "y": 683,
+      "radius": 617,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
     }
   ],
   "portals": [
     {
-      "x": 336,
-      "y": 3007,
-      "w": 85,
-      "h": 108,
-      "target_map": "villag",
+      "x": 326,
+      "y": 57,
+      "w": 52,
+      "h": 136,
+      "target_map": "mapsbossvert",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": false,
+      "need_key": false
+    },
+    {
+      "x": 3,
+      "y": 2976,
+      "w": 66,
+      "h": 152,
+      "target_map": "b1 b1",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
     }
   ],
   "decors": [
