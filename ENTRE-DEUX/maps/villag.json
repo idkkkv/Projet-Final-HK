@@ -331,17 +331,6 @@
   ],
   "portals": [
     {
-      "x": -1397,
-      "y": 281,
-      "w": 14,
-      "h": 135,
-      "target_map": "map23 b",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": false,
-      "need_key": false
-    },
-    {
       "x": -176,
       "y": 300,
       "w": 81,
@@ -380,6 +369,17 @@
       "w": 10,
       "h": 180,
       "target_map": "c",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
+    },
+    {
+      "x": -1399,
+      "y": 273,
+      "w": 23,
+      "h": 150,
+      "target_map": "mt h",
       "target_x": -1,
       "target_y": -1,
       "require_up": false,

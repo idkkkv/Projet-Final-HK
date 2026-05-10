@@ -1166,7 +1166,7 @@ class Editor:
                                                                  settings.CEILING_Y + 20)
             elif key == pygame.K_LEFT:
                 if mods & pygame.KMOD_SHIFT:
-                    settings.SCENE_LEFT = max(-5000, settings.SCENE_LEFT - 100)
+                    settings.SCENE_LEFT = max(-10000, settings.SCENE_LEFT - 100)
                     self._show_msg(f"Mur GAUCHE → x={settings.SCENE_LEFT}")
                 else:
                     nouvelle = max(settings.SCENE_LEFT + 800,

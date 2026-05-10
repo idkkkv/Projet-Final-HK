@@ -1,0 +1,1652 @@
+{
+  "ground_y": 742,
+  "ceiling_y": -920,
+  "scene_width": 7126,
+  "scene_left": -7200,
+  "camera_y_offset": -50,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": -7124,
+    "y": 284
+  },
+  "named_spawns": {
+    "h": [
+      7012,
+      -84
+    ]
+  },
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": -7290,
+      "y": 315,
+      "w": 426,
+      "h": 257
+    },
+    {
+      "x": -7288,
+      "y": 526,
+      "w": 14520,
+      "h": 109
+    },
+    {
+      "x": -6706,
+      "y": 315,
+      "w": 155,
+      "h": 53
+    },
+    {
+      "x": -6390,
+      "y": 264,
+      "w": 106,
+      "h": 53
+    },
+    {
+      "x": -6125,
+      "y": 317,
+      "w": 419,
+      "h": 50
+    },
+    {
+      "x": -6022,
+      "y": 366,
+      "w": 214,
+      "h": 109
+    },
+    {
+      "x": -5650,
+      "y": 158,
+      "w": 158,
+      "h": 53
+    },
+    {
+      "x": -5387,
+      "y": 51,
+      "w": 53,
+      "h": 56
+    },
+    {
+      "x": -5229,
+      "y": -51,
+      "w": 370,
+      "h": 584
+    },
+    {
+      "x": -4699,
+      "y": 50,
+      "w": 158,
+      "h": 56
+    },
+    {
+      "x": -4693,
+      "y": 44,
+      "w": 7,
+      "h": 10
+    },
+    {
+      "x": -4685,
+      "y": 34,
+      "w": 7,
+      "h": 16
+    },
+    {
+      "x": -4685,
+      "y": 108,
+      "w": 23,
+      "h": 16
+    },
+    {
+      "x": -4680,
+      "y": 40,
+      "w": 13,
+      "h": 10
+    },
+    {
+      "x": -4674,
+      "y": 20,
+      "w": 10,
+      "h": 33
+    },
+    {
+      "x": -4670,
+      "y": 23,
+      "w": 13,
+      "h": 23
+    },
+    {
+      "x": -4665,
+      "y": 108,
+      "w": 23,
+      "h": 36
+    },
+    {
+      "x": -4663,
+      "y": 17,
+      "w": 3,
+      "h": 33
+    },
+    {
+      "x": -4655,
+      "y": 7,
+      "w": 7,
+      "h": 43
+    },
+    {
+      "x": -4648,
+      "y": 0,
+      "w": 59,
+      "h": 158
+    },
+    {
+      "x": -4590,
+      "y": 108,
+      "w": 16,
+      "h": 36
+    },
+    {
+      "x": -4589,
+      "y": 9,
+      "w": 7,
+      "h": 40
+    },
+    {
+      "x": -4581,
+      "y": 18,
+      "w": 7,
+      "h": 33
+    },
+    {
+      "x": -4572,
+      "y": 26,
+      "w": 7,
+      "h": 26
+    },
+    {
+      "x": -4572,
+      "y": 101,
+      "w": 13,
+      "h": 23
+    },
+    {
+      "x": -4566,
+      "y": 32,
+      "w": 7,
+      "h": 23
+    },
+    {
+      "x": -4559,
+      "y": 41,
+      "w": 10,
+      "h": 10
+    },
+    {
+      "x": -4557,
+      "y": 103,
+      "w": 7,
+      "h": 10
+    },
+    {
+      "x": -4437,
+      "y": 264,
+      "w": 162,
+      "h": 56
+    },
+    {
+      "x": -4432,
+      "y": 257,
+      "w": 7,
+      "h": 16
+    },
+    {
+      "x": -4432,
+      "y": 316,
+      "w": 33,
+      "h": 13
+    },
+    {
+      "x": -4421,
+      "y": 250,
+      "w": 3,
+      "h": 16
+    },
+    {
+      "x": -4415,
+      "y": 241,
+      "w": 7,
+      "h": 30
+    },
+    {
+      "x": -4410,
+      "y": 318,
+      "w": 33,
+      "h": 26
+    },
+    {
+      "x": -4406,
+      "y": 230,
+      "w": 10,
+      "h": 53
+    },
+    {
+      "x": -4401,
+      "y": 344,
+      "w": 23,
+      "h": 10
+    },
+    {
+      "x": -4396,
+      "y": 217,
+      "w": 10,
+      "h": 53
+    },
+    {
+      "x": -4386,
+      "y": 211,
+      "w": 59,
+      "h": 158
+    },
+    {
+      "x": -4325,
+      "y": 221,
+      "w": 7,
+      "h": 53
+    },
+    {
+      "x": -4325,
+      "y": 305,
+      "w": 16,
+      "h": 46
+    },
+    {
+      "x": -4319,
+      "y": 314,
+      "w": 20,
+      "h": 20
+    },
+    {
+      "x": -4316,
+      "y": 233,
+      "w": 10,
+      "h": 40
+    },
+    {
+      "x": -4306,
+      "y": 242,
+      "w": 7,
+      "h": 30
+    },
+    {
+      "x": -4301,
+      "y": 309,
+      "w": 10,
+      "h": 16
+    },
+    {
+      "x": -4299,
+      "y": 248,
+      "w": 7,
+      "h": 23
+    },
+    {
+      "x": -4293,
+      "y": 254,
+      "w": 10,
+      "h": 10
+    },
+    {
+      "x": -4171,
+      "y": 53,
+      "w": 158,
+      "h": 56
+    },
+    {
+      "x": -4161,
+      "y": 42,
+      "w": 7,
+      "h": 10
+    },
+    {
+      "x": -4158,
+      "y": 107,
+      "w": 23,
+      "h": 20
+    },
+    {
+      "x": -4154,
+      "y": 31,
+      "w": 7,
+      "h": 33
+    },
+    {
+      "x": -4150,
+      "y": 35,
+      "w": 26,
+      "h": 26
+    },
+    {
+      "x": -4144,
+      "y": 24,
+      "w": 3,
+      "h": 43
+    },
+    {
+      "x": -4140,
+      "y": 109,
+      "w": 23,
+      "h": 30
+    },
+    {
+      "x": -4136,
+      "y": 15,
+      "w": 7,
+      "h": 46
+    },
+    {
+      "x": -4127,
+      "y": 6,
+      "w": 7,
+      "h": 56
+    },
+    {
+      "x": -4120,
+      "y": -2,
+      "w": 56,
+      "h": 162
+    },
+    {
+      "x": -4065,
+      "y": 99,
+      "w": 16,
+      "h": 43
+    },
+    {
+      "x": -4064,
+      "y": 4,
+      "w": 7,
+      "h": 56
+    },
+    {
+      "x": -4057,
+      "y": 17,
+      "w": 10,
+      "h": 36
+    },
+    {
+      "x": -4051,
+      "y": 96,
+      "w": 23,
+      "h": 23
+    },
+    {
+      "x": -4047,
+      "y": 25,
+      "w": 10,
+      "h": 33
+    },
+    {
+      "x": -4047,
+      "y": 111,
+      "w": 13,
+      "h": 13
+    },
+    {
+      "x": -4043,
+      "y": 97,
+      "w": 16,
+      "h": 20
+    },
+    {
+      "x": -4036,
+      "y": 33,
+      "w": 7,
+      "h": 20
+    },
+    {
+      "x": -4028,
+      "y": 43,
+      "w": 10,
+      "h": 10
+    },
+    {
+      "x": -3909,
+      "y": 264,
+      "w": 162,
+      "h": 53
+    },
+    {
+      "x": -3901,
+      "y": 256,
+      "w": 3,
+      "h": 10
+    },
+    {
+      "x": -3897,
+      "y": 316,
+      "w": 16,
+      "h": 7
+    },
+    {
+      "x": -3896,
+      "y": 250,
+      "w": 7,
+      "h": 16
+    },
+    {
+      "x": -3893,
+      "y": 312,
+      "w": 26,
+      "h": 20
+    },
+    {
+      "x": -3887,
+      "y": 238,
+      "w": 3,
+      "h": 26
+    },
+    {
+      "x": -3887,
+      "y": 248,
+      "w": 7,
+      "h": 26
+    },
+    {
+      "x": -3882,
+      "y": 331,
+      "w": 10,
+      "h": 13
+    },
+    {
+      "x": -3880,
+      "y": 238,
+      "w": 7,
+      "h": 40
+    },
+    {
+      "x": -3878,
+      "y": 234,
+      "w": 10,
+      "h": 36
+    },
+    {
+      "x": -3875,
+      "y": 318,
+      "w": 30,
+      "h": 30
+    },
+    {
+      "x": -3870,
+      "y": 221,
+      "w": 13,
+      "h": 50
+    },
+    {
+      "x": -3865,
+      "y": 342,
+      "w": 10,
+      "h": 13
+    },
+    {
+      "x": -3858,
+      "y": 210,
+      "w": 63,
+      "h": 158
+    },
+    {
+      "x": -3797,
+      "y": 308,
+      "w": 13,
+      "h": 46
+    },
+    {
+      "x": -3796,
+      "y": 224,
+      "w": 10,
+      "h": 40
+    },
+    {
+      "x": -3792,
+      "y": 318,
+      "w": 23,
+      "h": 16
+    },
+    {
+      "x": -3788,
+      "y": 232,
+      "w": 10,
+      "h": 33
+    },
+    {
+      "x": -3787,
+      "y": 330,
+      "w": 10,
+      "h": 13
+    },
+    {
+      "x": -3786,
+      "y": 319,
+      "w": 23,
+      "h": 7
+    },
+    {
+      "x": -3775,
+      "y": 243,
+      "w": 7,
+      "h": 23
+    },
+    {
+      "x": -3770,
+      "y": 248,
+      "w": 10,
+      "h": 20
+    },
+    {
+      "x": -3762,
+      "y": 257,
+      "w": 7,
+      "h": 7
+    },
+    {
+      "x": -3643,
+      "y": 53,
+      "w": 158,
+      "h": 56
+    },
+    {
+      "x": -3637,
+      "y": 44,
+      "w": 10,
+      "h": 16
+    },
+    {
+      "x": -3635,
+      "y": 105,
+      "w": 20,
+      "h": 10
+    },
+    {
+      "x": -3628,
+      "y": 106,
+      "w": 30,
+      "h": 16
+    },
+    {
+      "x": -3626,
+      "y": 35,
+      "w": 3,
+      "h": 26
+    },
+    {
+      "x": -3623,
+      "y": 35,
+      "w": 16,
+      "h": 30
+    },
+    {
+      "x": -3623,
+      "y": 111,
+      "w": 26,
+      "h": 20
+    },
+    {
+      "x": -3618,
+      "y": 26,
+      "w": 7,
+      "h": 30
+    },
+    {
+      "x": -3612,
+      "y": 101,
+      "w": 30,
+      "h": 36
+    },
+    {
+      "x": -3609,
+      "y": 16,
+      "w": 7,
+      "h": 40
+    },
+    {
+      "x": -3603,
+      "y": 134,
+      "w": 23,
+      "h": 10
+    },
+    {
+      "x": -3601,
+      "y": 7,
+      "w": 7,
+      "h": 53
+    },
+    {
+      "x": -3594,
+      "y": 0,
+      "w": 59,
+      "h": 158
+    },
+    {
+      "x": -3536,
+      "y": 97,
+      "w": 13,
+      "h": 46
+    },
+    {
+      "x": -3533,
+      "y": 11,
+      "w": 13,
+      "h": 40
+    },
+    {
+      "x": -3529,
+      "y": 93,
+      "w": 16,
+      "h": 33
+    },
+    {
+      "x": -3523,
+      "y": 124,
+      "w": 10,
+      "h": 7
+    },
+    {
+      "x": -3518,
+      "y": 22,
+      "w": 3,
+      "h": 7
+    },
+    {
+      "x": -3518,
+      "y": 31,
+      "w": 10,
+      "h": 23
+    },
+    {
+      "x": -3515,
+      "y": 96,
+      "w": 16,
+      "h": 26
+    },
+    {
+      "x": -3507,
+      "y": 34,
+      "w": 7,
+      "h": 16
+    },
+    {
+      "x": -3497,
+      "y": 45,
+      "w": 3,
+      "h": 10
+    },
+    {
+      "x": -3330,
+      "y": 157,
+      "w": 320,
+      "h": 409
+    },
+    {
+      "x": -2853,
+      "y": 317,
+      "w": 53,
+      "h": 53
+    },
+    {
+      "x": -2642,
+      "y": 422,
+      "w": 954,
+      "h": 53
+    },
+    {
+      "x": -1533,
+      "y": 317,
+      "w": 53,
+      "h": 53
+    },
+    {
+      "x": -1373,
+      "y": 157,
+      "w": 53,
+      "h": 53
+    },
+    {
+      "x": -1269,
+      "y": 53,
+      "w": 211,
+      "h": 505
+    },
+    {
+      "x": -950,
+      "y": -54,
+      "w": 155,
+      "h": 53
+    },
+    {
+      "x": -686,
+      "y": -158,
+      "w": 155,
+      "h": 53
+    },
+    {
+      "x": -422,
+      "y": -264,
+      "w": 53,
+      "h": 53
+    },
+    {
+      "x": -264,
+      "y": -317,
+      "w": 53,
+      "h": 53
+    },
+    {
+      "x": -53,
+      "y": -317,
+      "w": 53,
+      "h": 50
+    },
+    {
+      "x": 104,
+      "y": -160,
+      "w": 158,
+      "h": 158
+    },
+    {
+      "x": 371,
+      "y": -2,
+      "w": 106,
+      "h": 56
+    },
+    {
+      "x": 579,
+      "y": -160,
+      "w": 158,
+      "h": 158
+    },
+    {
+      "x": 790,
+      "y": -266,
+      "w": 56,
+      "h": 53
+    },
+    {
+      "x": 898,
+      "y": -422,
+      "w": 53,
+      "h": 50
+    },
+    {
+      "x": 1002,
+      "y": -581,
+      "w": 422,
+      "h": 1138
+    },
+    {
+      "x": 1688,
+      "y": -318,
+      "w": 162,
+      "h": 851
+    },
+    {
+      "x": 2059,
+      "y": -530,
+      "w": 211,
+      "h": 1069
+    },
+    {
+      "x": 2480,
+      "y": -317,
+      "w": 158,
+      "h": 317
+    },
+    {
+      "x": 2480,
+      "y": 264,
+      "w": 2010,
+      "h": 277
+    },
+    {
+      "x": 2850,
+      "y": -528,
+      "w": 158,
+      "h": 528
+    },
+    {
+      "x": 3221,
+      "y": -318,
+      "w": 158,
+      "h": 320
+    },
+    {
+      "x": 3538,
+      "y": -211,
+      "w": 158,
+      "h": 106
+    },
+    {
+      "x": 3538,
+      "y": 160,
+      "w": 950,
+      "h": 139
+    },
+    {
+      "x": 3696,
+      "y": 53,
+      "w": 792,
+      "h": 185
+    },
+    {
+      "x": 3853,
+      "y": -54,
+      "w": 634,
+      "h": 218
+    },
+    {
+      "x": 4699,
+      "y": 158,
+      "w": 366,
+      "h": 53
+    },
+    {
+      "x": 4803,
+      "y": 216,
+      "w": 162,
+      "h": 99
+    },
+    {
+      "x": 5227,
+      "y": 370,
+      "w": 422,
+      "h": 53
+    },
+    {
+      "x": 5806,
+      "y": 158,
+      "w": 373,
+      "h": 53
+    },
+    {
+      "x": 5914,
+      "y": 211,
+      "w": 158,
+      "h": 106
+    },
+    {
+      "x": 6389,
+      "y": -54,
+      "w": 845,
+      "h": 591
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": -7200,
+      "y": 742,
+      "w": 14326,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": -7200,
+      "y": -1720,
+      "w": 14326,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -8000,
+      "y": -1720,
+      "w": 800,
+      "h": 3262
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 7126,
+      "y": -1720,
+      "w": 800,
+      "h": 3262
+    }
+  ],
+  "holes": [],
+  "enemies": [
+    {
+      "x": -2491,
+      "y": 302,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": -2924,
+      "patrol_right": -2324,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": -2406,
+      "y": 302,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": -2699,
+      "patrol_right": -2099,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": -5981,
+      "y": 197,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": -6122,
+      "patrol_right": -5522,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 414,
+      "y": -122,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 68,
+      "patrol_right": 668,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 1056,
+      "y": -701,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 813,
+      "patrol_right": 1413,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 3756,
+      "y": 635,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 3702,
+      "patrol_right": 4302,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 3050,
+      "y": 144,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 2908,
+      "patrol_right": 3508,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 5518,
+      "y": 250,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 5016,
+      "patrol_right": 5616,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 2899,
+      "y": 144,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 2472,
+      "patrol_right": 3072,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": 3035,
+      "y": 144,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": 2854,
+      "patrol_right": 3454,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    },
+    {
+      "x": -1865,
+      "y": 302,
+      "has_gravity": true,
+      "has_collision": true,
+      "sprite_name": "mushroom",
+      "can_jump": false,
+      "can_jump_patrol": false,
+      "jump_power": 400,
+      "detect_range": 200,
+      "detect_height": 80,
+      "has_light": false,
+      "light_type": "dim",
+      "light_radius": 100,
+      "patrol_left": -2286,
+      "patrol_right": -1686,
+      "can_fall_in_holes": false,
+      "respawn_timeout": 10.0,
+      "can_turn_randomly": false,
+      "patrol_speed": 120,
+      "chase_speed": 200
+    }
+  ],
+  "lights": [
+    {
+      "x": -7099,
+      "y": 399,
+      "radius": 275,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -5913,
+      "y": 397,
+      "radius": 576,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -5043,
+      "y": 27,
+      "radius": 350,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -4358,
+      "y": 291,
+      "radius": 411,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -3828,
+      "y": 290,
+      "radius": 334,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -3172,
+      "y": 240,
+      "radius": 465,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -1162,
+      "y": 132,
+      "radius": 415,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 185,
+      "y": -80,
+      "radius": 455,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 661,
+      "y": -77,
+      "radius": 264,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2163,
+      "y": -447,
+      "radius": 434,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2932,
+      "y": -285,
+      "radius": 276,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2931,
+      "y": -77,
+      "radius": 310,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4197,
+      "y": 29,
+      "radius": 438,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4884,
+      "y": 239,
+      "radius": 197,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 5994,
+      "y": 237,
+      "radius": 328,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 6782,
+      "y": 32,
+      "radius": 507,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -590,
+      "y": 812,
+      "radius": 642,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 612,
+      "y": 908,
+      "radius": 784,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 159,
+      "y": 869,
+      "radius": 599,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -1370,
+      "y": 828,
+      "radius": 572,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -1764,
+      "y": 807,
+      "radius": 709,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -2354,
+      "y": 769,
+      "radius": 894,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -2755,
+      "y": 688,
+      "radius": 420,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -3399,
+      "y": 765,
+      "radius": 813,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -3834,
+      "y": 767,
+      "radius": 718,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -4476,
+      "y": 781,
+      "radius": 649,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -5230,
+      "y": 755,
+      "radius": 614,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -6297,
+      "y": 782,
+      "radius": 570,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -6519,
+      "y": 743,
+      "radius": 552,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1081,
+      "y": 779,
+      "radius": 631,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1981,
+      "y": 748,
+      "radius": 418,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2374,
+      "y": 765,
+      "radius": 396,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 4560,
+      "y": 787,
+      "radius": 980,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 6198,
+      "y": 800,
+      "radius": 1085,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 5413,
+      "y": 873,
+      "radius": 482,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 3301,
+      "y": 342,
+      "radius": 373,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 2564,
+      "y": 341,
+      "radius": 399,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1771,
+      "y": -244,
+      "radius": 473,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1215,
+      "y": -475,
+      "radius": 529,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -582,
+      "y": -534,
+      "radius": 803,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -3796,
+      "y": -440,
+      "radius": 628,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -3915,
+      "y": -180,
+      "radius": 471,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -3654,
+      "y": -200,
+      "radius": 266,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -4634,
+      "y": -175,
+      "radius": 400,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -5584,
+      "y": -104,
+      "radius": 600,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -6636,
+      "y": 97,
+      "radius": 503,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": -7199,
+      "y": 155,
+      "w": 33,
+      "h": 171,
+      "target_map": "map23 b",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
+    },
+    {
+      "x": 7103,
+      "y": -249,
+      "w": 16,
+      "h": 203,
+      "target_map": "villag",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
+    }
+  ],
+  "decors": [
+    {
+      "x": -7498,
+      "y": -686,
+      "sprite": "tiled_mt_Calque_de_Tuiles_1_x3p30.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": -5147,
+      "y": -93,
+      "nom": "objet_1",
+      "sprite_name": "objet_parlant_40x40.png",
+      "dialogues": [],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": false,
+      "is_save_point": true,
+      "events": [],
+      "dialogue_conditions": []
+    }
+  ],
+  "trigger_zones": [],
+  "danger_zones": [
+    {
+      "x": -6868,
+      "y": 452,
+      "w": 1689,
+      "h": 101,
+      "rx": -6966,
+      "ry": 285
+    },
+    {
+      "x": -4870,
+      "y": 454,
+      "w": 1553,
+      "h": 95,
+      "rx": -4988,
+      "ry": -76
+    },
+    {
+      "x": -3014,
+      "y": 484,
+      "w": 1778,
+      "h": 71,
+      "rx": -3058,
+      "ry": 138
+    },
+    {
+      "x": -1064,
+      "y": 503,
+      "w": 2101,
+      "h": 54,
+      "rx": -1099,
+      "ry": 24
+    },
+    {
+      "x": 1421,
+      "y": 505,
+      "w": 289,
+      "h": 45,
+      "rx": 1352,
+      "ry": -604
+    },
+    {
+      "x": 1845,
+      "y": 501,
+      "w": 228,
+      "h": 61,
+      "rx": 1768,
+      "ry": -344
+    },
+    {
+      "x": 2260,
+      "y": 510,
+      "w": 235,
+      "h": 43,
+      "rx": 2234,
+      "ry": -549
+    },
+    {
+      "x": 4479,
+      "y": 511,
+      "w": 1947,
+      "h": 51,
+      "rx": 4431,
+      "ry": -74
+    }
+  ]
+}
