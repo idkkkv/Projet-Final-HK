@@ -62,7 +62,7 @@
       "y": 0,
       "has_gravity": true,
       "has_collision": true,
-      "sprite_name": "bossbizarre",
+      "sprite_name": "boss",
       "can_jump": false,
       "can_jump_patrol": false,
       "jump_power": 400,

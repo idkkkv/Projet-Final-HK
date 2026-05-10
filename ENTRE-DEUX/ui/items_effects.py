@@ -49,7 +49,7 @@ def play_cassette(visuel, sonore, screen):
         vh, vw = frame_rgb.shape[:2]
         scale = min(sw / vw, sh / vh)
         nw, nh = int(vw * scale), int(vh * scale)
-        frame_resized = cv2.resize(frame_rgb, (nw, nh))
+        frame_resized = cv2.resize(frame_rgb, (nw, nh), interpolation=cv2.INTER_LANCZOS4)
 
         surf = pygame.surfarray.make_surface(frame_resized.transpose(1, 0, 2))
         
