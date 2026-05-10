@@ -229,7 +229,7 @@ class Enemy:
             "golem": 2,
             "boss": 1,
             "bosscapuche":2,
-            "bossbizarre":2
+            "bosswarrior":2
         }.get(sprite_name, max_vie)
         self.hp = self.max_vie
 
@@ -249,7 +249,7 @@ class Enemy:
             "golem": 3,
             "boss":2,
             "bosscapuche":4.5,
-            "bossbizarre":3.5
+            "bosswarrior":3.5
 
         }.get(sprite_name, scale_factor)
 
@@ -264,7 +264,7 @@ class Enemy:
             "golem": {"idle": 1, "run": 10, "walk": 10, "atk": 11, "die": 13},
             "boss": {"idle": 14, "run": 14, "walk": 14, "atk": 10, "die": 33},
             "bosscapuche": {"idle": 6, "run": 12, "walk": 12, "atk": 40, "die": 1},
-            "bossbizarre": {"idle": 17, "run": 6, "walk": 6, "atk": 11, "die": 19}
+            "bosswarrior": {"idle": 17, "run": 6, "walk": 6, "atk": 11, "die": 19}
         }
 
         self.animations = {
