@@ -387,6 +387,8 @@ class Game:
         # cinématique de Nymbus (action unlock_quickuse) qui débloque
         # aussi la croix directionnelle de consommables rapides.
         self.inventory.add_item("Cassette")                    # cassette offerte au départ
+        self.inventory.add_item("CleRouge")                    # testeur
+        self.inventory.add_item("CleJaune")                    # testeur
         # Note : la barre quick-use est créée plus tard dans __init__,
         # une fois que self.joueur existe (cf. après Player((100, 400))).
 

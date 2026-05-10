@@ -205,17 +205,85 @@
       "dialogue_conditions": []
     },
     {
-      "type": "pnj",
+      "type": "marchand",
       "x": 636,
       "y": 677,
       "nom": "Louis le marchand",
       "sprite_name": "marchand",
-      "dialogues": [],
+      "dialogues": [[["Bonjour, que puis-je pour toi ?", "louis"]]],
       "dialogue_mode": "boucle_dernier",
       "has_gravity": true,
       "is_save_point": false,
       "events": [],
-      "dialogue_conditions": []
+      "dialogue_conditions": [],
+      "inventaire": [
+        {
+          "nom": "Pomme",
+          "prix": 0,
+          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose \u00c3\u00a0 faire\ndonc NAN. D:<"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant (tkt est tres tres utile)",
+          "stock": 1
+        },
+        {
+          "nom": "CleJaune",
+          "prix": 10,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile",
+          "stock": 1
+        },
+        {
+          "nom": "CleRouge",
+          "prix": 5,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "CleBleue",
+          "prix": 10,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Soupe",
+          "prix": 25,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Champignon",
+          "prix": 2,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Salade",
+          "prix": 67,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Rossier hairs",
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Macron",
+          "prix": 493,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "1l essence",
+          "prix": 999,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Requin",
+          "prix": 255,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        },
+        {
+          "nom": "Cassette",
+          "prix": 20,
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant qu'il est utile"
+        }
+      ]
     },
     {
       "type": "pnj",
