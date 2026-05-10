@@ -221,6 +221,9 @@ class Player:
         self.healing          = False
         self.just_fallen      = False #pour pas faire 2 atk
         self.attack_type = None #sol ou air
+        self.attack_damage = 1
+        self.epee_bonus = False # sinon l'item continuuue
+        self.bouclier_bonus = False # sinon l'item continuuue
 
         # ── Régénération passive ──
         # Le joueur récupère 1 PV s'il reste TOTALEMENT immobile au sol

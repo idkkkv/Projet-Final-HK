@@ -59,3 +59,18 @@ def play_cassette(visuel, sonore, screen):
 
     cap.release()
     pygame.mixer.music.stop()
+
+
+def ajouter_atk(joueur):
+    joueur.attack_damage += 10
+
+def ajouter_vie(joueur):
+    joueur.max_hp += 5
+    joueur.hp += 5
+
+def retirer_atk(joueur):
+    joueur.attack_damage -= 10
+
+def retirer_vie(joueur):
+    joueur.max_hp -= 5
+    joueur.hp -= 5

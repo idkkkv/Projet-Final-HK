@@ -61,7 +61,7 @@
 #
 #  JE VEUX MODIFIER QUOI ?
 #  -----------------------
-#     - Combien de PV un coup enlève → DEGAT_ATTAQUE_JOUEUR / dgt_ennemis
+#     - Combien de PV un coup enlève → player.attack_damage / dgt_ennemis
 #     - Force du recul (knockback)   → settings.KNOCKBACK_PLAYER / _ENEMY
 #     - Durée d'invincibilité        → settings.INVINCIBLE_DURATION
 #     - Ajouter un coup chargé       → une nouvelle constante DEGAT_X +
@@ -92,7 +92,6 @@ import math
 #  Tous les nombres de dégâts du jeu ICI, à un seul endroit, pour qu'on
 #  puisse équilibrer sans aller fouiller 5 fichiers.
 
-DEGAT_ATTAQUE_JOUEUR = 1   # coup d'épée du joueur → 1 PV à l'ennemi
 CRIT_CHANCE_ENNEMI = 0.0   # dgt crit (temporaire pour test)
 CRIT_MULTIPLIER = 2        # 2 coeurs retirés
 
@@ -247,7 +246,7 @@ def resoudre_attaques_joueur(joueur, ennemis):
                 joueur.on_side_hit() #recul pour coups normaux
                 
             infliger_degats(ennemi,
-                            DEGAT_ATTAQUE_JOUEUR,
+                            joueur.attack_damage,
                             source_rect=joueur.rect,
                             knockback=KNOCKBACK_ENEMY)
             

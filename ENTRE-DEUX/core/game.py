@@ -62,7 +62,7 @@ from core.camera import Camera
 # ── Inventaire
 from ui.inventory import Inventory, ITEMS
 from ui.quick_use import QuickUseBar
-from ui.items_effects import play_cassette
+from ui.items_effects import play_cassette, ajouter_atk, ajouter_vie, retirer_atk, retirer_vie
 
 # ── Entités vivantes
 from entities.boss import *
@@ -389,6 +389,9 @@ class Game:
         self.inventory.add_item("Cassette")                    # cassette offerte au départ
         self.inventory.add_item("CleRouge")                    # testeur
         self.inventory.add_item("CleJaune")                    # testeur
+        self.inventory.add_item("Epee")                        # testeur
+        self.inventory.add_item("Bouclier")                    # testeur
+
         # Note : la barre quick-use est créée plus tard dans __init__,
         # une fois que self.joueur existe (cf. après Player((100, 400))).
 
@@ -3097,6 +3100,43 @@ class Game:
                     r.top = rect_mur.bottom
                 self.joueur.vy = 0
 
+    def update_bonus(self):
+        # epee
+        if self.inventory.epee_active:
+            if not self.joueur.epee_bonus:
+                ajouter_atk(self.joueur)
+                self.joueur.epee_bonus = True
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_epee_msg", 0) > 3000:
+                    self.notifier("attaque supp active")
+                    self._last_epee_msg = now
+        else:
+            if self.joueur.epee_bonus:
+                retirer_atk(self.joueur)
+                self.joueur.epee_bonus = False
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_epee_msg2", 0) > 3000:
+                    self.notifier("attaque supp desactive")
+                    self._last_epee_msg2 = now
+
+        # bouclier
+        if self.inventory.bouclier_actif:
+            if not self.joueur.bouclier_bonus:
+                ajouter_vie(self.joueur)
+                self.joueur.bouclier_bonus = True
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_bouclier_msg", 0) > 3000:
+                    self.notifier("vie supp active")
+                    self._last_bouclier_msg = now
+        else:
+            if self.joueur.bouclier_bonus:
+                retirer_vie(self.joueur)
+                self.joueur.bouclier_bonus = False
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_bouclier_msg2", 0) > 3000:
+                    self.notifier("vie supp desactive")
+                    self._last_bouclier_msg2 = now
+
     # ═════════════════════════════════════════════════════════════════════════
     # 10.  RENDU — dessine le monde et les interfaces
     # ═════════════════════════════════════════════════════════════════════════
@@ -3350,6 +3390,8 @@ class Game:
             visuel, sonore = self.inventory.cassette_a_jouer
             self.inventory.cassette_a_jouer = None
             play_cassette(visuel, sonore, self.screen)
+
+        self.update_bonus()
             
         self.inventory.draw(self.screen, 6, 5)
         self.dialogue.draw(self.screen)
