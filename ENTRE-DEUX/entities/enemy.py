@@ -165,7 +165,7 @@ class Enemy:
     def __init__(self, x, y, 
                  nb_dgt=1,
                  nb_frames=1,
-                 sprite_name="boss",
+                 sprite_name="bosscapuche",
                  scale_factor = 2,
                  max_vie = 1,
                  has_gravity=True,             # False = vole (fantôme, oiseau)
@@ -192,7 +192,8 @@ class Enemy:
             "flamur": 15,
             "monstre_perdu": 5,
             "golem": 15,
-            "boss":50
+            "boss":50,
+            "bosscapuche":50
         }.get(sprite_name, 0)
         self.pieces_donnees = False
 
@@ -207,7 +208,9 @@ class Enemy:
             "flamur": 2,
             "monstre_perdu": 1,
             "golem": 2,
-            "boss": 1
+            "boss": 1,
+            "bosscapuche":2,
+            "bossbizarre":2
         }.get(sprite_name, max_vie)
         self.hp = self.max_vie
 
@@ -225,7 +228,10 @@ class Enemy:
             "flamur": 1,
             "monstre_perdu": 1,
             "golem": 3,
-            "boss":2
+            "boss":2,
+            "bosscapuche":4.5,
+            "bossbizarre":3.5
+
         }.get(sprite_name, scale_factor)
 
         frames = self._charger_frames(sprite_name, nb_frames)
@@ -233,11 +239,13 @@ class Enemy:
         self.sprite_h = frames[0].get_height()
 
         self.nb_frame = {
-            "mushroom": {"idle": 7, "run": 8, "walk": 8, "atk": 10, "die": 15, "hit":1},
-            "flamur": {"idle": 1, "run": 15, "walk": 15, "atk": 1, "die": 1, "hit":1},
-            "monstre_perdu.png": {"idle": 1, "run": 1, "walk": 1, "atk": 1, "die": 1, "hit":1},
-            "golem": {"idle": 1, "run": 10, "walk": 10, "atk": 11, "die": 13, "hit":1},
-            "boss": {"idle": 14, "run": 14, "walk": 14, "atk": 10, "die": 33, "hit":1}
+            "mushroom": {"idle": 7, "run": 8, "walk": 8, "atk": 10, "die": 15},
+            "flamur": {"idle": 1, "run": 15, "walk": 15, "atk": 1, "die": 1},
+            "monstre_perdu.png": {"idle": 1, "run": 1, "walk": 1, "atk": 1, "die": 1},
+            "golem": {"idle": 1, "run": 10, "walk": 10, "atk": 11, "die": 13},
+            "boss": {"idle": 14, "run": 14, "walk": 14, "atk": 10, "die": 33},
+            "bosscapuche": {"idle": 6, "run": 12, "walk": 12, "atk": 40, "die": 1},
+            "bossbizarre": {"idle": 17, "run": 6, "walk": 6, "atk": 11, "die": 19}
         }
 
         self.animations = {
@@ -245,8 +253,7 @@ class Enemy:
             "run": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", self.nb_frame[sprite_name]["run"])), img_dur=4),
             "walk": Animation(self._scale_frames(self._charger_frames(sprite_name + "run", self.nb_frame[sprite_name]["walk"])), img_dur=4),
             "atk": Animation(self._scale_frames(self._charger_frames(sprite_name + "atk", self.nb_frame[sprite_name]["atk"])), img_dur=4),
-            "die": Animation(self._scale_frames(self._charger_frames(sprite_name + "die", self.nb_frame[sprite_name]["die"])), img_dur=4, loop=False),
-            "hit": Animation(self._scale_frames(self._charger_frames(sprite_name + "hit", self.nb_frame[sprite_name]["hit"])), img_dur=100, loop=False)
+            "die": Animation(self._scale_frames(self._charger_frames(sprite_name + "die", self.nb_frame[sprite_name]["die"])), img_dur=4, loop=False)
         }
         self.current_anim = "idle"
         self.sprite_name = sprite_name
@@ -699,10 +706,7 @@ class Enemy:
         self._gerer_collisions_verticales(holes)
 
         # changer d'animation
-        if self.hit:
-            self.current_anim = "hit"
-            self.hit = False
-        elif self.atk_active:
+        if self.atk_active:
             self.current_anim = "atk"
         elif self.chasing:
             self.current_anim = "run"

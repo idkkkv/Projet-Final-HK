@@ -27,6 +27,7 @@ def play_cassette(visuel, sonore, screen):
     cap = cv2.VideoCapture(path_video)
     fps = cap.get(cv2.CAP_PROP_FPS) or 24
     clock = pygame.time.Clock()
+    sw, sh = screen.get_size()
     playing = True
 
     while playing and cap.isOpened():
@@ -35,16 +36,19 @@ def play_cassette(visuel, sonore, screen):
         if not ret: 
             break
         
-        # Pygame
+        # Full screen
         frame_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        frame_rgb = cv2.transpose(frame_rgb)
-        surf = pygame.surfarray.make_surface(frame_rgb)
+
+        vh, vw = frame_rgb.shape[:2]
+        scale = min(sw / vw, sh / vh)
+        nw, nh = int(vw * scale), int(vh * scale)
+        frame_resized = cv2.resize(frame_rgb, (nw, nh))
+
+        surf = pygame.surfarray.make_surface(frame_resized.transpose(1, 0, 2))
         
         # Center
-        sw, sh = screen.get_size()
-        vw, vh = surf.get_size()
         screen.fill((0, 0, 0)) # Fond noir
-        screen.blit(surf, ((sw - vw) // 2, (sh - vh) // 2))
+        screen.blit(surf, ((sw - nw) // 2, (sh - nh) // 2))
         pygame.display.flip()
 
         for event in pygame.event.get():

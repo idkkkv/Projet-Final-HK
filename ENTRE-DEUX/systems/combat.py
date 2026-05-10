@@ -193,9 +193,6 @@ def infliger_degats(cible, montant, source_rect=None, knockback=0):
         else:
             cible.knockback_vx = knockback    # cible à droite → pousse à droite
 
-    if hasattr(cible, "hit"):
-        cible.hit = True
-
     return True
 
 
