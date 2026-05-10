@@ -305,6 +305,14 @@
                 "y": -0.272333182628131
             }
         },
+        "mapsppp.tmx": {
+            "scale": 1.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 75.66666666666669,
+                "y": 245.3333333333333
+            }
+        },
         "mapsptransition.tmx": {
             "scale": 1,
             "selectedLayer": 0,
@@ -335,15 +343,37 @@
         "mbossvert.tsx": {
             "scaleInDock": 0.5
         },
+        "mppp.tmx": {
+            "scale": 2,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 397.75,
+                "y": 316.5
+            }
+        },
         "mptransi.tsx": {
             "scaleInDock": 1
         },
-        "mv.tmx": {
-            "scale": 1.5,
-            "selectedLayer": 0,
+        "mr.tmx": {
+            "expandedObjectLayers": [
+                2
+            ],
+            "scale": 1,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 1.6666666666666856,
-                "y": 59.33333333333334
+                "x": -27.5,
+                "y": 266
+            }
+        },
+        "mv.tmx": {
+            "expandedObjectLayers": [
+                2
+            ],
+            "scale": 1.5,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 22.33333333333337,
+                "y": 50.666666666666686
             }
         },
         "on_verra.tsx": {
@@ -409,6 +439,9 @@
         "plants.tsx": {
             "scaleInDock": 3,
             "scaleInEditor": 1
+        },
+        "plants_stems.tsx": {
+            "scaleInDock": 1
         },
         "prouge.tmx": {
             "scale": 0.5,

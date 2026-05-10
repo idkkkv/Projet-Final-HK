@@ -1,7 +1,7 @@
 {
   "ground_y": 3215,
   "ceiling_y": -500,
-  "scene_width": 2600,
+  "scene_width": 2200,
   "scene_left": 0,
   "camera_y_offset": -270,
   "camera_zoom": 1.0,
@@ -1511,7 +1511,7 @@
     {
       "x": 0,
       "y": 3215,
-      "w": 2600,
+      "w": 2200,
       "h": 800
     }
   ],
@@ -1519,7 +1519,7 @@
     {
       "x": 0,
       "y": -1300,
-      "w": 2600,
+      "w": 2200,
       "h": 800
     }
   ],
@@ -1533,7 +1533,7 @@
   ],
   "right_segments": [
     {
-      "x": 2600,
+      "x": 2200,
       "y": -1300,
       "w": 800,
       "h": 5315
@@ -1542,7 +1542,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 857,
+      "x": 889,
       "y": 2994,
       "has_gravity": true,
       "has_collision": true,
@@ -1567,57 +1567,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1295,
-      "y": 2716,
-      "has_gravity": true,
-      "has_collision": true,
-      "sprite_name": "mushroom",
-      "can_jump": false,
-      "can_jump_patrol": false,
-      "jump_power": 400,
-      "detect_range": 200,
-      "detect_height": 80,
-      "has_light": false,
-      "light_type": "dim",
-      "light_radius": 100,
-      "patrol_left": 930,
-      "patrol_right": 1530,
-      "can_fall_in_holes": false,
-      "respawn_timeout": 10.0,
-      "can_turn_randomly": false,
-      "patrol_speed": 120,
-      "chase_speed": 200,
-      "nom": "",
-      "max_vie": 1,
-      "boss_tier": 0
-    },
-    {
-      "x": 1189,
-      "y": 2716,
-      "has_gravity": true,
-      "has_collision": true,
-      "sprite_name": "mushroom",
-      "can_jump": false,
-      "can_jump_patrol": false,
-      "jump_power": 400,
-      "detect_range": 200,
-      "detect_height": 80,
-      "has_light": false,
-      "light_type": "dim",
-      "light_radius": 100,
-      "patrol_left": 1136,
-      "patrol_right": 1736,
-      "can_fall_in_holes": false,
-      "respawn_timeout": 10.0,
-      "can_turn_randomly": false,
-      "patrol_speed": 120,
-      "chase_speed": 200,
-      "nom": "",
-      "max_vie": 1,
-      "boss_tier": 0
-    },
-    {
-      "x": 718,
+      "x": 589,
       "y": 1788,
       "has_gravity": true,
       "has_collision": true,
@@ -1642,7 +1592,7 @@
       "boss_tier": 0
     },
     {
-      "x": 990,
+      "x": 916,
       "y": 767,
       "has_gravity": true,
       "has_collision": true,
@@ -1667,7 +1617,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1445,
+      "x": 1535,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1692,7 +1642,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1369,
+      "x": 1414,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1717,7 +1667,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1564,
+      "x": 1784,
       "y": 1185,
       "has_gravity": true,
       "has_collision": true,
@@ -1742,7 +1692,7 @@
       "boss_tier": 0
     },
     {
-      "x": 498,
+      "x": 438,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1767,7 +1717,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1203,
+      "x": 1150,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1792,7 +1742,7 @@
       "boss_tier": 0
     },
     {
-      "x": 1785,
+      "x": 1758,
       "y": 257,
       "has_gravity": true,
       "has_collision": true,
@@ -1817,7 +1767,7 @@
       "boss_tier": 0
     },
     {
-      "x": 482,
+      "x": 333,
       "y": 71,
       "has_gravity": true,
       "has_collision": true,
@@ -1842,7 +1792,7 @@
       "boss_tier": 0
     },
     {
-      "x": 712,
+      "x": 401,
       "y": 505,
       "has_gravity": true,
       "has_collision": true,

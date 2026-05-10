@@ -10,7 +10,12 @@
     "x": 2176,
     "y": 1524
   },
-  "named_spawns": {},
+  "named_spawns": {
+    "h": [
+      2199,
+      1814
+    ]
+  },
   "music": "Im not ready for you to leave.mp3",
   "bg_color": [
     0,
@@ -338,7 +343,8 @@
       "target_map": "map23",
       "target_x": -1,
       "target_y": -1,
-      "require_up": false
+      "require_up": false,
+      "need_key": false
     }
   ],
   "decors": [
@@ -429,5 +435,6 @@
       "texte": "Vous avez trop peur pour avancer|Rebrousser chemin.."
     }
   ],
-  "danger_zones": []
+  "danger_zones": [],
+  "autosave_zones": []
 }
