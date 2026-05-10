@@ -1782,6 +1782,9 @@ class Game:
         self._ennemis_morts_par_map = {}
         # Reset du dernier point de save mémorisé.
         self._dernier_save_pos = None
+        # video de depart
+        self._intro_jouee = False
+        self._credits_joues = False
 
         # Reset des compétences en mode histoire : le joueur démarre avec
         # SEULEMENT le saut. Les autres compétences (double saut, dash,
@@ -2204,7 +2207,17 @@ class Game:
             except AttributeError:
                 pass
             # Maintenant on lance vraiment l'action (chargement / nouvelle partie)
+
+            # video 
             action()
+
+            if not getattr(self, "_intro_jouee", False):
+                self._intro_jouee = True
+                try:
+                    play_cassette("debut.mp4", "debut.mp3", self.screen)
+                except Exception as e:
+                    print(f"[Intro] {e}")
+
         return _wrapped
 
     def _gerer_menu(self, events):
@@ -2347,6 +2360,14 @@ class Game:
             elif choix == "Quitter":
                 self.running = False
 
+    def _verifier_fin_jeu(self):
+        """Renvoie True si les 3 boss sont tous morts"""
+        from systems.story_flags import tester_condition
+        return all(
+            tester_condition(self.story_flags, f"flag:mort_{nom}")
+            for nom in ("boss", "bosscapuche", "bosswarrior")
+        )
+
     def _gerer_fin(self, events):
         """Gestion de l'écran Game Over (état GAME_OVER)."""
         # Cinématique de mort scriptée en cours ? On bloque les boutons
@@ -2389,7 +2410,15 @@ class Game:
                 self._derniere_cause_mort = ""
                 self._gameover_fade_alpha = 0.0
                 self.etats.switch(GAME)
+
             elif choix == "Menu principal":
+                if self._verifier_fin_jeu() and not getattr(self, "_credits_joues", False):
+                    self._credits_joues = True
+                    try:
+                        play_cassette("credits.mp4", None, self.screen)
+                    except Exception as e:
+                        print(f"[Credits] {e}")
+
                 self._menu_fondu_etat  = "none"
                 self._menu_fondu_alpha = 0
                 music.transition(

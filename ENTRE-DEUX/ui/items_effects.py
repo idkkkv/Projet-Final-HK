@@ -8,28 +8,25 @@ import ui.inventory as inventory
 from ui.inventory import ITEMS
 
 def play_cassette(visuel, sonore, screen):
-    if not pygame.mixer.get_init():
-        # Tente l'init standard. Si ça plante (ex: driver coreaudio mal
-        # configuré), on continue silencieusement — la vidéo s'affichera
-        # juste sans son.
+    if sonore is not None:
+        if not pygame.mixer.get_init():
+            try:
+                pygame.mixer.init()
+            except pygame.error as e:
+                print(f"[items_effects] init audio échoué : {e}")
+                return
+        if isinstance(sonore, list):
+            sonore = sonore[0]
+
+        path_son = find_file(sonore)
         try:
-            pygame.mixer.init()
-        except pygame.error as e:
-            print(f"[items_effects] init audio échoué : {e}")
-            return
+            pygame.mixer.music.load(path_son)
+            pygame.mixer.music.set_volume(1.0)
+            pygame.mixer.music.play()
+        except Exception as e:
+            print(f"Erreur audio : {e}")
 
-    if isinstance(sonore, list):
-        sonore = sonore[0]
-
-    path_son = find_file(sonore)
     path_video = find_file(visuel)
-    
-    try:
-        pygame.mixer.music.load(path_son)
-        pygame.mixer.music.set_volume(1.0)
-        pygame.mixer.music.play()
-    except Exception as e:
-        print(f"Erreur audio : {e}")
 
     cap = cv2.VideoCapture(path_video)
     fps = cap.get(cv2.CAP_PROP_FPS) or 24
@@ -69,7 +66,8 @@ def play_cassette(visuel, sonore, screen):
         clock.tick(fps) 
 
     cap.release()
-    pygame.mixer.music.stop()
+    if sonore is not None:
+        pygame.mixer.music.stop()
 
 
 def ajouter_atk(joueur):
