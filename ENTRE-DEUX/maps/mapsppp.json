@@ -1,0 +1,156 @@
+{
+  "ground_y": 1080,
+  "ceiling_y": 0,
+  "scene_width": 2500,
+  "scene_left": 0,
+  "camera_y_offset": 150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": -428,
+    "y": 931
+  },
+  "named_spawns": {},
+  "music": "",
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": -718,
+      "y": 939,
+      "w": 2019,
+      "h": 137
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 1080,
+      "w": 2500,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 2500,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2680
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2500,
+      "y": -800,
+      "w": 800,
+      "h": 2680
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": -579,
+      "y": 823,
+      "radius": 173,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -290,
+      "y": 751,
+      "radius": 81,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": -132,
+      "y": 820,
+      "radius": 139,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 27,
+      "y": 748,
+      "radius": 78,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 316,
+      "y": 822,
+      "radius": 150,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 608,
+      "y": 748,
+      "radius": 81,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 766,
+      "y": 819,
+      "radius": 132,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 921,
+      "y": 752,
+      "radius": 87,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1213,
+      "y": 820,
+      "radius": 114,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [],
+  "decors": [
+    {
+      "x": -717,
+      "y": 90,
+      "sprite": "tiled_mapsppp_d_cor_1_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [],
+  "trigger_zones": [],
+  "danger_zones": [],
+  "autosave_zones": []
+}
