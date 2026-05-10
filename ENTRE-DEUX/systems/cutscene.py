@@ -431,7 +431,7 @@ class Cutscene:
         elif step_type in ("npc_spawn", "npc_despawn", "grant_skill",
                             "grant_luciole", "give_item", "give_coins",
                             "set_flag", "flag_increment", "unlock_quickuse",
-                            "revive_player"):
+                            "revive_player", "teleport_player"):
             # Étapes instantanées : tout est fait dans _exec_step.
             pass
 
@@ -615,6 +615,62 @@ class Cutscene:
                 joueur.rect.y = int(y)
             return True
 
+        if step_type == "teleport_player":
+            # Téléporte le joueur vers une autre map et/ou un spawn nommé.
+            # cible : str au format identique à revive_player et aux portails :
+            #   "spawn_nom"          → même carte, spawn nommé
+            #   "map_nom spawn_nom"  → autre carte, spawn nommé
+            #   ""                   → fallback sur x/y (mêmes que set_player_pos)
+            game   = ctx.game
+            joueur = ctx.joueur
+            if joueur is None or game is None:
+                return True
+            cible = str(params.get("cible", "")).strip()
+            nom_map = None
+            nom_spawn = None
+            if cible:
+                if " " in cible:
+                    parts = cible.split(" ", 1)
+                    nom_map   = parts[0].strip()
+                    nom_spawn = parts[1].strip()
+                else:
+                    nom_spawn = cible
+            # Changement de carte si nécessaire
+            if nom_map and nom_map != getattr(game, "carte_actuelle", ""):
+                if hasattr(game.editeur, "load_map_for_portal"):
+                    if game.editeur.load_map_for_portal(nom_map):
+                        game.carte_actuelle = nom_map
+                        try:
+                            game._reconstruire_grille()
+                            game._murs_modifies()
+                            game._sync_triggers()
+                        except Exception:
+                            pass
+            # Position cible
+            named = getattr(game.editeur, "named_spawns", {}) or {}
+            pos = None
+            if nom_spawn and nom_spawn in named:
+                pos = named[nom_spawn]
+            if pos is not None:
+                joueur.rect.x = int(pos[0])
+                joueur.rect.y = int(pos[1])
+            else:
+                # Fallback sur x/y explicites (s'ils ont été fournis)
+                x = params.get("x", None)
+                y = params.get("y", None)
+                if x is not None and y is not None:
+                    joueur.rect.x = int(x)
+                    joueur.rect.y = int(y)
+                elif nom_spawn:
+                    print(f"[teleport_player] spawn '{nom_spawn}' introuvable")
+            # Reset vélocités + snap caméra pour ne pas glisser
+            joueur.vx           = 0
+            joueur.vy           = 0
+            joueur.knockback_vx = 0
+            if hasattr(game.camera, "snap_to"):
+                game.camera.snap_to(joueur.rect)
+            return True
+
         # ────────────────────────────────────────────────────────────────
         #  Apparition / disparition de PNJ (étape instantanée)
         # ────────────────────────────────────────────────────────────────
@@ -630,7 +686,11 @@ class Cutscene:
             sprite  = params.get("sprite", None)
             dialogues_   = params.get("dialogues", [])
             mode    = str(params.get("dialogue_mode", "boucle_dernier"))
-            gravity = bool(params.get("has_gravity", True))
+            # has_gravity : si l'utilisateur a laissé le champ vide en
+            # éditeur, params.get renvoie None → bool(None)=False (= flotte
+            # par accident). On traite explicitement None comme True (défaut).
+            has_grav_raw = params.get("has_gravity", True)
+            gravity = True if has_grav_raw is None else bool(has_grav_raw)
             events  = params.get("events", None)
             try:
                 nv = PNJ(
@@ -1104,8 +1164,29 @@ def camera_focus_pnj(nom_pnj, duration=None, speed=None, follow=False):
 
 
 def set_player_pos(x, y):
-    """Téléporte le joueur à (x, y) instantanément (en coords monde)."""
+    """Téléporte le joueur à (x, y) instantanément (en coords monde).
+
+    Reste sur la carte courante. Pour téléporter vers une autre map ou
+    un spawn nommé, utiliser teleport_player()."""
     return ("set_player_pos", {"x": float(x), "y": float(y)})
+
+
+def teleport_player(cible="", x=None, y=None):
+    """Téléporte le joueur vers un autre endroit, éventuellement sur une
+    autre carte.
+
+    cible : format texte identique aux portails et à revive_player :
+        "spawn_nom"          → carte courante, spawn nommé
+        "map_nom spawn_nom"  → change de carte ET place sur le spawn
+        ""                   → fallback sur (x, y) si fournis
+    x, y  : coordonnées explicites (utilisées si cible est vide ou si le
+            spawn nommé n'existe pas)."""
+    p = {"cible": str(cible)}
+    if x is not None:
+        p["x"] = float(x)
+    if y is not None:
+        p["y"] = float(y)
+    return ("teleport_player", p)
 
 
 # ── Apparition / disparition de PNJ ──────────────────────────────────────────

@@ -272,6 +272,11 @@ def resoudre_contacts_ennemis(joueur, ennemis, hud=None):
     # Joueur déjà invincible (vient d'être touché) ou mort → on ne fait rien.
     if joueur.invincible or joueur.dead:
         return
+    # Dash / back-dodge actifs → le joueur traverse les ennemis sans
+    # subir de dégât. Mécanique d'esquive offensive (cf. demande user).
+    if (getattr(joueur, "dashing", False)
+            or getattr(joueur, "back_dodge_lock_timer", 0.0) > 0):
+        return
 
     for ennemi in ennemis:
         # Ennemi mort, ou en cooldown (vient juste de frapper) → suivant.

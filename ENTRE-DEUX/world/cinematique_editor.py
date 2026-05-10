@@ -191,12 +191,24 @@ TYPES_ETAPES = {
         "resume":  lambda d: f"PNJ '{d.get('nom_pnj', '?')}' → ({d.get('x', 0)}, {d.get('y', 0)})",
     },
     "set_player_pos": {
-        "libelle": "Téléporter le joueur",
+        "libelle": "Téléporter le joueur (même map, x/y)",
         "champs":  [
             ("x", "X monde", 0),
             ("y", "Y monde", 0),
         ],
         "resume":  lambda d: f"Téléport joueur ({d.get('x', 0)}, {d.get('y', 0)})",
+    },
+    "teleport_player": {
+        "libelle": "Téléporter le joueur (autre map / spawn nommé)",
+        "champs":  [
+            ("cible", "Cible : 'spawn' OU 'map spawn' (vide = utilise x/y)", ""),
+            ("x",     "X monde (fallback si pas de spawn nommé)", ""),
+            ("y",     "Y monde (fallback si pas de spawn nommé)", ""),
+        ],
+        "resume":  lambda d: (
+            f"Téléport → '{d.get('cible')}'" if d.get('cible')
+            else f"Téléport → ({d.get('x','?')}, {d.get('y','?')})"
+        ),
     },
 
     # ── Apparition / disparition de PNJ ──────────────────────────────────
@@ -210,8 +222,11 @@ TYPES_ETAPES = {
             ("dialogues_texte",
                 "Dialogues (texte|auteur, // entre lignes, ; entre conv)",
                 ""),
+            ("events_texte",
+                "Events fin dialogue (skill:.. ; tp:map spawn ; coins:50)",
+                ""),
             ("dialogue_mode",  "Mode (boucle_dernier / restart)", "boucle_dernier"),
-            ("has_gravity",    "Gravité (1=oui, 0=flottant)",     1),
+            ("has_gravity",    "Gravité (1=oui, 0=flottant, défaut=1)", 1),
         ],
         "resume":  lambda d: f"Spawn PNJ '{d.get('nom','?')}' → ({d.get('x',0)},{d.get('y',0)})",
     },
@@ -748,6 +763,99 @@ class CinematiqueEditor:
             self._field_pending["dialogues"] = conv_list
             self._field_pending.pop("dialogues_texte", None)
 
+        elif nom == "events_texte":
+            # Events à appliquer en fin de dialogue. Format identique au
+            # PNJ editor : "type1:val1; type2:val2 ; e3:v3 :: e3bis:v3bis"
+            # où "::" sépare les conversations (rare car la plupart des
+            # PNJ spawnés n'ont qu'une seule conversation).
+            # Types supportés : skill, luciole, coins, hp, max_hp, item,
+            # flag, flag_increment (via flag:k+=N), teleport (tp:cible).
+            ev_list_par_conv = []
+            for conv_block in brut.split("::"):
+                conv_block = conv_block.strip()
+                if not conv_block:
+                    ev_list_par_conv.append([])
+                    continue
+                events_conv = []
+                for seg in conv_block.split(";"):
+                    seg = seg.strip()
+                    if not seg or ":" not in seg:
+                        continue
+                    t, rest = seg.split(":", 1)
+                    t    = t.strip()
+                    rest = rest.strip()
+                    if t == "tp":
+                        # tp:cible OU tp:cible:X:Y OU tp::X:Y
+                        ev = {"type": "teleport"}
+                        segs = rest.split(":")
+                        if segs:
+                            ev["cible"] = segs[0].strip()
+                        if len(segs) >= 3:
+                            try:
+                                ev["x"] = float(segs[1].strip()) if segs[1].strip() else None
+                                ev["y"] = float(segs[2].strip()) if segs[2].strip() else None
+                            except ValueError:
+                                pass
+                        events_conv.append(ev)
+                    elif t == "skill":
+                        events_conv.append({"type": "skill", "value": rest})
+                    elif t == "luciole":
+                        events_conv.append({"type": "luciole", "source": rest})
+                    elif t in ("coins", "hp", "max_hp"):
+                        try:
+                            events_conv.append({"type": t, "value": int(rest)})
+                        except ValueError:
+                            pass
+                    elif t == "item":
+                        if ":" in rest:
+                            name, cnt = rest.split(":", 1)
+                            try:
+                                events_conv.append({"type": "item",
+                                                    "value": name.strip(),
+                                                    "count": int(cnt)})
+                            except ValueError:
+                                events_conv.append({"type": "item", "value": name.strip()})
+                        else:
+                            events_conv.append({"type": "item", "value": rest})
+                    elif t == "flag":
+                        if "+=" in rest or "-=" in rest:
+                            op = "+=" if "+=" in rest else "-="
+                            kp, dp = rest.split(op, 1)
+                            key = kp.strip()
+                            req = None
+                            if ":req=" in dp:
+                                d2, rp = dp.split(":req=", 1)
+                                try:
+                                    delta = int(d2.strip()) if d2.strip() else 1
+                                except ValueError:
+                                    delta = 1
+                                try:
+                                    req = max(1, int(rp.strip()))
+                                except ValueError:
+                                    req = None
+                            else:
+                                try:
+                                    delta = int(dp.strip()) if dp.strip() else 1
+                                except ValueError:
+                                    delta = 1
+                            if op == "-=":
+                                delta = -abs(delta)
+                            ev = {"type": "flag_increment", "key": key, "delta": delta}
+                            if req is not None:
+                                ev["required"] = req
+                            events_conv.append(ev)
+                        elif "=" in rest:
+                            k, v = rest.split("=", 1)
+                            events_conv.append({
+                                "type": "flag", "key": k.strip(),
+                                "value": v.strip() not in ("0", "false", "False", ""),
+                            })
+                        else:
+                            events_conv.append({"type": "flag", "key": rest, "value": True})
+                ev_list_par_conv.append(events_conv)
+            self._field_pending["events"] = ev_list_par_conv
+            self._field_pending.pop("events_texte", None)
+
         else:
             # Conversion typée d'après le default
             if isinstance(defaut, float):
@@ -769,6 +877,13 @@ class CinematiqueEditor:
                 self._field_pending[nom] = brut if brut else None
 
         self._field_index += 1
+        # ── Cas spécial : pour teleport_player, si la cible est remplie,
+        # on saute les fields x/y (qui ne sont qu'un fallback inutile).
+        # Évite à l'utilisateur de devoir taper Entrée 2 fois pour valider.
+        if (self._field_pending.get("type") == "teleport_player"
+                and self._field_pending.get("cible")):
+            # Skip vers la fin (ne pas demander x ni y)
+            self._field_index = len(champs)
         if self._field_index >= len(champs):
             self._terminer_edition_etape()
         else:
