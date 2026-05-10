@@ -1,9 +1,9 @@
 {
   "ground_y": 430,
-  "ceiling_y": -180,
+  "ceiling_y": -200,
   "scene_width": 2760,
   "scene_left": -1400,
-  "camera_y_offset": -270,
+  "camera_y_offset": -290,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
@@ -23,9 +23,9 @@
       2413,
       399
     ],
-    "ko": [
-      2527,
-      396
+    "ok": [
+      2577,
+      392
     ]
   },
   "bg_color": [
@@ -232,7 +232,7 @@
   "ceiling_segments": [
     {
       "x": -1400,
-      "y": -980,
+      "y": -1000,
       "w": 4160,
       "h": 800
     }
@@ -240,17 +240,17 @@
   "left_segments": [
     {
       "x": -2200,
-      "y": -980,
+      "y": -1000,
       "w": 800,
-      "h": 2210
+      "h": 2230
     }
   ],
   "right_segments": [
     {
       "x": 2760,
-      "y": -980,
+      "y": -1000,
       "w": 800,
-      "h": 2210
+      "h": 2230
     }
   ],
   "holes": [],
@@ -287,6 +287,46 @@
       "type": "torch",
       "flicker": false,
       "flicker_speed": 5
+    },
+    {
+      "x": -1090,
+      "y": -768,
+      "radius": 1423,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 3
+    },
+    {
+      "x": -946,
+      "y": 845,
+      "radius": 1275,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 3
+    },
+    {
+      "x": 584,
+      "y": 867,
+      "radius": 1264,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 3
+    },
+    {
+      "x": 2213,
+      "y": 1010,
+      "radius": 1743,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 3
+    },
+    {
+      "x": 2881,
+      "y": -1012,
+      "radius": 1690,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 3
     }
   ],
   "portals": [
@@ -332,6 +372,17 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
+      "need_key": false
+    },
+    {
+      "x": 2748,
+      "y": 255,
+      "w": 10,
+      "h": 180,
+      "target_map": "c",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
       "need_key": false
     }
   ],

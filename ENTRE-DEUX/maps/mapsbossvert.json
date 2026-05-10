@@ -1,14 +1,14 @@
 {
   "ground_y": 270,
-  "ceiling_y": 0,
-  "scene_width": 2400,
+  "ceiling_y": -20,
+  "scene_width": 700,
   "scene_left": -700,
-  "camera_y_offset": 150,
+  "camera_y_offset": -400,
   "camera_zoom": 1.0,
   "player_scale": 1.0,
   "spawn": {
-    "x": -630,
-    "y": 149
+    "x": -620,
+    "y": 134
   },
   "named_spawns": {},
   "bg_color": [
@@ -544,32 +544,32 @@
     {
       "x": -700,
       "y": 270,
-      "w": 3100,
+      "w": 1400,
       "h": 800
     }
   ],
   "ceiling_segments": [
     {
       "x": -700,
-      "y": -800,
-      "w": 3100,
+      "y": -820,
+      "w": 1400,
       "h": 800
     }
   ],
   "left_segments": [
     {
       "x": -1500,
-      "y": -800,
+      "y": -820,
       "w": 800,
-      "h": 1870
+      "h": 1890
     }
   ],
   "right_segments": [
     {
-      "x": 2400,
-      "y": -800,
+      "x": 700,
+      "y": -820,
       "w": 800,
-      "h": 1870
+      "h": 1890
     }
   ],
   "holes": [],
