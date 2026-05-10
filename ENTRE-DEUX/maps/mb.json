@@ -551,7 +551,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 194,
+      "x": 498,
       "y": 69,
       "has_gravity": true,
       "has_collision": true,
@@ -564,8 +564,8 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -204,
-      "patrol_right": 379,
+      "patrol_left": -407,
+      "patrol_right": 649,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,

@@ -220,6 +220,10 @@ class Player:
         self.hitted_hard      = False
         self.healing          = False
         self.just_fallen      = False #pour pas faire 2 atk
+        # Mode GODMODE (toggle slot 3 de la croix directionnelle).
+        # Quand True, chaque coup du joueur fait 999 999 dégâts → one-shot
+        # n'importe quel ennemi / boss. Mode debug pour le prof.
+        self._godmode         = False
         self.attack_type = None #sol ou air
         self.attack_damage = 1
         self.epee_bonus = False # sinon l'item continuuue
@@ -603,11 +607,15 @@ class Player:
         return bool(getattr(settings, attr, True))
 
     def respawn(self):
-        """Fait réapparaître le joueur à son point de spawn avec PV pleins.
+        """Replace le joueur sur son spawn et reset son ÉTAT PHYSIQUE.
 
-        Utilisé quand :
-          - le joueur meurt (écran "Game Over" puis respawn)
-          - on change de scène et on veut recaler le joueur proprement
+        IMPORTANT : ne touche plus à hp/coins/inventaire ! Avant, cette
+        méthode mettait coins=0 et hp=max_hp, ce qui était :
+          - correct sur mort (logique de game over)
+          - MAIS catastrophique sur changement de map (le joueur perdait
+            tout son argent et se retrouvait avec PV pleins gratos)
+        Désormais c'est l'appelant (game.py / _gerer_fin sur mort) qui
+        décide explicitement de reset hp/coins si nécessaire.
         """
         self.rect.x       = self.spawn_x
         self.rect.y       = self.spawn_y
@@ -615,14 +623,12 @@ class Player:
         self.vy           = 0
         self.knockback_vx = 0
         self.on_ground    = False
-        self.hp           = self.max_hp
         self.dead         = False
         self.dashing      = False
         self.running      = False
         self.dash_timer   = 0.0
         self.jumps_used   = 0
         self._idle_timer  = 0.0
-        self.coins  = 0
         self.regen_active = False
 
     def reload_hitbox(self):

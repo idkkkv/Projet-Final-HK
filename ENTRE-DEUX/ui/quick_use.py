@@ -42,7 +42,26 @@ import pygame
 
 class QuickUseBar:
     # Ordre des slots : HAUT, DROITE, BAS, GAUCHE — comme une croix de manette.
-    SLOTS = ["Pomme", None, None, None]
+    #   1 (Haut)   : Pomme — consommable de soin classique
+    #   2 (Droite) : Épée  — toggle +ATK (cf. inventory.epee_active)
+    #   3 (Bas)    : GODMODE — toggle "one-shot tous les ennemis" (debug prof)
+    #   4 (Gauche) : Bouclier — toggle +HP (cf. inventory.bouclier_actif)
+    SLOTS = ["Pomme", "Epee", "Godmode", "Bouclier"]
+
+    # Items qui ne se "consomment" pas mais TOGGLENT un état (équipement).
+    # Mapping nom → (target, attribut) :
+    #   target = "inv" (lue/écrite sur self.inventory) ou
+    #            "joueur" (sur self.joueur — accessible depuis combat.py).
+    TOGGLE_ITEMS = {
+        "Epee":     ("inv",    "epee_active"),
+        "Bouclier": ("inv",    "bouclier_actif"),
+        "Godmode":  ("joueur", "_godmode"),
+    }
+
+    def _toggle_target(self, item_name):
+        """Renvoie l'objet sur lequel lire/écrire l'attribut toggle."""
+        target, attr = self.TOGGLE_ITEMS[item_name]
+        return (self.joueur if target == "joueur" else self.inventory), attr
 
     # Mapping touche → index de slot (0=Haut, 1=Droite, 2=Bas, 3=Gauche).
     # Les touches 1/2/3/4 sont assignées dans cet ordre.
@@ -108,12 +127,35 @@ class QuickUseBar:
         self._consommer(idx)
 
     def _consommer(self, idx):
-        """Consomme l'item du slot `idx` si possible."""
+        """Consomme (ou toggle, selon le type) l'item du slot `idx`."""
         if not (0 <= idx < len(self.SLOTS)):
             return
         item_name = self.SLOTS[idx]
         if not item_name:
             return
+
+        # ── Items TOGGLE (équipements + godmode) ────────────────────────
+        # Pas de consommation : on inverse le flag correspondant sur
+        # l'inventaire. Pour Epee/Bouclier on exige aussi de POSSÉDER
+        # l'item dans l'inventaire (sinon le joueur l'activerait sans
+        # l'avoir trouvé). Godmode est libre (mode debug prof).
+        if item_name in self.TOGGLE_ITEMS:
+            obj, attr = self._toggle_target(item_name)
+            if item_name in ("Epee", "Bouclier"):
+                if self.inventory.quantite(item_name) <= 0:
+                    return  # pas équipé
+            actuel = bool(getattr(obj, attr, False))
+            setattr(obj, attr, not actuel)
+            # Petit son
+            try:
+                from audio import sound_manager
+                sound_manager.jouer("ui_select", volume=0.4)
+            except Exception:
+                pass
+            self._flash_idx   = idx
+            self._flash_timer = 0.25
+            return
+
         # Quantité dispo dans l'inventaire ?
         if self.inventory.quantite(item_name) <= 0:
             return
@@ -216,30 +258,52 @@ class QuickUseBar:
         for idx, (x, y) in enumerate(positions):
             rect = pygame.Rect(x, y, s, s)
             item_name = self.SLOTS[idx] if idx < len(self.SLOTS) else None
-            qty = self.inventory.quantite(item_name) if item_name else 0
-            disponible = qty > 0
 
-            # Fond translucide
+            # ── Détermination du type de slot ────────────────────────
+            est_toggle = item_name in self.TOGGLE_ITEMS
+            actif = False
+            if est_toggle:
+                obj, attr = self._toggle_target(item_name)
+                actif = bool(getattr(obj, attr, False))
+
+            # Pour Epee/Bouclier on exige de posséder l'item ; pour Godmode non.
+            if item_name == "Godmode":
+                qty = 1
+                disponible = True
+            elif item_name:
+                qty = self.inventory.quantite(item_name)
+                disponible = qty > 0
+            else:
+                qty = 0
+                disponible = False
+
+            # ── Fond translucide ──
             bg = pygame.Surface((s, s), pygame.SRCALPHA)
             if self._flash_idx == idx and self._flash_timer > 0:
-                # Flash blanc qui décroit
                 a = int(180 * (self._flash_timer / 0.25))
                 bg.fill((*self.COL_FLASH, a))
+            elif est_toggle and actif:
+                # Toggle ACTIF → fond doré pour signaler "équipé / on"
+                bg.fill((90, 70, 20, 220))
             else:
                 bg.fill(self.COL_BG)
             screen.blit(bg, rect.topleft)
 
-            # Bordure (grisée si épuisé)
-            border = self.COL_BORDER if disponible else self.COL_BORDER_DIS
-            pygame.draw.rect(screen, border, rect, 2)
+            # ── Bordure ──
+            if est_toggle and actif:
+                border = (255, 215, 80)   # doré actif
+                width  = 3
+            else:
+                border = self.COL_BORDER if disponible else self.COL_BORDER_DIS
+                width  = 2
+            pygame.draw.rect(screen, border, rect, width)
 
-            # Image de l'item (grisée si vide)
+            # ── Image de l'item ──
             if item_name:
-                img = self.inventory.images.get(item_name)
+                img = self.inventory.images.get(item_name) if item_name != "Godmode" else None
                 if img is not None:
                     img2 = img
                     if not disponible:
-                        # Greyscale rapide : on assombrit + désature.
                         img2 = img.copy()
                         gris = pygame.Surface(img2.get_size(), pygame.SRCALPHA)
                         gris.fill((40, 40, 40, 180))
@@ -247,9 +311,25 @@ class QuickUseBar:
                                   special_flags=pygame.BLEND_RGBA_MULT)
                     img_rect = img2.get_rect(center=rect.center)
                     screen.blit(img2, img_rect)
+                else:
+                    # Pas d'image → texte de fallback (utile pour Godmode)
+                    label = "GOD" if item_name == "Godmode" else item_name[:4].upper()
+                    color = (255, 100, 100) if (est_toggle and actif) else (200, 200, 220)
+                    lf = self._font.render(label, True, color)
+                    screen.blit(lf, lf.get_rect(center=rect.center))
 
-                # Compteur en bas-droite
-                if qty > 0:
+                # ── Indicateur ON/OFF pour les toggles ──
+                if est_toggle:
+                    etat_txt = "ON" if actif else "OFF"
+                    etat_col = (200, 255, 130) if actif else (160, 160, 180)
+                    es = self._font.render(etat_txt, True, etat_col)
+                    sh = self._font.render(etat_txt, True, (0, 0, 0))
+                    bx = rect.right - es.get_width() - 3
+                    by = rect.bottom - es.get_height() - 1
+                    screen.blit(sh, (bx + 1, by + 1))
+                    screen.blit(es, (bx, by))
+                # ── Compteur en bas-droite (uniquement pour les consommables) ──
+                elif qty > 0:
                     txt = self._font.render(f"x{qty}", True, (255, 255, 255))
                     sh  = self._font.render(f"x{qty}", True, (0, 0, 0))
                     bx = rect.right - txt.get_width() - 3

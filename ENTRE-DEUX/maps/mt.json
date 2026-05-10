@@ -1572,7 +1572,7 @@
       "type": "pnj",
       "x": -5147,
       "y": -93,
-      "nom": "objet_1",
+      "nom": "Save",
       "sprite_name": "objet_parlant_40x40.png",
       "dialogues": [],
       "dialogue_mode": "boucle_dernier",

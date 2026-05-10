@@ -105,8 +105,42 @@ from utils import draw_mouse_coords
 from audio import music_manager as music
 from audio import sound_manager as sfx
 
-os.environ["SDL_AUDIODRIVER"] = "coreaudio"
-pygame.mixer.init()
+# ── Initialisation audio robuste ──────────────────────────────────────
+# Sur certaines machines, un camarade ou un script avait posé
+# SDL_AUDIODRIVER=coreaudio (driver macOS) → pygame.mixer.init() plantait
+# sur Windows avec "Audio target 'coreaudio' not available". On essaie
+# en cascade les drivers de la plateforme courante, et on fallback sur
+# "dummy" (pas de son, mais le jeu démarre) en dernier recours.
+import os as _os, sys as _sys
+def _init_audio_robuste():
+    # Si déjà initialisé (ex: reload), ne rien faire.
+    if pygame.mixer.get_init():
+        return
+    # 1. Essai avec le driver demandé par l'environnement (s'il est valide).
+    drivers_a_essayer = []
+    env = _os.environ.get("SDL_AUDIODRIVER", "").lower()
+    if env and env != "coreaudio":  # coreaudio invalide hors macOS
+        drivers_a_essayer.append(env)
+    # 2. Drivers spécifiques à la plateforme.
+    if _sys.platform.startswith("win"):
+        drivers_a_essayer += ["directsound", "wasapi", "winmm"]
+    elif _sys.platform == "darwin":
+        drivers_a_essayer += ["coreaudio"]
+    else:
+        drivers_a_essayer += ["pulseaudio", "alsa"]
+    # 3. Dernier recours : driver "dummy" = pas de son mais le jeu tourne.
+    drivers_a_essayer.append("dummy")
+    for drv in drivers_a_essayer:
+        _os.environ["SDL_AUDIODRIVER"] = drv
+        try:
+            pygame.mixer.init()
+            if drv == "dummy":
+                print("[Audio] aucun driver fonctionnel → mode silencieux")
+            return
+        except pygame.error:
+            pygame.mixer.quit()
+            continue
+_init_audio_robuste()
 
 class Game:
     """La classe qui contient et orchestre tout le jeu."""
@@ -122,9 +156,12 @@ class Game:
     def __init__(self):
         # ── 1.1 Démarrage de pygame (moteur) ──
         # pygame.init()       → initialise tous les sous-systèmes
-        # pygame.mixer.init() → initialise le système audio
+        # pygame.mixer.init() → initialise le système audio (déjà fait au
+        #   chargement du module via _init_audio_robuste, mais on rappelle
+        #   ici par sécurité — c'est idempotent).
         pygame.init()
-        pygame.mixer.init()
+        if not pygame.mixer.get_init():
+            _init_audio_robuste()
 
         # Fenêtre redimensionnable + SCALED (accélération GPU).
         # pygame.SCALED : pygame rend à la résolution logique (WIDTH×HEIGHT)
@@ -1416,6 +1453,26 @@ class Game:
                     else:
                         print(f"[TP] échec load_map_for_portal('{nom_map}')")
             named = getattr(self.editeur, "named_spawns", {}) or {}
+            # Fallback : si l'éditeur n'a pas (ou plus) de named_spawns
+            # mais que le spawn est demandé, on relit le JSON brut du
+            # disque pour la map COURANTE. Couvre le cas où un autre
+            # _apply_state aurait écrasé named_spawns entre-temps.
+            if nom_spawn and nom_spawn not in named:
+                target_map = nom_map or getattr(self, "carte_actuelle", "")
+                if target_map:
+                    try:
+                        import json, os
+                        from world.editor import MAPS_DIR
+                        fp = os.path.join(MAPS_DIR, f"{target_map}.json")
+                        with open(fp, encoding="utf-8") as f:
+                            map_data = json.load(f)
+                        named_disk = map_data.get("named_spawns", {}) or {}
+                        if named_disk:
+                            print(f"[TP] reload spawns de '{target_map}' depuis disque")
+                            self.editeur.named_spawns = dict(named_disk)
+                            named = self.editeur.named_spawns
+                    except Exception as e:
+                        print(f"[TP] échec relecture {target_map}.json : {e}")
             print(f"[TP] spawns disponibles : {list(named.keys())}")
             pos = None
             if nom_spawn and nom_spawn in named:
@@ -2655,6 +2712,16 @@ class Game:
             self._reconstruire_grille()
             self._murs_modifies()
             self._sync_triggers()
+            # Sync carte_actuelle avec le nom de carte de l'éditeur.
+            # Quand l'utilisateur charge une carte via [L], l'éditeur
+            # met à jour son _nom_carte mais game.carte_actuelle reste
+            # bloqué sur l'ancienne valeur → conséquence : le système de
+            # téléport considérait être encore sur l'ancienne map et ne
+            # rechargeait pas la nouvelle, ce qui faisait perdre les
+            # named_spawns. On resynchronise systématiquement.
+            nc = getattr(self.editeur, "_nom_carte", "")
+            if nc and nc != self.carte_actuelle:
+                self.carte_actuelle = nc
         elif resultat and resultat.startswith("set_start:"):
             # Résultat au format "set_start:nom_de_la_carte"
             nom = resultat.split(":", 1)[1]

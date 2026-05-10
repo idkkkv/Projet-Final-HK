@@ -245,8 +245,16 @@ def resoudre_attaques_joueur(joueur, ennemis):
             else:
                 joueur.on_side_hit() #recul pour coups normaux
                 
+            # Mode GODMODE (croix directionnelle slot 3) : one-shot tout
+            # ennemi/boss. La valeur 999999 garantit que même les boss à
+            # gros PV tombent en un coup. Flag stocké directement sur
+            # le joueur pour rester accessible depuis combat.py sans
+            # référence circulaire à game/inventory.
+            degats = joueur.attack_damage
+            if getattr(joueur, "_godmode", False):
+                degats = 999999
             infliger_degats(ennemi,
-                            joueur.attack_damage,
+                            degats,
                             source_rect=joueur.rect,
                             knockback=KNOCKBACK_ENEMY)
             

@@ -3,7 +3,7 @@
  <tileset firstgid="1" source="b1.tsx"/>
  <tileset firstgid="801" source="Basic Tiles Only.tsx"/>
  <tileset firstgid="5617" source="é.tsx"/>
- <objectgroup id="2" name="colissions">
+ <objectgroup id="2" name="collissions">
   <object id="1" x="-0.363636" y="256" width="640.364" height="63.8182"/>
  </objectgroup>
  <layer id="3" name="décor 2" width="40" height="20">

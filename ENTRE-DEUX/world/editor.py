@@ -3817,7 +3817,12 @@ class Editor:
         self._restore_confirm_timer = 0.0
 
     def load_map_for_portal(self, name):
-        """Charge une autre carte (suite à un portail). Renvoie True / False."""
+        """Charge une autre carte (suite à un portail). Renvoie True / False.
+
+        Met aussi à jour self._nom_carte pour que l'affichage en bas-gauche
+        reflète bien la map courante. Sans ça, après un TP, le coin
+        montrait toujours le nom de la map précédemment ouverte via [L]oad
+        — confusion garantie."""
         fp = os.path.join(MAPS_DIR, f"{name}.json")
         try:
             with open(fp) as f:
@@ -3825,6 +3830,7 @@ class Editor:
             # On vide l'historique pour ne pas permettre un undo vers l'autre map.
             self._history.clear()
             self._apply_state(data)
+            self._nom_carte = name
             return True
         except FileNotFoundError:
             return False

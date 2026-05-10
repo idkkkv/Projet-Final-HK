@@ -203,7 +203,7 @@
       "type": "pnj",
       "x": 1279,
       "y": 873,
-      "nom": "save",
+      "nom": "Save",
       "sprite_name": "objet_parlant_40x40.png",
       "dialogues": [],
       "dialogue_mode": "boucle_dernier",

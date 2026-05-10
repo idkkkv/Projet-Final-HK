@@ -7,15 +7,15 @@
     {
       "type": "npc_spawn",
       "nom": "Nymbus",
-      "x": 284,
-      "y": 207,
+      "x": 609,
+      "y": 796,
       "sprite": "nimbus",
       "dialogue_mode": "boucle_dernier",
       "has_gravity": 1,
       "dialogues": [
         [
           [
-            "Viens… cet endroit n’a plus rien à t’apprendre.",
+            "Viens… cet endroit ne te retiendra plus désormais.",
             "Nymbus"
           ],
           [
@@ -28,7 +28,7 @@
         [
           {
             "type": "teleport",
-            "cible": "c c2"
+            "cible": "c c3"
           }
         ]
       ]
@@ -44,15 +44,23 @@
       "type": "dialogue",
       "lignes": [
         {
-          "texte": "Bravo… tu viens de triompher de ce qui hantait les profondeurs de cette zone.",
+          "texte": "…Ce visage que tu viens de vaincre, tu le connaissais déjà.",
           "auteur": "Nymbus"
         },
         {
-          "texte": "Chaque victoire affaiblit un peu plus la peur qui cherche à t’engloutir.",
+          "texte": "Ce boss… c’était Séraphin.",
           "auteur": "Nymbus"
         },
         {
-          "texte": "Prends cette Luciole… et cette clé. Elles t’ouvriront le chemin vers la suite de ton voyage.",
+          "texte": "Il avait autrefois triomphé de cette zone, comme toi aujourd’hui.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Mais lorsqu’il t’a recueilli, il a choisi de prendre la place de cette créature pour t’empêcher d’aller plus loin.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "À ses yeux, te garder près de lui était une manière de te protéger de ce monde… et de toi-même.",
           "auteur": "Nymbus"
         }
       ]
@@ -62,16 +70,7 @@
     },
     {
       "type": "grant_luciole",
-      "source": "oui"
-    },
-    {
-      "type": "grant_skill",
-      "value": "back_dodge"
-    },
-    {
-      "type": "give_item",
-      "name": "CleRouge",
-      "count": 1
+      "source": "fin"
     },
     {
       "type": "flag_increment",
@@ -81,7 +80,7 @@
     }
   ],
   "condition": {
-    "flag": "mort_Boss1.1"
+    "flag": "mort_Boss1.2"
   },
   "delay": 1.0,
   "one_shot": true

@@ -232,6 +232,10 @@ class Inventory(ItemContainer):
         self.cassette_a_jouer = None
         self.epee_active = False
         self.bouclier_actif = False
+        # Mode "godmode" (slot 3 de la croix directionnelle) : one-shot
+        # tous les ennemis. Pour le prof si jamais le combat de boss
+        # est trop dur. Toggle via touche 3.
+        self.godmode_active = False
 
     # ─────────────────────────────────────────
     # LOGIQUE INVENTAIRE

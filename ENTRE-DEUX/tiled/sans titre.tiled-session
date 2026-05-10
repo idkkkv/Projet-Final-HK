@@ -34,7 +34,7 @@
             }
         },
         "Basic Tiles Only.tsx": {
-            "scaleInDock": 2,
+            "scaleInDock": 1.5,
             "scaleInEditor": 1
         },
         "C:/../../Downloads/Basic Tiles Only.tsx": {
@@ -91,19 +91,23 @@
             "scaleInEditor": 1
         },
         "ParallaxCave1.tsx": {
-            "scaleInDock": 0.25,
+            "scaleInDock": 0.125,
             "scaleInEditor": 1
         },
         "ParallaxCave2.tsx": {
-            "scaleInDock": 0.25,
+            "scaleInDock": 0.125,
             "scaleInEditor": 1
         },
         "ParallaxCave3.tsx": {
-            "scaleInDock": 0.0625,
+            "scaleInDock": 0.015625,
             "scaleInEditor": 1
         },
         "TX Village Props.tsx": {
             "scaleInDock": 0.5,
+            "scaleInEditor": 1
+        },
+        "arbre1.tsx": {
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "b.tmx": {
@@ -128,17 +132,25 @@
             "scale": 2,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 426.75,
-                "y": 166.5
+                "x": 320,
+                "y": 160.25
             }
+        },
+        "b1.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         },
         "b2.tmx": {
             "scale": 4,
             "selectedLayer": 3,
             "viewCenter": {
-                "x": 399.625,
-                "y": 157.25
+                "x": 320,
+                "y": 160.125
             }
+        },
+        "b2.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 3
         },
         "b3.tmx": {
             "expandedObjectLayers": [
@@ -147,9 +159,13 @@
             "scale": 2,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 291.25,
-                "y": 203
+                "x": 320,
+                "y": 160.25
             }
+        },
+        "b3.tsx": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         },
         "big.tmx": {
             "scale": 0.33,
@@ -168,12 +184,19 @@
             }
         },
         "c.tmx": {
+            "expandedObjectLayers": [
+                2
+            ],
             "scale": 1.5,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 401.66666666666674,
-                "y": 68.66666666666669
+                "x": 320,
+                "y": 159.66666666666663
             }
+        },
+        "c.tsx": {
+            "scaleInDock": 0.5,
+            "scaleInEditor": 1
         },
         "ent1.tmx": {
             "expandedObjectLayers": [
@@ -246,8 +269,8 @@
             "scale": 11,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 200.59090909090907,
-                "y": 1181.3636363636365
+                "x": 720,
+                "y": 640.0454545454545
             }
         },
         "map23.tsx": {
@@ -258,12 +281,69 @@
             "scaleInDock": 1,
             "scaleInEditor": 1
         },
+        "mapsbossbleu.tmx": {
+            "scale": 1.835986328125,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": -0.272333182628131,
+                "y": 0
+            }
+        },
+        "mapsbossrouge.tmx": {
+            "scale": 1.1033854166666666,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -0.45315081425530934,
+                "y": 127.78852962001417
+            }
+        },
         "mapsbossvert.tmx": {
             "scale": 1.835986328125,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -0.272333182628131,
+                "x": 0,
+                "y": -0.272333182628131
+            }
+        },
+        "mapsptransition.tmx": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": -7.5,
+                "y": -87
+            }
+        },
+        "mb.tmx": {
+            "scale": 1.835986328125,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": -0.27233318262807416,
                 "y": 0
+            }
+        },
+        "mbossbleu.tmx": {
+            "scale": 0.75,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 355.33333333333337,
+                "y": 405.33333333333337
+            }
+        },
+        "mbossbleu.tsx": {
+            "scaleInDock": 1
+        },
+        "mbossvert.tsx": {
+            "scaleInDock": 0.5
+        },
+        "mptransi.tsx": {
+            "scaleInDock": 1
+        },
+        "mv.tmx": {
+            "scale": 1.5,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1.6666666666666856,
+                "y": 59.33333333333334
             }
         },
         "on_verra.tsx": {
@@ -277,8 +357,8 @@
             "scale": 4,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 387.375,
-                "y": 1023.75
+                "x": 597.5,
+                "y": 582.625
             }
         },
         "parcoursrouge.tmx": {
@@ -288,8 +368,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": -60.66666666666674,
-                "y": 96
+                "x": -92,
+                "y": 126
             }
         },
         "parcoursvert.tmx": {
@@ -301,7 +381,7 @@
             }
         },
         "parcoursvert.tsx": {
-            "scaleInDock": 0.25,
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "parcoursvert2.0.tmx": {
@@ -422,7 +502,7 @@
             "scaleInDock": 1
         },
         "é.tsx": {
-            "scaleInDock": 0.75,
+            "scaleInDock": 0.33,
             "scaleInEditor": 1
         },
         "étoiles.tsx": {
@@ -439,42 +519,45 @@
     "map.tileWidth": 16,
     "map.width": 40,
     "openFiles": [
-        "map23.tmx",
-        "map1 sol + déco.tsx",
-        "House (Outside And Inside) Tileset.tsx",
         "Basic Tiles Only.tsx",
         "ParallaxCave3.tsx",
-        "m2.tmx",
-        "m3.tmx",
         "on_verra.tsx",
-        "ParallaxCave2.tsx",
         "é.tsx",
-        "map23.tsx",
         "plants.tsx",
         "ParallaxCave1.tsx",
-        "ent1.tmx",
-        "ent1.tsx",
-        "ent2.tmx",
-        "ent2.tsx",
-        "prouge.tmx",
         "parcoursrouge.tmx",
-        "C:/Users/Utilisateur/a-moi-/ENTRE-DEUX/tiled/mapsbossvert.tmx",
-        "sm.tsx"
+        "p.tmx",
+        "mapsbossvert.tmx",
+        "b1.tmx",
+        "b1.tsx",
+        "b2.tmx",
+        "b2.tsx",
+        "arbre1.tsx",
+        "b3.tmx",
+        "b3.tsx",
+        "map23.tmx",
+        "ParallaxCave3.tsx",
+        "ParallaxCave2.tsx",
+        "c.tmx",
+        "c.tsx",
+        "mapsptransition.tmx",
+        "mb.tmx",
+        "mbossbleu.tmx"
     ],
     "project": "sans titre.tiled-project",
     "recentFiles": [
-        "pbleu.tmx",
-        "sm.tsx",
-        "C:/Users/Utilisateur/a-moi-/ENTRE-DEUX/tiled/mapsbossvert.tmx",
-        "prouge.tmx",
-        "ent2.tsx",
-        "ent2.tmx",
-        "ent1.tsx",
-        "ent1.tmx",
-        "map23.tsx",
-        "ParallaxCave2.tsx",
-        "m3.tmx",
-        "m2.tmx"
+        "Basic Tiles Only.tsx",
+        "ParallaxCave3.tsx",
+        "on_verra.tsx",
+        "é.tsx",
+        "plants.tsx",
+        "ParallaxCave1.tsx",
+        "parcoursrouge.tmx",
+        "p.tmx",
+        "mapsbossvert.tmx",
+        "b1.tmx",
+        "b1.tsx",
+        "b2.tmx"
     ],
     "resizeMap.removeObjects": false,
     "tileset.lastUsedFormat": "tsx",
