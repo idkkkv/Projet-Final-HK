@@ -106,7 +106,8 @@
         {
           "nom": "Pomme",
           "prix": 8,
-          "desc": "pomme de blanche neige idk, il est de bonne humeur donc il heal !! :D"
+          "desc": "pomme de blanche neige idk, il est de bonne humeur donc il heal !! :D",
+          "stock": 1000
         },
         {
           "nom": "Cassette",
@@ -123,12 +124,14 @@
         {
           "nom": "Epee",
           "prix": 120,
-          "desc": "Augmente les dgt d'atk"
+          "desc": "Augmente les dgt d'atk",
+          "stock": 1
         },
         {
           "nom": "Bouclier",
           "prix": 110,
-          "desc": "augmente la vie"
+          "desc": "augmente la vie",
+          "stock": 1
         },
         {
           "nom": "Salade",
