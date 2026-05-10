@@ -1,0 +1,87 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "npc_spawn",
+      "nom": "Nymbus",
+      "x": 609,
+      "y": 796,
+      "sprite": "nimbus",
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": 1,
+      "dialogues": [
+        [
+          [
+            "Viens… cet endroit ne te retiendra plus désormais.",
+            "Nymbus"
+          ],
+          [
+            "Je vais te ramener en lieu sûr.",
+            "Nymbus"
+          ]
+        ]
+      ],
+      "events": [
+        [
+          {
+            "type": "teleport",
+            "cible": "c c3"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "camera_focus_pnj",
+      "nom": "Nymbus",
+      "duration": "garde la caméra fixée",
+      "speed": "0.03",
+      "follow": "1"
+    },
+    {
+      "type": "dialogue",
+      "lignes": [
+        {
+          "texte": "…Ce visage que tu viens de vaincre, tu le connaissais déjà.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Ce boss… c’était Séraphin.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Il avait autrefois triomphé de cette zone, comme toi aujourd’hui.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Mais lorsqu’il t’a recueilli, il a choisi de prendre la place de cette créature pour t’empêcher d’aller plus loin.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "À ses yeux, te garder près de lui était une manière de te protéger de ce monde… et de toi-même.",
+          "auteur": "Nymbus"
+        }
+      ]
+    },
+    {
+      "type": "camera_release"
+    },
+    {
+      "type": "grant_luciole",
+      "source": "fin"
+    },
+    {
+      "type": "flag_increment",
+      "key": "boss",
+      "delta": 1,
+      "required": "3"
+    }
+  ],
+  "condition": {
+    "flag": "mort_Boss1.2"
+  },
+  "delay": 1.0,
+  "one_shot": true
+}

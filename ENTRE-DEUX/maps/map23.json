@@ -684,17 +684,8 @@
       "target_map": "s",
       "target_x": -1,
       "target_y": -1,
-      "require_up": false
-    },
-    {
-      "x": 4589,
-      "y": 3781,
-      "w": 80,
-      "h": 190,
-      "target_map": "villag",
-      "target_x": -1,
-      "target_y": -1,
-      "require_up": false
+      "require_up": false,
+      "need_key": false
     },
     {
       "x": 533,
@@ -704,7 +695,19 @@
       "target_map": "ent1",
       "target_x": -1,
       "target_y": -1,
-      "require_up": true
+      "require_up": true,
+      "need_key": false
+    },
+    {
+      "x": 4622,
+      "y": 3783,
+      "w": 43,
+      "h": 182,
+      "target_map": "mt",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
     }
   ],
   "decors": [

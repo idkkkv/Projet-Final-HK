@@ -1,0 +1,88 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "npc_spawn",
+      "nom": "Nymbus",
+      "x": 284,
+      "y": 207,
+      "sprite": "nimbus",
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": 1,
+      "dialogues": [
+        [
+          [
+            "Viens… cet endroit n’a plus rien à t’apprendre.",
+            "Nymbus"
+          ],
+          [
+            "Je vais te ramener en lieu sûr.",
+            "Nymbus"
+          ]
+        ]
+      ],
+      "events": [
+        [
+          {
+            "type": "teleport",
+            "cible": "c c2"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "camera_focus_pnj",
+      "nom": "Nymbus",
+      "duration": "garde la caméra fixée",
+      "speed": "0.03",
+      "follow": "1"
+    },
+    {
+      "type": "dialogue",
+      "lignes": [
+        {
+          "texte": "Bravo… tu viens de triompher de ce qui hantait les profondeurs de cette zone.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Chaque victoire affaiblit un peu plus la peur qui cherche à t’engloutir.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Prends cette Luciole… et cette clé. Elles t’ouvriront le chemin vers la suite de ton voyage.",
+          "auteur": "Nymbus"
+        }
+      ]
+    },
+    {
+      "type": "camera_release"
+    },
+    {
+      "type": "grant_luciole",
+      "source": "oui"
+    },
+    {
+      "type": "grant_skill",
+      "value": "back_dodge"
+    },
+    {
+      "type": "give_item",
+      "name": "CleRouge",
+      "count": 1
+    },
+    {
+      "type": "flag_increment",
+      "key": "boss",
+      "delta": 1,
+      "required": "3"
+    }
+  ],
+  "condition": {
+    "flag": "mort_Boss1.1"
+  },
+  "delay": 1.0,
+  "one_shot": true
+}

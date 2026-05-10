@@ -55,6 +55,10 @@
     {
       "nom": "Na\u00efs",
       "sprite_name": "marchand"
+    },
+    {
+      "nom": "Louis le marchand",
+      "sprite_name": "marchand"
     }
   ],
   "histoire": [
@@ -88,7 +92,7 @@
     2,
     2
   ],
-  "luminosite": 1.05,
-  "volume_musique": 0.0,
+  "luminosite": 1.0,
+  "volume_musique": 0.2,
   "volume_sfx": 0.55
 }

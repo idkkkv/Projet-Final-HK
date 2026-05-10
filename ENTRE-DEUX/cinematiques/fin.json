@@ -1,0 +1,41 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "dialogue",
+      "lignes": [
+        {
+          "texte": "Tu touches au seuil, mais le seuil ne te répond pas.",
+          "auteur": "######"
+        },
+        {
+          "texte": "Trois Sentinelles veillent encore au cœur de leurs domaines. Forêt, abîme, pierre rouge — chacune retient une part du chemin.",
+          "auteur": "######"
+        },
+        {
+          "texte": "Réveille-les. Affronte-les. Éteins-les.",
+          "auteur": "######"
+        },
+        {
+          "texte": "Alors seulement, la porte s'ouvrira, et la lumière de la surface pourra à nouveau te trouver.",
+          "auteur": "######"
+        }
+      ]
+    },
+    {
+      "type": "set_player_pos",
+      "x": 1786,
+      "y": 817
+    }
+  ],
+  "condition": {
+    "flag": "boss",
+    "value": false
+  },
+  "delay": 1.0,
+  "one_shot": true,
+  "auto_fire": false
+}

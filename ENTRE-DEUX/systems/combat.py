@@ -61,7 +61,7 @@
 #
 #  JE VEUX MODIFIER QUOI ?
 #  -----------------------
-#     - Combien de PV un coup enlève → DEGAT_ATTAQUE_JOUEUR / dgt_ennemis
+#     - Combien de PV un coup enlève → player.attack_damage / dgt_ennemis
 #     - Force du recul (knockback)   → settings.KNOCKBACK_PLAYER / _ENEMY
 #     - Durée d'invincibilité        → settings.INVINCIBLE_DURATION
 #     - Ajouter un coup chargé       → une nouvelle constante DEGAT_X +
@@ -92,7 +92,6 @@ import math
 #  Tous les nombres de dégâts du jeu ICI, à un seul endroit, pour qu'on
 #  puisse équilibrer sans aller fouiller 5 fichiers.
 
-DEGAT_ATTAQUE_JOUEUR = 1   # coup d'épée du joueur → 1 PV à l'ennemi
 CRIT_CHANCE_ENNEMI = 0.0   # dgt crit (temporaire pour test)
 CRIT_MULTIPLIER = 2        # 2 coeurs retirés
 
@@ -243,8 +242,16 @@ def resoudre_attaques_joueur(joueur, ennemis):
             else:
                 joueur.on_side_hit() #recul pour coups normaux
                 
+            # Mode GODMODE (croix directionnelle slot 3) : one-shot tout
+            # ennemi/boss. La valeur 999999 garantit que même les boss à
+            # gros PV tombent en un coup. Flag stocké directement sur
+            # le joueur pour rester accessible depuis combat.py sans
+            # référence circulaire à game/inventory.
+            degats = joueur.attack_damage
+            if getattr(joueur, "_godmode", False):
+                degats = 999999
             infliger_degats(ennemi,
-                            DEGAT_ATTAQUE_JOUEUR,
+                            degats,
                             source_rect=joueur.rect,
                             knockback=KNOCKBACK_ENEMY)
             
@@ -269,6 +276,11 @@ def resoudre_contacts_ennemis(joueur, ennemis, hud=None):
 
     # Joueur déjà invincible (vient d'être touché) ou mort → on ne fait rien.
     if joueur.invincible or joueur.dead:
+        return
+    # Dash / back-dodge actifs → le joueur traverse les ennemis sans
+    # subir de dégât. Mécanique d'esquive offensive (cf. demande user).
+    if (getattr(joueur, "dashing", False)
+            or getattr(joueur, "back_dodge_lock_timer", 0.0) > 0):
         return
 
     for ennemi in ennemis:

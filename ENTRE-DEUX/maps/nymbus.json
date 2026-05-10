@@ -105,83 +105,66 @@
       "inventaire": [
         {
           "nom": "Pomme",
-          "prix": 0,
-          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose à faire\ndonc NAN. D:<"
+          "prix": 1,
+          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose \u00c3\u00a0 faire\ndonc NAN. D:<"
         },
         {
           "nom": "Cassette",
           "prix": 20,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant (tkt est tres tres utile)"
+          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant (tkt est tres tres utile)",
+          "stock": 1
         },
         {
           "nom": "CleJaune",
           "prix": 10,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile",
-          "stock":1
+          "desc": "ouvre une porte",
+          "stock": 1
         },
         {
           "nom": "CleRouge",
           "prix": 5,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "ouvre une porte rouge",
+          "stock": 1
         },
         {
           "nom": "CleBleue",
           "prix": 10,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "ouvre une porte bleue",
+          "stock": 1
         },
         {
-          "nom": "Soupe",
-          "prix": 25,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
-        },
-        {
-          "nom": "Champignon",
+          "nom": "Epee",
           "prix": 2,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "Augmente les dgt d'atk"
+        },
+        {
+          "nom": "Bouclier",
+          "prix": 2,
+          "desc": "augmente la vie"
         },
         {
           "nom": "Salade",
           "prix": 67,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "Prennez pas ça crash"
         },
         {
           "nom": "Rossier hairs",
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "Prennez pas ça crash"
         },
         {
           "nom": "Macron",
           "prix": 493,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "Prennez pas ça crash"
         },
         {
           "nom": "1l essence",
           "prix": 999,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "Prennez pas ça crash"
         },
         {
           "nom": "Requin",
           "prix": 255,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
-        },
-        {
-          "nom": "Cassette",
-          "prix": 20,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
-        },
-        {
-          "nom": "Cassette",
-          "prix": 20,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
-        },
-        {
-          "nom": "Cassette",
-          "prix": 20,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
-        },
-        {
-          "nom": "Cassette",
-          "prix": 20,
-          "desc": "il sert à rien mais il sera qd meme là\n pour faire semblant qu'il est utile"
+          "desc": "Prennez pas ça crash"
         }
       ],
       "dialogue_mode": "boucle_dernier",

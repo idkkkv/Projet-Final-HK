@@ -475,6 +475,10 @@ RAYON_JOUEUR          = 90
 #  Les fondus (fade-in / fade-out) sont en millisecondes.
 
 VOLUME_MUSIQUE        = 0.7
+# Volume des musiques DE MAP (champ "music" dans le JSON de map).
+# Distinct de VOLUME_MUSIQUE qui sert aux musiques scriptées (menu, etc).
+# Baisse cette valeur si les musiques de map sont trop fortes.
+VOLUME_MUSIQUE_MAP    = 0.15
 VOLUME_PAS            = 0.3
 VOLUME_ATK = 0.4 #joueur atk basiques en l'air en sur le sol
 VOLUME_KILL_ENEMY = 0.15 #joueur atk et tue une enemyd

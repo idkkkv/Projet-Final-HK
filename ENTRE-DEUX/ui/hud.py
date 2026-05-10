@@ -204,7 +204,7 @@ class HUD:
         # On dessine d'abord tout sur cette surface, puis on lui applique
         # set_alpha avant de la blitter à l'écran. C'est plus simple que
         # de propager l'alpha à chaque draw.rect.
-        largeur_coeurs = joueur.max_hp * (TAILLE_COEUR + ESPACE_COEUR) - ESPACE_COEUR
+        largeur_coeurs = joueur.max_hp * (TAILLE_COEUR + ESPACE_COEUR) - ESPACE_COEUR + 20
         largeur_jauge  = max(largeur_coeurs, 180)
         h_total        = TAILLE_COEUR + ESPACE_VERTICAL*2 + HAUTEUR_PEUR + HAUTEUR_PIECES 
         
@@ -284,7 +284,7 @@ class HUD:
         """Dessine l'argent + animation""" 
 
         texte = self._police_pieces.render(
-            f"money : {joueur.coins}", True, (230, 210, 255)
+            f"Echos : {joueur.coins}", True, (230, 210, 255)
         )
         surf.blit(texte, (x, y))
         

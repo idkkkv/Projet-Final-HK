@@ -835,7 +835,7 @@ def _steps_depuis_data(data):
         grant_skill, grant_luciole, give_item, give_coins,
         set_flag, flag_increment, wait_for_player_at,
         play_music, wait_input,
-        unlock_quickuse, revive_player,
+        unlock_quickuse, revive_player, teleport_player,
     )
 
     def _opt_float(v):
@@ -916,16 +916,28 @@ def _steps_depuis_data(data):
             ))
         elif t == "set_player_pos":
             steps.append(set_player_pos(_f(step.get("x")), _f(step.get("y"))))
+        elif t == "teleport_player":
+            x_raw = step.get("x")
+            y_raw = step.get("y")
+            x = _f(x_raw) if x_raw not in (None, "", "None") else None
+            y = _f(y_raw) if y_raw not in (None, "", "None") else None
+            steps.append(teleport_player(
+                cible=step.get("cible", "") or "",
+                x=x, y=y,
+            ))
 
         # ── Nouvelles actions ──────────────────────────────────────────
         elif t == "npc_spawn":
+            # has_gravity : tolère None (champ laissé vide en éditeur) → True.
+            hg_raw = step.get("has_gravity", 1)
+            hg = True if hg_raw is None else bool(hg_raw)
             steps.append(npc_spawn(
                 step.get("nom", "PNJ"),
                 _f(step.get("x")), _f(step.get("y")),
                 dialogues=step.get("dialogues", []) or [],
                 sprite=step.get("sprite") or None,
                 dialogue_mode=step.get("dialogue_mode", "boucle_dernier"),
-                has_gravity=bool(step.get("has_gravity", 1)),
+                has_gravity=hg,
                 events=step.get("events"),
             ))
         elif t == "npc_despawn":

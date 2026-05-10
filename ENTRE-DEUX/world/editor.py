@@ -469,6 +469,7 @@ class Editor:
         self._pnj_sprites      = list_pnj_sprites()
         self._pnj_sprite_index = 0
         self._pnj_edit_target  = None          # PNJ en cours d'édition
+        self._naming_enemy     = None          # ennemi en cours de nommage [N] mode 1
         # Mode "objet parlant" : si défini (= tuple (largeur, hauteur)), le
         # prochain clic en mode 10 pose un PNJ invisible de cette taille.
         # Activé par la touche [X] qui demande la dimension à l'utilisateur.
@@ -507,13 +508,19 @@ class Editor:
         self._mode_names = [
             "Plateforme", "Mob", "Lumiere", "Spawn", "Portail",
             "Mur", "Hitbox", "Trou", "Copier/Coller", "Décor", "PNJ", "Blocs",
-            "Trigger", "Danger", "Spawn nommé",
+            "Trigger", "Danger", "Spawn nommé", "Autosave",
         ]
         # Dict {nom: [x, y]} des spawns nommés placés sur la carte. Utilisé
         # par les portails dont target_map vaut "carte spawn_nom" : à
         # l'arrivée, on cherche le spawn portant ce nom et on s'y téléporte.
         # Persisté dans le JSON de la map (cf. _build_save_data / _apply_state).
         self.named_spawns = {}
+        # Musique de fond de la map (nom du fichier dans assets/music/,
+        # ex: "fond.mp3"). Vide = pas de musique. Lu/écrit par
+        # _apply_state / _build_save_data. À chaque chargement de map,
+        # game._appliquer_musique_carte fait un fondu vers ce morceau
+        # (silencieux si identique à la musique courante).
+        self.musique_carte = ""
 
         # ── Copier/Coller ──
         self._copy_rect           = None
@@ -576,8 +583,12 @@ class Editor:
         self._editing_trigger      = None   # zone en cours de rename ([R])
         self.trigger_zones         = []
         self.danger_zones           = []
-        self._pending_danger_rect      = None 
+        self._pending_danger_rect      = None
         self._pending_danger_rect = None
+        # Zones d'auto-save : le joueur passe dedans → save automatique
+        # (player-only : HP, position, inventaire, argent, mais PAS l'histoire).
+        # Cf. game._verifier_autosave_zones() côté runtime.
+        self.autosave_zones        = []
 
         # Éditeur de cinématiques (overlay activé par [F2]).
         self.cine_editor = CinematiqueEditor()
@@ -893,6 +904,7 @@ class Editor:
             # → le joueur réapparaît à la position du spawn nommé "porte_maison"
             # défini dans village.json (au lieu du spawn par défaut).
             "named_spawns": dict(getattr(self, "named_spawns", {})),
+            "music":        getattr(self, "musique_carte", "") or "",
             "bg_color":    list(self.bg_color),
             "platforms":   [{"x": p.rect.x, "y": p.rect.y,
                              "w": p.rect.width, "h": p.rect.height}
@@ -1072,6 +1084,32 @@ class Editor:
             self.player.respawn()
             return None
 
+        # ── PRIORITAIRE : [N] en mode Mob (== 1) → nommer un ennemi ──
+        # Doit être TESTÉ AVANT le K_n global (Nouvelle map) sinon le
+        # global intercepte tous les N. Le nom marque l'ennemi comme
+        # boss → grande barre de vie + flag de mort pour cinématiques.
+        if (key == pygame.K_n and self.mode == 1
+                and not (mods & pygame.KMOD_CTRL)):
+            mx, my = pygame.mouse.get_pos()
+            wx = int(mx + self.camera.offset_x)
+            wy = int(my + self.camera.offset_y)
+            cible = None
+            for e in self.enemies:
+                if e.rect.collidepoint(wx, wy):
+                    cible = e
+                    break
+            if cible is None:
+                self._show_msg("Aucun ennemi sous le curseur")
+                return None
+            self._naming_enemy = cible
+            actuel = getattr(cible, "nom", "") or ""
+            self._text_input = actuel
+            self._ask_text(
+                "enemy_nom",
+                f"Nom du boss (actuel : '{actuel or '(aucun)'}') :"
+            )
+            return "text_input"
+
         # Touches "action simple".
         if   key == pygame.K_m:
             self.change_mode()
@@ -1079,6 +1117,9 @@ class Editor:
             self.show_hitboxes = not self.show_hitboxes
         elif key == pygame.K_n:
             # Nouvelle map : on demande la couleur de fond.
+            # NB : en mode Mob (==1), K_n est intercepté plus haut pour
+            # nommer l'ennemi sous le curseur. Si tu veux une nouvelle
+            # map depuis le mode Mob, utilise Ctrl+N.
             self._ask_text("bg_color_new", "Couleur de fond (nom / r,g,b / #hex) :")
             return "text_input"
         elif key == pygame.K_s:
@@ -1166,7 +1207,7 @@ class Editor:
                                                                  settings.CEILING_Y + 20)
             elif key == pygame.K_LEFT:
                 if mods & pygame.KMOD_SHIFT:
-                    settings.SCENE_LEFT = max(-5000, settings.SCENE_LEFT - 100)
+                    settings.SCENE_LEFT = max(-10000, settings.SCENE_LEFT - 100)
                     self._show_msg(f"Mur GAUCHE → x={settings.SCENE_LEFT}")
                 else:
                     nouvelle = max(settings.SCENE_LEFT + 800,
@@ -1519,6 +1560,71 @@ class Editor:
                 self._pending_spawn_pos = None
                 return "done"
 
+            if mode == "enemy_nom":
+                cible = getattr(self, "_naming_enemy", None)
+                if cible is not None:
+                    cible.nom = name  # vide accepté = retire le nom
+                    if name:
+                        # Étape 2/3 : on demande la CATÉGORIE du boss.
+                        # 1 = mêlée pure, 2 = + projectiles d'ombre,
+                        # 3 = + dash imprévisible.
+                        actuel_tier = getattr(cible, "boss_tier", 1) or 1
+                        self._ask_text(
+                            "enemy_tier",
+                            f"Catégorie du boss (1/2/3, actuel: {actuel_tier}) "
+                            "— 1=mêlée, 2=+orbes, 3=+orbes+dash :"
+                        )
+                        return "text_input"
+                    else:
+                        cible.boss_tier = 0
+                        self._show_msg("Nom retiré (plus de flag à la mort)")
+                        self._naming_enemy = None
+                        return "done"
+                self._naming_enemy = None
+                return "done"
+
+            if mode == "enemy_tier":
+                cible = getattr(self, "_naming_enemy", None)
+                if cible is not None:
+                    try:
+                        tier = int(name) if name else getattr(cible, "boss_tier", 1) or 1
+                    except ValueError:
+                        tier = 1
+                    tier = max(1, min(3, tier))
+                    cible.boss_tier = tier
+                    # Étape 3/3 : PV
+                    actuel = getattr(cible, "max_vie", 1)
+                    self._ask_text(
+                        "enemy_hp",
+                        f"PV du boss '{cible.nom}' tier {tier} "
+                        f"(actuel : {actuel}, ex: 30, 50, 100) :"
+                    )
+                    return "text_input"
+                self._naming_enemy = None
+                return "done"
+
+            if mode == "enemy_hp":
+                cible = getattr(self, "_naming_enemy", None)
+                if cible is not None:
+                    try:
+                        hp = int(name) if name else cible.max_vie
+                    except ValueError:
+                        hp = cible.max_vie
+                    hp = max(1, hp)
+                    cible.max_vie = hp
+                    cible.hp      = hp
+                    description_tier = {
+                        1: "mêlée + détection 360°",
+                        2: "+ orbes d'ombre",
+                        3: "+ orbes + dash imprévisible",
+                    }.get(cible.boss_tier, "?")
+                    self._show_msg(
+                        f"Boss '{cible.nom}' tier {cible.boss_tier} "
+                        f"({description_tier}) — {hp} PV — flag : mort_{cible.nom}"
+                    )
+                self._naming_enemy = None
+                return "done"
+
             if mode == "pnj_nom":
                 # Renomme le PNJ + enregistre au registre.
                 if self._pnj_edit_target:
@@ -1718,7 +1824,8 @@ class Editor:
             # Par défaut : modes PNJ + fear_zone_params. Si tu veux ajouter
             # un autre mode (ex: titre de map, commentaire libre…), ajoute
             # son nom ici ET dans handle_textinput() ci-dessous.
-            modes_riches = ("pnj_nom", "pnj_dialogue", "fear_zone_params")
+            modes_riches = ("pnj_nom", "pnj_dialogue", "fear_zone_params",
+                            "enemy_nom", "enemy_tier", "enemy_hp")
             if self._text_mode not in modes_riches:
                 char = pygame.key.name(key)
                 if len(char) == 1 and (char.isalnum() or char in ",.#"):
@@ -1760,7 +1867,8 @@ class Editor:
         gèrent NATIVEMENT les majuscules (Shift), les accents (â, é, ç…)
         et la ponctuation française. Pour ces modes-ci, on by-pass la
         boucle KEYDOWN (cf. _handle_text) — le caractère arrive ici."""
-        if self._text_mode in ("pnj_nom", "pnj_dialogue", "fear_zone_params"):
+        if self._text_mode in ("pnj_nom", "pnj_dialogue", "fear_zone_params",
+                                "enemy_nom", "enemy_tier", "enemy_hp"):
             self._text_input += text
 
     def _list_maps(self):
@@ -1971,6 +2079,11 @@ class Editor:
             # (target_map = "carte spawn_nom").
             self._pending_spawn_pos = (wx, wy)
             self._ask_text("named_spawn", "Nom du spawn (ex: porte_maison) :")
+        elif self.mode == 15:
+            # Mode "Autosave" : clic à 2 points pour dessiner la zone.
+            # Quand le joueur la traverse, le jeu sauvegarde son état
+            # (position, HP, inventaire, argent) — mais PAS l'histoire.
+            self._click_rect(wx, wy, "autosave")
 
     def handle_right_click(self, mouse_pos):
         """Clic droit : supprimer l'objet sous le curseur (selon le mode)."""
@@ -2011,6 +2124,8 @@ class Editor:
             self.trigger_zones[:] = [z for z in self.trigger_zones if not z.rect.colliderect(pt)]
         elif self.mode == 13:
             self.danger_zones[:] = [z for z in self.danger_zones if not z["rect"].colliderect(pt)]
+        elif self.mode == 15:
+            self.autosave_zones[:] = [z for z in self.autosave_zones if not z["rect"].colliderect(pt)]
         elif self.mode == 14:
             # Mode "Spawn nommé" : clic droit supprime le spawn LE PLUS PROCHE
             # du curseur (rayon 32 px). Plus simple qu'un test rect parce que
@@ -2091,6 +2206,12 @@ class Editor:
         elif kind == "danger":
             self._pending_danger_rect = pygame.Rect(x, y, w, h)
             self._show_msg("Rectangle de mort placé. Cliquez là où le joueur doit réapparaître.")
+        elif kind == "autosave":
+            self.autosave_zones.append({"rect": pygame.Rect(x, y, w, h)})
+            self._show_msg(
+                f"Zone d'auto-save ({w}x{h}) ajoutée. "
+                "Le joueur qui la traverse sauvegardera son état."
+            )
 
     def _click_mob(self, wx, wy):
         """Clic en mode 1 : ajoute un ennemi (sauf si dans une plateforme)."""
@@ -3036,6 +3157,26 @@ class Editor:
             # 3. ligne de liaison (pour savoir quel point va avec quel bloc)
             pygame.draw.line(surf, (255, 255, 255), draw_rect.center, (rx, ry), 1)
 
+        # ── Zones d'auto-save (rectangle bleu cyan transparent) ────────
+        # Le joueur qui les traverse sauvegarde son état (HP / inventaire /
+        # position) — utilisé comme "checkpoint" automatique. Visibles
+        # surtout en mode 15 (Autosave).
+        actif_save = (self.mode == 15)
+        for zone in self.autosave_zones:
+            r = self.camera.apply(zone["rect"])
+            s = pygame.Surface((r.width, r.height), pygame.SRCALPHA)
+            alpha = 110 if actif_save else 50
+            s.fill((60, 200, 255, alpha))
+            surf.blit(s, (r.x, r.y))
+            pygame.draw.rect(surf, (60, 200, 255), r,
+                             2 if actif_save else 1)
+            # Petite icône "S" au centre pour identifier la zone
+            font = self._get_font()
+            label = font.render("AUTOSAVE", True, (220, 245, 255))
+            surf.blit(label,
+                      (r.centerx - label.get_width() // 2,
+                       r.centery - label.get_height() // 2))
+
         # ── Spawns nommés (visible TOUT LE TEMPS pour pouvoir les
         #    retrouver, mais plus voyant en mode 14 dédié) ─────────────
         if self.named_spawns:
@@ -3394,6 +3535,7 @@ class Editor:
             # Format : { "nom": [x, y] }. Lus dans _apply_state.
             # Utilisés par les portails via la syntaxe "mapname spawnname".
             "named_spawns":    dict(getattr(self, "named_spawns", {})),
+            "music":           getattr(self, "musique_carte", "") or "",
             "bg_color":        self.bg_color,
             "wall_color":      self.wall_color,
             "platforms": [{"x": p.rect.x, "y": p.rect.y,
@@ -3430,14 +3572,20 @@ class Editor:
             "trigger_zones": [z.to_dict() for z in self.trigger_zones],
             "danger_zones": [
             {
-                "x": z["rect"].x, 
-                "y": z["rect"].y, 
-                "w": z["rect"].width, 
+                "x": z["rect"].x,
+                "y": z["rect"].y,
+                "w": z["rect"].width,
                 "h": z["rect"].height,
-                "rx": z["respawn_pos"][0], 
+                "rx": z["respawn_pos"][0],
                 "ry": z["respawn_pos"][1]
             } for z in self.danger_zones
         ],
+            "autosave_zones": [
+                {
+                    "x": z["rect"].x, "y": z["rect"].y,
+                    "w": z["rect"].width, "h": z["rect"].height,
+                } for z in self.autosave_zones
+            ],
         }
 
     def save(self, name="map"):
@@ -3493,6 +3641,10 @@ class Editor:
         # rempli plus tard par un mode éditeur dédié).
         # Format : { "nom_du_spawn": [x, y], ... }
         self.named_spawns = dict(data.get("named_spawns", {}))
+        # Musique de fond de la map. Le champ "music" doit contenir le
+        # nom du fichier dans assets/music/ (ex: "fond.mp3"). Vide = pas
+        # de musique. game.py applique la transition après le chargement.
+        self.musique_carte = data.get("music", "") or ""
         if "bg_color"   in data: self.bg_color   = data["bg_color"]
         if "wall_color" in data: self.wall_color = data["wall_color"]
 
@@ -3506,6 +3658,11 @@ class Editor:
         self.custom_walls.clear()
         for w in data.get("custom_walls", []):
             self.custom_walls.append(Wall(w["x"], w["y"], w["w"], w["h"], visible=True))
+        self.autosave_zones.clear()
+        for z in data.get("autosave_zones", []):
+            self.autosave_zones.append({
+                "rect": pygame.Rect(z["x"], z["y"], z["w"], z["h"]),
+            })
         self.danger_zones.clear()
         for d in data.get("danger_zones", []):
             self.danger_zones.append({
@@ -3561,7 +3718,18 @@ class Editor:
                 can_fall_in_holes=e.get("can_fall_in_holes", False),
                 respawn_timeout=e.get("respawn_timeout", 10.0),
                 can_turn_randomly=e.get("can_turn_randomly", False),
+                nom=e.get("nom", ""),
             ))
+            # Override max_vie/hp si stocké (boss avec PV custom).
+            mv = e.get("max_vie")
+            if mv is not None:
+                self.enemies[-1].max_vie = int(mv)
+                self.enemies[-1].hp      = int(mv)
+            # Catégorie boss (0/1/2/3). Détermine attaques spéciales :
+            # détection 360°, projectiles, dash. Cf. Enemy.boss_tier.
+            bt = e.get("boss_tier")
+            if bt is not None:
+                self.enemies[-1].boss_tier = int(bt)
 
         # Lumières.
         self.lighting.lights.clear()
@@ -3661,7 +3829,12 @@ class Editor:
         self._restore_confirm_timer = 0.0
 
     def load_map_for_portal(self, name):
-        """Charge une autre carte (suite à un portail). Renvoie True / False."""
+        """Charge une autre carte (suite à un portail). Renvoie True / False.
+
+        Met aussi à jour self._nom_carte pour que l'affichage en bas-gauche
+        reflète bien la map courante. Sans ça, après un TP, le coin
+        montrait toujours le nom de la map précédemment ouverte via [L]oad
+        — confusion garantie."""
         fp = os.path.join(MAPS_DIR, f"{name}.json")
         try:
             with open(fp) as f:
@@ -3669,6 +3842,7 @@ class Editor:
             # On vide l'historique pour ne pas permettre un undo vers l'autre map.
             self._history.clear()
             self._apply_state(data)
+            self._nom_carte = name
             return True
         except FileNotFoundError:
             return False

@@ -1,0 +1,92 @@
+{
+  "steps": [
+    {
+      "type": "wait",
+      "duration": 1.0
+    },
+    {
+      "type": "npc_spawn",
+      "nom": "Nymbus",
+      "x": 235,
+      "y": 343,
+      "sprite": "nimbus",
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": 1,
+      "dialogues": [
+        [
+          [
+            "Repose-toi un instant. Même les plus fortes lumières vacillent après une telle bataille.",
+            "Nymbus"
+          ],
+          [
+            "Viens… je vais te ramener en lieu sûr.",
+            "Nymbus"
+          ]
+        ]
+      ],
+      "events": [
+        [
+          {
+            "type": "teleport",
+            "cible": "c c1"
+          }
+        ]
+      ]
+    },
+    {
+      "type": "camera_focus_pnj",
+      "nom": "Nymbus",
+      "duration": "garde la caméra fixée",
+      "speed": "0.03",
+      "follow": "1"
+    },
+    {
+      "type": "dialogue",
+      "lignes": [
+        {
+          "texte": "Tu as survécu à l’épreuve de ce lieu… peu y parviennent sans se perdre eux-mêmes.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Ce que tu as vaincu aujourd’hui n’était pas qu’une créature.",
+          "auteur": "Nymbus"
+        },
+        {
+          "texte": "Prends cette Luciole et cette clé. Le prochain chemin attend déjà ton arrivée.",
+          "auteur": "Nymbus"
+        }
+      ]
+    },
+    {
+      "type": "camera_release"
+    },
+    {
+      "type": "grant_skill",
+      "value": "dash"
+    },
+    {
+      "type": "grant_skill",
+      "value": "pogo"
+    },
+    {
+      "type": "grant_luciole",
+      "source": "okii"
+    },
+    {
+      "type": "give_item",
+      "name": "CleBleue",
+      "count": 1
+    },
+    {
+      "type": "flag_increment",
+      "key": "boss",
+      "delta": 1,
+      "required": "3"
+    }
+  ],
+  "condition": {
+    "flag": "mort_Boss1.0"
+  },
+  "delay": 1.0,
+  "one_shot": true
+}

@@ -9,7 +9,14 @@ from ui.inventory import ITEMS
 
 def play_cassette(visuel, sonore, screen):
     if not pygame.mixer.get_init():
-        pygame.mixer.init()
+        # Tente l'init standard. Si ça plante (ex: driver coreaudio mal
+        # configuré), on continue silencieusement — la vidéo s'affichera
+        # juste sans son.
+        try:
+            pygame.mixer.init()
+        except pygame.error as e:
+            print(f"[items_effects] init audio échoué : {e}")
+            return
 
     if isinstance(sonore, list):
         sonore = sonore[0]
@@ -63,3 +70,18 @@ def play_cassette(visuel, sonore, screen):
 
     cap.release()
     pygame.mixer.music.stop()
+
+
+def ajouter_atk(joueur):
+    joueur.attack_damage += 3
+
+def ajouter_vie(joueur):
+    joueur.max_hp += 5
+    joueur.hp += 5
+
+def retirer_atk(joueur):
+    joueur.attack_damage -= 3
+
+def retirer_vie(joueur):
+    joueur.max_hp -= 5
+    joueur.hp -= 5

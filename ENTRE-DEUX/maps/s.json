@@ -20,6 +20,7 @@
       883
     ]
   },
+  "music": "Awake.mp3",
   "bg_color": [
     0,
     0,
@@ -203,7 +204,7 @@
       "type": "pnj",
       "x": 1279,
       "y": 873,
-      "nom": "save",
+      "nom": "Save",
       "sprite_name": "objet_parlant_40x40.png",
       "dialogues": [],
       "dialogue_mode": "boucle_dernier",

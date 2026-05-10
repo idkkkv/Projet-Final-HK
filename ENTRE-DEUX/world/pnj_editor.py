@@ -534,6 +534,15 @@ class PNJEditor:
                 sign  = f"+={delta}" if delta >= 0 else f"-={abs(delta)}"
                 suffix = f":req={req}" if req is not None else ""
                 parts.append(f"flag:{k}{sign}{suffix}")
+            elif t == "teleport":
+                # tp:cible[:x:y]   où cible peut être "spawn" ou "map spawn"
+                cible = e.get("cible", "") or ""
+                x = e.get("x")
+                y = e.get("y")
+                if x is not None and y is not None:
+                    parts.append(f"tp:{cible}:{x}:{y}")
+                else:
+                    parts.append(f"tp:{cible}")
         return "; ".join(parts)
 
     def _parser_events(self, texte):
@@ -618,6 +627,24 @@ class PNJEditor:
                                    "value": v.strip() not in ("0", "false", "False", "")})
                 else:
                     events.append({"type": "flag", "key": rest, "value": True})
+            elif t == "tp":
+                # tp:cible                → cible est "spawn" ou "map spawn"
+                # tp:cible:X:Y            → fallback x/y si spawn introuvable
+                # tp::X:Y                 → x/y purs sans cible
+                ev = {"type": "teleport"}
+                # Sépare cible / x / y. On découpe sur ":" mais la cible
+                # peut contenir un espace ("map spawn"), donc on s'attend
+                # à au plus 3 segments.
+                segs = rest.split(":")
+                if len(segs) >= 1:
+                    ev["cible"] = segs[0].strip()
+                if len(segs) >= 3:
+                    try:
+                        ev["x"] = float(segs[1].strip()) if segs[1].strip() else None
+                        ev["y"] = float(segs[2].strip()) if segs[2].strip() else None
+                    except ValueError:
+                        pass
+                events.append(ev)
             else:
                 self._msg_show(f"Event inconnu : {t}", 4)
 
@@ -790,7 +817,7 @@ class PNJEditor:
         else:  # events
             titre = "Événements de fin de conversation :"
             aide  = ("Ex: skill:double_jump; coins:50; item:Pomme:5; "
-                     "flag:parchemins; flag:tiroirs+=1; flag:tiroirs+=1:req=2  "
+                     "flag:tiroirs+=1:req=2; tp:nom_spawn; tp:map nom_spawn  "
                      "—  [Enter] | [Esc]")
         surf.blit(font.render(titre, True, (190, 175, 240)),
                   (box.x + 16, box.y + 12))

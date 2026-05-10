@@ -76,6 +76,16 @@ ITEMS = {
     "CleBleue": {
         "category": "Matériel",
         "image": "keysblue.png"
+    },
+    "Epee": {
+        "category": "Équipement",
+        "image": "epee.png",
+        "actif": False
+    },
+    "Bouclier": {
+        "category": "Équipement",
+        "image": "bouclier.png",
+        "actif": False
     }
 }
 
@@ -220,6 +230,12 @@ class Inventory(ItemContainer):
 
         # ── items effects ────────────────────
         self.cassette_a_jouer = None
+        self.epee_active = False
+        self.bouclier_actif = False
+        # Mode "godmode" (slot 3 de la croix directionnelle) : one-shot
+        # tous les ennemis. Pour le prof si jamais le combat de boss
+        # est trop dur. Toggle via touche 3.
+        self.godmode_active = False
 
     # ─────────────────────────────────────────
     # LOGIQUE INVENTAIRE
@@ -317,6 +333,13 @@ class Inventory(ItemContainer):
                             self.slots[self.dragging_index] = self.dragging_item
                             self.dragging_item = None
                             return
+                        
+                        # Epee
+                        if self.dragging_item.name == "Epee":
+                            self.epee_active = not self.epee_active
+
+                        if self.dragging_item.name == "Bouclier":
+                            self.bouclier_actif = not self.bouclier_actif
 
                         self.slots[self.dragging_index] = self.dragging_item
                         self.dragging_item = None

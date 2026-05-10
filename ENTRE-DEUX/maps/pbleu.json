@@ -10,6 +10,7 @@
     "x": -1054,
     "y": 1188
   },
+  "named_spawns": {},
   "bg_color": [
     0,
     0,
@@ -1366,7 +1367,7 @@
   "holes": [],
   "enemies": [
     {
-      "x": 94,
+      "x": 158,
       "y": 999,
       "has_gravity": true,
       "has_collision": true,
@@ -1379,16 +1380,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -194,
+      "patrol_left": -159,
       "patrol_right": 406,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -676,
+      "x": -736,
       "y": 1090,
       "has_gravity": true,
       "has_collision": true,
@@ -1401,16 +1405,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -1010,
-      "patrol_right": -410,
+      "patrol_left": -963,
+      "patrol_right": -363,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -127,
+      "x": -116,
       "y": 594,
       "has_gravity": true,
       "has_collision": true,
@@ -1423,16 +1430,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -480,
+      "patrol_left": -456,
       "patrol_right": 120,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 188,
+      "x": 181,
       "y": 1345,
       "has_gravity": true,
       "has_collision": true,
@@ -1451,10 +1461,13 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 610,
+      "x": 562,
       "y": 236,
       "has_gravity": true,
       "has_collision": true,
@@ -1473,11 +1486,14 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": 340,
-      "y": -659,
+      "x": 43,
+      "y": -434,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "mushroom",
@@ -1489,16 +1505,19 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -19,
+      "patrol_left": 40,
       "patrol_right": 581,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -748,
+      "x": -614,
       "y": -663,
       "has_gravity": true,
       "has_collision": true,
@@ -1511,17 +1530,20 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -771,
-      "patrol_right": -171,
+      "patrol_left": -878,
+      "patrol_right": -278,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 1,
+      "boss_tier": 0
     },
     {
-      "x": -351,
-      "y": -998,
+      "x": -370,
+      "y": -693,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "golem",
@@ -1533,17 +1555,20 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -440,
+      "patrol_left": -543,
       "patrol_right": 160,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 2,
+      "boss_tier": 0
     },
     {
-      "x": 327,
-      "y": -998,
+      "x": 219,
+      "y": -1048,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "golem",
@@ -1561,11 +1586,14 @@
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 2,
+      "boss_tier": 0
     },
     {
-      "x": 94,
-      "y": -998,
+      "x": 229,
+      "y": -1048,
       "has_gravity": true,
       "has_collision": true,
       "sprite_name": "golem",
@@ -1577,13 +1605,16 @@
       "has_light": false,
       "light_type": "dim",
       "light_radius": 100,
-      "patrol_left": -85,
+      "patrol_left": 57,
       "patrol_right": 515,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 2,
+      "boss_tier": 0
     }
   ],
   "lights": [
@@ -1710,14 +1741,26 @@
   ],
   "portals": [
     {
-      "x": 1059,
-      "y": -1188,
-      "w": 204,
-      "h": 146,
-      "target_map": "villag",
+      "x": -1098,
+      "y": 1124,
+      "w": 9,
+      "h": 86,
+      "target_map": "b2 b2",
       "target_x": -1,
       "target_y": -1,
-      "require_up": false
+      "require_up": false,
+      "need_key": false
+    },
+    {
+      "x": 1174,
+      "y": -1210,
+      "w": 22,
+      "h": 180,
+      "target_map": "mb",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
     }
   ],
   "decors": [
@@ -1730,5 +1773,7 @@
     }
   ],
   "pnjs": [],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": [],
+  "autosave_zones": []
 }

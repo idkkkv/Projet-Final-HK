@@ -62,7 +62,7 @@ from core.camera import Camera
 # ── Inventaire
 from ui.inventory import Inventory, ITEMS
 from ui.quick_use import QuickUseBar
-from ui.items_effects import play_cassette
+from ui.items_effects import play_cassette, ajouter_atk, ajouter_vie, retirer_atk, retirer_vie
 
 # ── Entités vivantes
 from entities.boss import *
@@ -105,7 +105,42 @@ from utils import draw_mouse_coords
 from audio import music_manager as music
 from audio import sound_manager as sfx
 
-pygame.mixer.init()
+# ── Initialisation audio robuste ──────────────────────────────────────
+# Sur certaines machines, un camarade ou un script avait posé
+# SDL_AUDIODRIVER=coreaudio (driver macOS) → pygame.mixer.init() plantait
+# sur Windows avec "Audio target 'coreaudio' not available". On essaie
+# en cascade les drivers de la plateforme courante, et on fallback sur
+# "dummy" (pas de son, mais le jeu démarre) en dernier recours.
+import os as _os, sys as _sys
+def _init_audio_robuste():
+    # Si déjà initialisé (ex: reload), ne rien faire.
+    if pygame.mixer.get_init():
+        return
+    # 1. Essai avec le driver demandé par l'environnement (s'il est valide).
+    drivers_a_essayer = []
+    env = _os.environ.get("SDL_AUDIODRIVER", "").lower()
+    if env and env != "coreaudio":  # coreaudio invalide hors macOS
+        drivers_a_essayer.append(env)
+    # 2. Drivers spécifiques à la plateforme.
+    if _sys.platform.startswith("win"):
+        drivers_a_essayer += ["directsound", "wasapi", "winmm"]
+    elif _sys.platform == "darwin":
+        drivers_a_essayer += ["coreaudio"]
+    else:
+        drivers_a_essayer += ["pulseaudio", "alsa"]
+    # 3. Dernier recours : driver "dummy" = pas de son mais le jeu tourne.
+    drivers_a_essayer.append("dummy")
+    for drv in drivers_a_essayer:
+        _os.environ["SDL_AUDIODRIVER"] = drv
+        try:
+            pygame.mixer.init()
+            if drv == "dummy":
+                print("[Audio] aucun driver fonctionnel → mode silencieux")
+            return
+        except pygame.error:
+            pygame.mixer.quit()
+            continue
+_init_audio_robuste()
 
 class Game:
     """La classe qui contient et orchestre tout le jeu."""
@@ -121,9 +156,12 @@ class Game:
     def __init__(self):
         # ── 1.1 Démarrage de pygame (moteur) ──
         # pygame.init()       → initialise tous les sous-systèmes
-        # pygame.mixer.init() → initialise le système audio
+        # pygame.mixer.init() → initialise le système audio (déjà fait au
+        #   chargement du module via _init_audio_robuste, mais on rappelle
+        #   ici par sécurité — c'est idempotent).
         pygame.init()
-        pygame.mixer.init()
+        if not pygame.mixer.get_init():
+            _init_audio_robuste()
 
         # Fenêtre redimensionnable + SCALED (accélération GPU).
         # pygame.SCALED : pygame rend à la résolution logique (WIDTH×HEIGHT)
@@ -386,6 +424,11 @@ class Game:
         # cinématique de Nymbus (action unlock_quickuse) qui débloque
         # aussi la croix directionnelle de consommables rapides.
         self.inventory.add_item("Cassette")                    # cassette offerte au départ
+        self.inventory.add_item("CleRouge")                    # testeur
+        self.inventory.add_item("CleJaune")                    # testeur
+        self.inventory.add_item("Epee")                        # testeur
+        self.inventory.add_item("Bouclier")                    # testeur
+
         # Note : la barre quick-use est créée plus tard dans __init__,
         # une fois que self.joueur existe (cf. après Player((100, 400))).
 
@@ -486,6 +529,20 @@ class Game:
         # (carte, x, y) du dernier save manuel — utilisé par Recommencer
         # après mort pour respawn au banc plutôt qu'au spawn de map.
         self._dernier_save_pos = None
+        # ── Checkpoint joueur (auto-save zones) ─────────────────────
+        # Snapshot LÉGER du joueur quand il traverse une autosave_zone :
+        # position, HP, argent, inventaire. Pas de story_flags ni de
+        # cinematics_played — l'histoire reste intacte au respawn (les
+        # cines déjà vues ne se rejouent pas).
+        # Format : {"map": str, "x": int, "y": int, "hp": int,
+        #           "coins": int, "inventory": [...]}
+        self._dernier_checkpoint = None
+        # Cause de la dernière mort : "boss" (ennemi nommé), "pic"
+        # (danger_zone), "ennemi" (mob anonyme), "" (inconnu/aucune).
+        # Utilisée par "Recommencer" pour décider du point de respawn :
+        #   - "boss" + pomme(s) → respawn dans la même salle
+        #   - autre OU pas de pomme → respawn au checkpoint courant
+        self._derniere_cause_mort = ""
         # Story flags : dict {key: {"current": N, "required": M}}.
         # (Anciens flags booléens automatiquement normalisés à la lecture.)
         # Posé par cutscene set_flag/flag_increment ou PNJ events. Lu pour
@@ -732,6 +789,25 @@ class Game:
                     duree=(0.4, 0.8),
                 )
 
+                # ── FLAG DE MORT (boss / ennemis nommés) ─────────────────
+                # Si l'ennemi a un nom unique, on pose le flag "mort_<nom>"
+                # à 1/1 dans story_flags. Toute cinématique avec condition
+                # flag:mort_<nom> se déclenchera (auto-fire ou via trigger).
+                # Permet de scripter clé-après-boss, téléport, etc. sans
+                # toucher au code.
+                nom = getattr(ennemi, "nom", "") or ""
+                if nom:
+                    flag_key = f"mort_{nom}"
+                    try:
+                        from systems.story_flags import flag_poser
+                        flag_poser(self.story_flags, flag_key, True)
+                        if hasattr(self, "notifier"):
+                            self.notifier(f"{flag_key} : 1/1")
+                        if hasattr(self, "_programmer_verif_cine"):
+                            self._programmer_verif_cine()
+                    except Exception as e:
+                        print(f"[Mort boss] échec flag '{flag_key}' : {e}")
+
                 # ── Récompense BOSS : +1 luciole (max 5 dans tout le jeu) ───
                 # On utilise gagner_luciole_unique() qui mémorise la source
                 # → un boss déjà tué dans une partie précédente (rechargée)
@@ -953,6 +1029,7 @@ class Game:
             self.carte_actuelle = carte
             self._reconstruire_grille()
             self._murs_modifies()
+            self._appliquer_musique_carte()
 
             # Priorité de placement (du plus précis au plus général) :
             #   1. Spawn nommé (si défini dans le portail ET dans la map)
@@ -1346,6 +1423,83 @@ class Game:
                 # elle se déclenchera après un court délai.
                 self._programmer_verif_cine()
 
+        elif etype == "teleport":
+            # Téléporte le joueur vers une autre map ou un spawn nommé.
+            # Format identique à teleport_player de cutscene.py :
+            #   cible "spawn"        → carte courante, spawn nommé
+            #   cible "map spawn"    → autre carte, spawn nommé
+            #   sinon (x, y)         → carte courante, coords explicites
+            cible = str(event.get("cible", "")).strip()
+            nom_map = None
+            nom_spawn = None
+            if cible:
+                if " " in cible:
+                    parts = cible.split(" ", 1)
+                    nom_map   = parts[0].strip()
+                    nom_spawn = parts[1].strip()
+                else:
+                    nom_spawn = cible
+            print(f"[TP] cible='{cible}' → map='{nom_map}' spawn='{nom_spawn}'")
+            if nom_map and nom_map != getattr(self, "carte_actuelle", ""):
+                if hasattr(self.editeur, "load_map_for_portal"):
+                    if self.editeur.load_map_for_portal(nom_map):
+                        self.carte_actuelle = nom_map
+                        print(f"[TP] map changée → {nom_map}")
+                        try:
+                            self._reconstruire_grille()
+                            self._murs_modifies()
+                            self._sync_triggers()
+                            self._appliquer_musique_carte()
+                        except Exception as e:
+                            print(f"[TP] reconstruction map : {e}")
+                    else:
+                        print(f"[TP] échec load_map_for_portal('{nom_map}')")
+            named = getattr(self.editeur, "named_spawns", {}) or {}
+            # Fallback : si l'éditeur n'a pas (ou plus) de named_spawns
+            # mais que le spawn est demandé, on relit le JSON brut du
+            # disque pour la map COURANTE. Couvre le cas où un autre
+            # _apply_state aurait écrasé named_spawns entre-temps.
+            if nom_spawn and nom_spawn not in named:
+                target_map = nom_map or getattr(self, "carte_actuelle", "")
+                if target_map:
+                    try:
+                        import json, os
+                        from world.editor import MAPS_DIR
+                        fp = os.path.join(MAPS_DIR, f"{target_map}.json")
+                        with open(fp, encoding="utf-8") as f:
+                            map_data = json.load(f)
+                        named_disk = map_data.get("named_spawns", {}) or {}
+                        if named_disk:
+                            print(f"[TP] reload spawns de '{target_map}' depuis disque")
+                            self.editeur.named_spawns = dict(named_disk)
+                            named = self.editeur.named_spawns
+                    except Exception as e:
+                        print(f"[TP] échec relecture {target_map}.json : {e}")
+            print(f"[TP] spawns disponibles : {list(named.keys())}")
+            pos = None
+            if nom_spawn and nom_spawn in named:
+                pos = named[nom_spawn]
+            if pos is not None:
+                self.joueur.rect.x = int(pos[0])
+                self.joueur.rect.y = int(pos[1])
+                print(f"[TP] OK → ({pos[0]}, {pos[1]})")
+            else:
+                x = event.get("x")
+                y = event.get("y")
+                if x is not None and y is not None:
+                    self.joueur.rect.x = int(x)
+                    self.joueur.rect.y = int(y)
+                    print(f"[TP] fallback x/y → ({x}, {y})")
+                elif nom_spawn:
+                    print(f"[TP] spawn '{nom_spawn}' INTROUVABLE — "
+                          f"le spawn doit être posé sur la map cible "
+                          f"(mode 15 'Spawn nommé') et la map sauvée.")
+            self.joueur.vx           = 0
+            self.joueur.vy           = 0
+            self.joueur.knockback_vx = 0
+            if hasattr(self.camera, "snap_to"):
+                self.camera.snap_to(self.joueur.rect)
+
         elif etype == "flag_increment":
             # Incrémente un flag avec compteur. Crée le flag si absent (avec
             # le required donné en argument, sinon depuis le registre).
@@ -1670,6 +1824,7 @@ class Game:
             debut  = config.get("carte_debut", "")
             if debut and self.editeur.load_map_for_portal(debut):
                 self.carte_actuelle = debut
+                self._appliquer_musique_carte()
             else:
                 # Pas de carte de départ définie → carte vide.
                 self.editeur._new_map()
@@ -1827,6 +1982,7 @@ class Game:
             self._reconstruire_grille()
             self._murs_modifies()
             self._sync_triggers()
+            self._appliquer_musique_carte()
 
         # ── Player ─────────────────────────────────────────────────────
         j = self.joueur
@@ -2222,34 +2378,15 @@ class Game:
 
             choix = self.menu_fin.handle_key(event.key)
             if choix == "Recommencer":
-                # Recommencer = respawn sur la MAP COURANTE (pas retour
-                # à la map de début). Avant on appelait _nouvelle_partie()
-                # qui rechargeait la carte_debut → le joueur était puni
-                # de mort en perdant TOUTE sa progression de map.
-                # Maintenant : on remet juste les PV, on respawn au point
-                # de spawn de la map courante, on revive les ennemis. La
-                # progression (objets ramassés, ennemis tués, dialogues)
-                # est conservée comme dans la plupart des metroidvanias.
-                self.joueur.hp           = self.joueur.max_hp
-                self.joueur.dead         = False
-                self.joueur.vx           = 0
-                self.joueur.vy           = 0
-                self.joueur.knockback_vx = 0
-                self.joueur.invincible   = False
-                # Si on a un dernier point de sauvegarde sur la map COURANTE,
-                # on respawn dessus. Sinon, fallback au spawn de map.
-                _dsp = getattr(self, "_dernier_save_pos", None)
-                if _dsp and _dsp[0] == self.carte_actuelle:
-                    self.joueur.rect.x = _dsp[1]
-                    self.joueur.rect.y = _dsp[2]
-                else:
-                    self.joueur.rect.x = self.editeur.spawn_x
-                    self.joueur.rect.y = self.editeur.spawn_y
-                self.camera.snap_to(self.joueur.rect)
-                # Réveille les ennemis de la map courante.
-                for e in self.ennemis:
-                    e.alive = True
-                self.compagnons.respawn(self.joueur)
+                # ── RESPAWN ─────────────────────────────────────────────
+                # Toujours au dernier checkpoint (autosave_zone traversée).
+                # Si pas de checkpoint → spawn par défaut de la map.
+                # Bonus : on garantit au minimum 10 pommes au joueur pour
+                # qu'il puisse retenter sans être à sec.
+                if not self._restaurer_checkpoint():
+                    self._respawn_meme_salle()
+                self._garantir_minimum_pommes(10)
+                self._derniere_cause_mort = ""
                 self._gameover_fade_alpha = 0.0
                 self.etats.switch(GAME)
             elif choix == "Menu principal":
@@ -2308,13 +2445,17 @@ class Game:
 
         # ── 10. Mort → Cinématique de mort scriptée + Game Over ─────────
         if self.joueur.dead:
+            # Détermine la cause de la mort si pas déjà fixée par les
+            # projectiles (cf. _simuler_jeu). Heuristique : si un boss
+            # (ennemi nommé) est visible à l'écran au moment de la mort,
+            # on considère que c'est lui qui a tué le joueur. Sinon
+            # cause "autre" (pic, mob anonyme, chute…).
+            if not getattr(self, "_derniere_cause_mort", ""):
+                if self._trouver_boss_actif() is not None:
+                    self._derniere_cause_mort = "boss"
+                else:
+                    self._derniere_cause_mort = "autre"
             # On bascule TOUJOURS en GAME_OVER (l'écran de mort apparaît).
-            # En PLUS, on cherche une CutsceneTrigger mode "on_death" qui
-            # couvre la position : si trouvée, on la lance — son dialogue
-            # s'affichera PAR-DESSUS l'écran de mort. Tant que la cinéma-
-            # tique tourne, _gerer_fin bloque le bouton « Recommencer ».
-            # À la fin (action revive_player), le joueur est téléporté
-            # ailleurs et l'écran de mort disparaît.
             self.etats.switch(GAME_OVER)
             self.menu_fin.selection = 0
             self._gameover_fade_alpha = 0.0
@@ -2575,6 +2716,18 @@ class Game:
             self._reconstruire_grille()
             self._murs_modifies()
             self._sync_triggers()
+            # Sync carte_actuelle avec le nom de carte de l'éditeur.
+            # Quand l'utilisateur charge une carte via [L], l'éditeur
+            # met à jour son _nom_carte mais game.carte_actuelle reste
+            # bloqué sur l'ancienne valeur → conséquence : le système de
+            # téléport considérait être encore sur l'ancienne map et ne
+            # rechargeait pas la nouvelle, ce qui faisait perdre les
+            # named_spawns. On resynchronise systématiquement.
+            nc = getattr(self.editeur, "_nom_carte", "")
+            if nc and nc != self.carte_actuelle:
+                self.carte_actuelle = nc
+                # Nouvelle map → on applique sa musique (fondu).
+                self._appliquer_musique_carte()
         elif resultat and resultat.startswith("set_start:"):
             # Résultat au format "set_start:nom_de_la_carte"
             nom = resultat.split(":", 1)[1]
@@ -2624,6 +2777,322 @@ class Game:
 
         if event.type == pygame.MOUSEMOTION and self.camera._drag_active:
             self.camera.update_drag(event.pos)
+
+    # ─────────────────────────────────────────────────────────────────────
+    #  MUSIQUE PAR MAP
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _appliquer_musique_carte(self):
+        """Lit editeur.musique_carte et fait un fondu vers cette musique.
+
+        Si la map n'a pas de musique configurée (champ vide), on coupe
+        la musique courante avec un fondu sortant. Si la map a la même
+        musique que celle déjà en cours, on ne fait rien (évite le hoquet
+        de transition à chaque rechargement de map identique).
+
+        Le fichier "music" du JSON map doit être un nom de fichier dans
+        assets/music/ (ex: "fond.mp3"). On ne vérifie pas l'existence ici
+        — music.transition log un warning et continue silencieusement.
+        """
+        import os
+        nom_musique = (getattr(self.editeur, "musique_carte", "") or "").strip()
+        # Mémoire de la dernière musique appliquée pour éviter de
+        # re-déclencher un fondu sur le même morceau.
+        derniere = getattr(self, "_derniere_musique_carte", None)
+        if nom_musique == derniere:
+            return
+        self._derniere_musique_carte = nom_musique
+
+        if not nom_musique:
+            # Map sans musique → on coupe en douceur.
+            try:
+                music.arreter(fadeout_ms=1000)
+            except Exception as e:
+                print(f"[Musique] arreter : {e}")
+            return
+
+        # Chemin ABSOLU pour ne pas dépendre du dossier de lancement.
+        # Le user peut lancer depuis n'importe où (la racine du repo,
+        # ENTRE-DEUX/, etc.) — on remonte deux dossiers depuis ce fichier
+        # (core/game.py → ENTRE-DEUX/) pour pointer sur assets/music.
+        _base  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        chemin = os.path.join(_base, "assets", "music", nom_musique)
+        if not os.path.isfile(chemin):
+            print(f"[Musique] fichier introuvable : {chemin}")
+            return
+        # Volume centralisé dans settings.VOLUME_MUSIQUE_MAP — baisser
+        # cette valeur dans settings.py pour rendre TOUTES les musiques
+        # de map plus douces (sans toucher à la musique du menu).
+        try:
+            vol = float(getattr(settings, "VOLUME_MUSIQUE_MAP", 0.5))
+        except Exception:
+            vol = 0.5
+        try:
+            music.transition(chemin, volume=vol,
+                             fadeout_ms=1000, fadein_ms=1500)
+        except Exception as e:
+            print(f"[Musique] transition '{nom_musique}' : {e}")
+
+    # ─────────────────────────────────────────────────────────────────────
+    #  CHECKPOINTS JOUEUR (auto-save zones)
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _compter_pommes_inventaire(self):
+        """Compte les pommes (toutes variantes 'Pomme*') dans l'inventaire."""
+        n = 0
+        for slot in getattr(self.inventory, "slots", []) or []:
+            if slot is None:
+                continue
+            nom = getattr(slot, "name", "") or ""
+            if "pomme" in nom.lower():
+                n += int(getattr(slot, "count", 1))
+        return n
+
+    def _garantir_minimum_pommes(self, mini=10):
+        """Au respawn, on s'assure que le joueur a au moins `mini` pommes
+        dans son inventaire. Si déjà ≥ mini, on ne touche à rien. Sinon
+        on ajoute ce qui manque via inventory.add_item."""
+        actuel = self._compter_pommes_inventaire()
+        manque = mini - actuel
+        if manque <= 0:
+            return
+        try:
+            self.inventory.add_item("Pomme", count=manque)
+        except Exception as e:
+            print(f"[Respawn] échec ajout pommes : {e}")
+
+    def _respawn_meme_salle(self):
+        """Respawn le joueur dans la map COURANTE (utilisé après mort de
+        boss avec pommes restantes). PV pleins, ennemis ressuscités."""
+        j = self.joueur
+        j.hp           = j.max_hp
+        j.dead         = False
+        j.vx           = 0
+        j.vy           = 0
+        j.knockback_vx = 0
+        j.invincible   = False
+        # Si on a un dernier point de sauvegarde explicite sur la map
+        # courante, on l'utilise (priorité sur le spawn).
+        _dsp = getattr(self, "_dernier_save_pos", None)
+        if _dsp and _dsp[0] == self.carte_actuelle:
+            j.rect.x = _dsp[1]
+            j.rect.y = _dsp[2]
+        else:
+            j.rect.x = self.editeur.spawn_x
+            j.rect.y = self.editeur.spawn_y
+        if hasattr(self.camera, "snap_to"):
+            self.camera.snap_to(j.rect)
+        # Réveille les ennemis de la map courante (le boss revient).
+        for e in self.ennemis:
+            e.alive = True
+        self.compagnons.respawn(j)
+
+    def _snapshot_player(self):
+        """Capture l'état actuel du joueur (player-only) dans un dict.
+
+        Cf. self._dernier_checkpoint pour le format. Volontairement minimal
+        — pas de story_flags, pas de cines jouées : ces infos restent
+        celles du runtime au moment du respawn (= l'histoire ne régresse
+        pas, on ne rejoue pas les cines déjà vues)."""
+        j = self.joueur
+        inv = []
+        for slot in getattr(self.inventory, "slots", []):
+            if slot is None:
+                inv.append(None)
+            else:
+                inv.append({
+                    "name":  slot.name,
+                    "count": int(getattr(slot, "count", 1)),
+                })
+        return {
+            "map":       self.carte_actuelle,
+            "x":         int(j.rect.x),
+            "y":         int(j.rect.y),
+            "hp":        int(j.hp),
+            "coins":     int(getattr(j, "coins", 0)),
+            "inventory": inv,
+        }
+
+    def _verifier_autosave_zones(self):
+        """Si le joueur traverse une autosave_zone, on snapshot son état.
+        Le snapshot écrase le précédent (toujours le checkpoint le plus
+        récent que le joueur a touché)."""
+        if self.editeur.active or self.joueur.dead:
+            return
+        zones = getattr(self.editeur, "autosave_zones", []) or []
+        if not zones:
+            return
+        for zone in zones:
+            if self.joueur.rect.colliderect(zone["rect"]):
+                self._dernier_checkpoint = self._snapshot_player()
+                # Petit toast pour confirmer (peut être retiré si trop verbeux)
+                if hasattr(self, "notifier"):
+                    self.notifier("Checkpoint enregistré ✓", duree=1.5)
+                # Une zone à la fois suffit ; on sort.
+                return
+
+    def _restaurer_checkpoint(self):
+        """Restaure l'état joueur depuis self._dernier_checkpoint, sans
+        toucher à l'histoire. Renvoie True si un checkpoint a été
+        appliqué, False sinon (pas de checkpoint → fallback à gérer
+        par l'appelant : spawn de map ou _dernier_save_pos)."""
+        cp = self._dernier_checkpoint
+        if not cp:
+            return False
+        j = self.joueur
+        # Charger la map du checkpoint si différente
+        map_cp = cp.get("map")
+        if map_cp and map_cp != self.carte_actuelle:
+            try:
+                if self.editeur.load_map_for_portal(map_cp):
+                    self.carte_actuelle = map_cp
+                    self._reconstruire_grille()
+                    self._murs_modifies()
+                    self._sync_triggers()
+                    self._appliquer_musique_carte()
+            except Exception as e:
+                print(f"[Checkpoint] échec chgt map : {e}")
+        j.rect.x        = int(cp.get("x", j.rect.x))
+        j.rect.y        = int(cp.get("y", j.rect.y))
+        j.hp            = int(cp.get("hp", j.max_hp))
+        j.coins         = int(cp.get("coins", getattr(j, "coins", 0)))
+        j.dead          = False
+        j.vx            = 0
+        j.vy            = 0
+        j.knockback_vx  = 0
+        j.invincible    = False
+        # Restaure l'inventaire
+        try:
+            inv_data = cp.get("inventory", [])
+            slots = getattr(self.inventory, "slots", None)
+            if slots is not None and inv_data is not None:
+                for i, item in enumerate(inv_data):
+                    if i >= len(slots):
+                        break
+                    if item is None:
+                        slots[i] = None
+                    else:
+                        # Recrée le slot via add_item (gère les images)
+                        # Plus simple : on vide et on re-add
+                        try:
+                            from ui.inventory import Item
+                            slots[i] = Item(item["name"],
+                                            count=int(item.get("count", 1)))
+                        except Exception:
+                            pass
+        except Exception as e:
+            print(f"[Checkpoint] inventaire : {e}")
+        # Snap caméra
+        if hasattr(self.camera, "snap_to"):
+            self.camera.snap_to(j.rect)
+        return True
+
+    # ─────────────────────────────────────────────────────────────────────
+    #  BARRE DE VIE BOSS (grande, en bas de l'écran)
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _trouver_boss_actif(self):
+        """Renvoie l'ennemi nommé (= boss) le plus pertinent à afficher,
+        ou None s'il n'y en a aucun. Critères :
+          - vivant
+          - a un nom non vide (= a été désigné comme boss)
+          - sa hitbox est sur l'écran (au moins partiellement visible)
+        S'il y en a plusieurs (rare), on prend le plus proche du joueur."""
+        if not getattr(self, "ennemis", None):
+            return None
+        # Rect écran en coordonnées monde (pour test de visibilité)
+        sw, sh = self.screen.get_size()
+        ox = getattr(self.camera, "offset_x", 0)
+        oy = getattr(self.camera, "offset_y", 0)
+        ecran_monde = pygame.Rect(ox, oy, sw, sh)
+        candidats = []
+        for e in self.ennemis:
+            if not getattr(e, "alive", False):
+                continue
+            nom = getattr(e, "nom", "") or ""
+            if not nom:
+                continue
+            if not e.rect.colliderect(ecran_monde):
+                continue
+            candidats.append(e)
+        if not candidats:
+            return None
+        # Le plus proche du joueur
+        jx, jy = self.joueur.rect.centerx, self.joueur.rect.centery
+        candidats.sort(
+            key=lambda e: (e.rect.centerx - jx) ** 2 + (e.rect.centery - jy) ** 2
+        )
+        return candidats[0]
+
+    def _dessiner_boss_hp_bar(self):
+        """Affiche une grande barre de vie en bas de l'écran avec le nom du
+        boss au-dessus. Visible uniquement si un boss (ennemi nommé) est
+        vivant ET visible à l'écran."""
+        boss = self._trouver_boss_actif()
+        if boss is None:
+            return
+
+        sw, sh = self.screen.get_size()
+        # Dimensions et placement
+        bar_w   = int(sw * 0.6)              # 60% de la largeur d'écran
+        bar_h   = 22
+        bar_x   = (sw - bar_w) // 2          # centré horizontalement
+        bar_y   = sh - 60                    # à 60 px du bas
+
+        # Police lazy
+        if not hasattr(self, "_boss_bar_font"):
+            try:
+                self._boss_bar_font = pygame.font.SysFont("Consolas", 22, bold=True)
+            except Exception:
+                self._boss_bar_font = pygame.font.Font(None, 26)
+
+        nom    = boss.nom or "Boss"
+        max_hp = max(1, int(getattr(boss, "max_vie", 1)))
+        hp     = max(0, int(getattr(boss, "hp", 0)))
+        ratio  = hp / max_hp
+
+        # ── Cadre : fond noir semi-transparent ──
+        fond = pygame.Surface((bar_w + 8, bar_h + 8), pygame.SRCALPHA)
+        fond.fill((0, 0, 0, 180))
+        self.screen.blit(fond, (bar_x - 4, bar_y - 4))
+
+        # ── Barre de fond (rouge sombre) ──
+        pygame.draw.rect(self.screen, (60, 12, 16),
+                         (bar_x, bar_y, bar_w, bar_h))
+
+        # ── Barre actuelle (rouge vif → jaune en bas) ──
+        cur_w = int(bar_w * ratio)
+        if cur_w > 0:
+            # Couleur : rouge si > 30%, jaune sinon (signal "presque mort")
+            if ratio > 0.3:
+                couleur = (210, 35, 45)
+            else:
+                couleur = (240, 180, 40)
+            pygame.draw.rect(self.screen, couleur,
+                             (bar_x, bar_y, cur_w, bar_h))
+
+        # ── Bordure dorée ──
+        pygame.draw.rect(self.screen, (240, 200, 80),
+                         (bar_x, bar_y, bar_w, bar_h), 2)
+
+        # ── Nom du boss au-dessus ──
+        nom_surf = self._boss_bar_font.render(nom.upper(), True, (255, 230, 180))
+        nom_rect = nom_surf.get_rect(midbottom=(bar_x + bar_w // 2, bar_y - 6))
+        # Petite ombre pour la lisibilité
+        ombre = self._boss_bar_font.render(nom.upper(), True, (0, 0, 0))
+        self.screen.blit(ombre, (nom_rect.x + 2, nom_rect.y + 2))
+        self.screen.blit(nom_surf, nom_rect)
+
+        # ── HP en chiffres (petit, à droite de la barre) ──
+        try:
+            font_sm = pygame.font.SysFont("Consolas", 14)
+        except Exception:
+            font_sm = pygame.font.Font(None, 18)
+        hp_txt = f"{hp} / {max_hp}"
+        hp_surf = font_sm.render(hp_txt, True, (255, 255, 255))
+        self.screen.blit(hp_surf,
+                         (bar_x + bar_w - hp_surf.get_width() - 6,
+                          bar_y + (bar_h - hp_surf.get_height()) // 2))
 
     def respawn_player_at(self, x, y):
         """Téléporte le joueur au respawn d'une danger_zone et applique 1 PV
@@ -2828,6 +3297,47 @@ class Game:
                 if self.joueur.rect.colliderect(zone["rect"]):
                     rx, ry = zone["respawn_pos"]
                     self.respawn_player_at(rx, ry)
+                    break
+            # Auto-save zones : checkpoint léger (joueur seul, pas l'histoire)
+            self._verifier_autosave_zones()
+
+        # ── Projectiles d'ombre tirés par les boss ──────────────────────
+        # On vérifie toujours la collision avec le joueur (même s'il est
+        # invincible) : si dash/dodge → la boule TRAVERSE sans dégât (pas
+        # consommée). Sinon, contact = -1 PV via hit_by_enemy (qui gère
+        # l'invincibilité / anim hurt). Le projectile s'auto-détruit sur
+        # un hit qui inflige des dégâts pour ne pas re-toucher en boucle.
+        if not self.editeur.active:
+            joueur_immune = (getattr(self.joueur, "dashing", False)
+                             or getattr(self.joueur, "back_dodge_lock_timer", 0.0) > 0)
+            for ennemi in self.ennemis:
+                if not getattr(ennemi, "alive", False):
+                    continue
+                projs = getattr(ennemi, "projectiles", None)
+                if not projs:
+                    continue
+                touche = False
+                for p in projs:
+                    if not p.alive:
+                        continue
+                    if p.rect.colliderect(self.joueur.rect):
+                        if joueur_immune:
+                            # Dash/slide/dodge : la boule passe à travers
+                            continue
+                        # Contact normal : on consomme le projectile et
+                        # on inflige les dégâts via la voie standard.
+                        p.alive = False
+                        try:
+                            self.joueur.hit_by_enemy(p.rect)
+                        except Exception:
+                            self.joueur.hp = max(0, self.joueur.hp - 1)
+                            if self.joueur.hp <= 0:
+                                self.joueur.dead = True
+                        if getattr(ennemi, "nom", ""):
+                            self._derniere_cause_mort = "boss"
+                        touche = True
+                        break
+                if touche:
                     break
 
         if not self.editeur.active:
@@ -3094,6 +3604,43 @@ class Game:
                     r.top = rect_mur.bottom
                 self.joueur.vy = 0
 
+    def update_bonus(self):
+        # epee
+        if self.inventory.epee_active:
+            if not self.joueur.epee_bonus:
+                ajouter_atk(self.joueur)
+                self.joueur.epee_bonus = True
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_epee_msg", 0) > 3000:
+                    self.notifier("attaque supp active")
+                    self._last_epee_msg = now
+        else:
+            if self.joueur.epee_bonus:
+                retirer_atk(self.joueur)
+                self.joueur.epee_bonus = False
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_epee_msg2", 0) > 3000:
+                    self.notifier("attaque supp desactive")
+                    self._last_epee_msg2 = now
+
+        # bouclier
+        if self.inventory.bouclier_actif:
+            if not self.joueur.bouclier_bonus:
+                ajouter_vie(self.joueur)
+                self.joueur.bouclier_bonus = True
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_bouclier_msg", 0) > 3000:
+                    self.notifier("vie supp active")
+                    self._last_bouclier_msg = now
+        else:
+            if self.joueur.bouclier_bonus:
+                retirer_vie(self.joueur)
+                self.joueur.bouclier_bonus = False
+                now = pygame.time.get_ticks()
+                if now - getattr(self, "_last_bouclier_msg2", 0) > 3000:
+                    self.notifier("vie supp desactive")
+                    self._last_bouclier_msg2 = now
+
     # ═════════════════════════════════════════════════════════════════════════
     # 10.  RENDU — dessine le monde et les interfaces
     # ═════════════════════════════════════════════════════════════════════════
@@ -3326,6 +3873,9 @@ class Game:
         if not self.editeur.active:
             self.hp_overlay.draw(self.screen, self.joueur)
             self.hud.draw(self.screen, self.joueur, self.peur)
+            # Barre de vie BOSS (en bas de l'écran). Dessinée seulement
+            # s'il y a un ennemi nommé visible/proche.
+            self._dessiner_boss_hp_bar()
             # Overlay "fear text" : dessiné par-dessus le HUD pour rester
             # lisible. Invisible si self.fear_overlay.actif est False.
             self.fear_overlay.draw(self.screen)
@@ -3347,6 +3897,8 @@ class Game:
             visuel, sonore = self.inventory.cassette_a_jouer
             self.inventory.cassette_a_jouer = None
             play_cassette(visuel, sonore, self.screen)
+
+        self.update_bonus()
             
         self.inventory.draw(self.screen, 6, 5)
         self.dialogue.draw(self.screen)
@@ -3767,6 +4319,8 @@ class Game:
                         self._reconstruire_grille()
                         self._murs_modifies()
                         self._sync_triggers()
+                        # Lance la musique de la map (fondu sur la précédente).
+                        self._appliquer_musique_carte()
                     self._menu_choix_carte = None
                     self.etats.switch(GAME)
                 self._lancer_fondu_menu(_action_charger)

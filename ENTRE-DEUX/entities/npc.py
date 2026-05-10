@@ -374,7 +374,7 @@ class PNJ:
         if sprite_name == "nimbus":
             self.echelle = 2
 
-        if sprite_name == "fox":
+        if sprite_name == "fox" or sprite_name == "squirrel" or sprite_name == "hedgehog" or sprite_name == "armadillo":
             self.echelle = 3
 
         if sprite_name and self.echelle != 1:
