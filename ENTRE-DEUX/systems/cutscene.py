@@ -646,6 +646,12 @@ class Cutscene:
                             game._sync_triggers()
                         except Exception:
                             pass
+                        # Musique de la nouvelle map (fondu)
+                        if hasattr(game, "_appliquer_musique_carte"):
+                            try:
+                                game._appliquer_musique_carte()
+                            except Exception:
+                                pass
             # Position cible
             named = getattr(game.editeur, "named_spawns", {}) or {}
             pos = None
@@ -830,6 +836,12 @@ class Cutscene:
                             game._sync_triggers()
                         except Exception:
                             pass
+                        # Musique de la nouvelle map
+                        if hasattr(game, "_appliquer_musique_carte"):
+                            try:
+                                game._appliquer_musique_carte()
+                            except Exception:
+                                pass
 
             # Récupère la position du spawn nommé.
             named = getattr(game.editeur, "named_spawns", {}) or {}

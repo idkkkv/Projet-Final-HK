@@ -1029,6 +1029,7 @@ class Game:
             self.carte_actuelle = carte
             self._reconstruire_grille()
             self._murs_modifies()
+            self._appliquer_musique_carte()
 
             # Priorité de placement (du plus précis au plus général) :
             #   1. Spawn nommé (si défini dans le portail ET dans la map)
@@ -1448,6 +1449,7 @@ class Game:
                             self._reconstruire_grille()
                             self._murs_modifies()
                             self._sync_triggers()
+                            self._appliquer_musique_carte()
                         except Exception as e:
                             print(f"[TP] reconstruction map : {e}")
                     else:
@@ -1822,6 +1824,7 @@ class Game:
             debut  = config.get("carte_debut", "")
             if debut and self.editeur.load_map_for_portal(debut):
                 self.carte_actuelle = debut
+                self._appliquer_musique_carte()
             else:
                 # Pas de carte de départ définie → carte vide.
                 self.editeur._new_map()
@@ -1979,6 +1982,7 @@ class Game:
             self._reconstruire_grille()
             self._murs_modifies()
             self._sync_triggers()
+            self._appliquer_musique_carte()
 
         # ── Player ─────────────────────────────────────────────────────
         j = self.joueur
@@ -2722,6 +2726,8 @@ class Game:
             nc = getattr(self.editeur, "_nom_carte", "")
             if nc and nc != self.carte_actuelle:
                 self.carte_actuelle = nc
+                # Nouvelle map → on applique sa musique (fondu).
+                self._appliquer_musique_carte()
         elif resultat and resultat.startswith("set_start:"):
             # Résultat au format "set_start:nom_de_la_carte"
             nom = resultat.split(":", 1)[1]
@@ -2771,6 +2777,61 @@ class Game:
 
         if event.type == pygame.MOUSEMOTION and self.camera._drag_active:
             self.camera.update_drag(event.pos)
+
+    # ─────────────────────────────────────────────────────────────────────
+    #  MUSIQUE PAR MAP
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _appliquer_musique_carte(self):
+        """Lit editeur.musique_carte et fait un fondu vers cette musique.
+
+        Si la map n'a pas de musique configurée (champ vide), on coupe
+        la musique courante avec un fondu sortant. Si la map a la même
+        musique que celle déjà en cours, on ne fait rien (évite le hoquet
+        de transition à chaque rechargement de map identique).
+
+        Le fichier "music" du JSON map doit être un nom de fichier dans
+        assets/music/ (ex: "fond.mp3"). On ne vérifie pas l'existence ici
+        — music.transition log un warning et continue silencieusement.
+        """
+        import os
+        nom_musique = (getattr(self.editeur, "musique_carte", "") or "").strip()
+        # Mémoire de la dernière musique appliquée pour éviter de
+        # re-déclencher un fondu sur le même morceau.
+        derniere = getattr(self, "_derniere_musique_carte", None)
+        if nom_musique == derniere:
+            return
+        self._derniere_musique_carte = nom_musique
+
+        if not nom_musique:
+            # Map sans musique → on coupe en douceur.
+            try:
+                music.arreter(fadeout_ms=1000)
+            except Exception as e:
+                print(f"[Musique] arreter : {e}")
+            return
+
+        # Chemin ABSOLU pour ne pas dépendre du dossier de lancement.
+        # Le user peut lancer depuis n'importe où (la racine du repo,
+        # ENTRE-DEUX/, etc.) — on remonte deux dossiers depuis ce fichier
+        # (core/game.py → ENTRE-DEUX/) pour pointer sur assets/music.
+        _base  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        chemin = os.path.join(_base, "assets", "music", nom_musique)
+        if not os.path.isfile(chemin):
+            print(f"[Musique] fichier introuvable : {chemin}")
+            return
+        # Volume centralisé dans settings.VOLUME_MUSIQUE_MAP — baisser
+        # cette valeur dans settings.py pour rendre TOUTES les musiques
+        # de map plus douces (sans toucher à la musique du menu).
+        try:
+            vol = float(getattr(settings, "VOLUME_MUSIQUE_MAP", 0.5))
+        except Exception:
+            vol = 0.5
+        try:
+            music.transition(chemin, volume=vol,
+                             fadeout_ms=1000, fadein_ms=1500)
+        except Exception as e:
+            print(f"[Musique] transition '{nom_musique}' : {e}")
 
     # ─────────────────────────────────────────────────────────────────────
     #  CHECKPOINTS JOUEUR (auto-save zones)
@@ -2888,6 +2949,7 @@ class Game:
                     self._reconstruire_grille()
                     self._murs_modifies()
                     self._sync_triggers()
+                    self._appliquer_musique_carte()
             except Exception as e:
                 print(f"[Checkpoint] échec chgt map : {e}")
         j.rect.x        = int(cp.get("x", j.rect.x))
@@ -4257,6 +4319,8 @@ class Game:
                         self._reconstruire_grille()
                         self._murs_modifies()
                         self._sync_triggers()
+                        # Lance la musique de la map (fondu sur la précédente).
+                        self._appliquer_musique_carte()
                     self._menu_choix_carte = None
                     self.etats.switch(GAME)
                 self._lancer_fondu_menu(_action_charger)

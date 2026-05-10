@@ -515,6 +515,12 @@ class Editor:
         # l'arrivée, on cherche le spawn portant ce nom et on s'y téléporte.
         # Persisté dans le JSON de la map (cf. _build_save_data / _apply_state).
         self.named_spawns = {}
+        # Musique de fond de la map (nom du fichier dans assets/music/,
+        # ex: "fond.mp3"). Vide = pas de musique. Lu/écrit par
+        # _apply_state / _build_save_data. À chaque chargement de map,
+        # game._appliquer_musique_carte fait un fondu vers ce morceau
+        # (silencieux si identique à la musique courante).
+        self.musique_carte = ""
 
         # ── Copier/Coller ──
         self._copy_rect           = None
@@ -898,6 +904,7 @@ class Editor:
             # → le joueur réapparaît à la position du spawn nommé "porte_maison"
             # défini dans village.json (au lieu du spawn par défaut).
             "named_spawns": dict(getattr(self, "named_spawns", {})),
+            "music":        getattr(self, "musique_carte", "") or "",
             "bg_color":    list(self.bg_color),
             "platforms":   [{"x": p.rect.x, "y": p.rect.y,
                              "w": p.rect.width, "h": p.rect.height}
@@ -3528,6 +3535,7 @@ class Editor:
             # Format : { "nom": [x, y] }. Lus dans _apply_state.
             # Utilisés par les portails via la syntaxe "mapname spawnname".
             "named_spawns":    dict(getattr(self, "named_spawns", {})),
+            "music":           getattr(self, "musique_carte", "") or "",
             "bg_color":        self.bg_color,
             "wall_color":      self.wall_color,
             "platforms": [{"x": p.rect.x, "y": p.rect.y,
@@ -3633,6 +3641,10 @@ class Editor:
         # rempli plus tard par un mode éditeur dédié).
         # Format : { "nom_du_spawn": [x, y], ... }
         self.named_spawns = dict(data.get("named_spawns", {}))
+        # Musique de fond de la map. Le champ "music" doit contenir le
+        # nom du fichier dans assets/music/ (ex: "fond.mp3"). Vide = pas
+        # de musique. game.py applique la transition après le chargement.
+        self.musique_carte = data.get("music", "") or ""
         if "bg_color"   in data: self.bg_color   = data["bg_color"]
         if "wall_color" in data: self.wall_color = data["wall_color"]
 
