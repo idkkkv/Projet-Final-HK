@@ -1,0 +1,226 @@
+{
+  "ground_y": 1100,
+  "ceiling_y": 0,
+  "scene_width": 2000,
+  "scene_left": 0,
+  "camera_y_offset": -230,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
+  "spawn": {
+    "x": 88,
+    "y": 923
+  },
+  "named_spawns": {},
+  "music": "",
+  "bg_color": [
+    0,
+    0,
+    0
+  ],
+  "wall_color": [
+    0,
+    0,
+    0
+  ],
+  "platforms": [
+    {
+      "x": -1,
+      "y": 939,
+      "w": 2019,
+      "h": 137
+    }
+  ],
+  "custom_walls": [],
+  "ground_segments": [
+    {
+      "x": 0,
+      "y": 1100,
+      "w": 2000,
+      "h": 800
+    }
+  ],
+  "ceiling_segments": [
+    {
+      "x": 0,
+      "y": -800,
+      "w": 2000,
+      "h": 800
+    }
+  ],
+  "left_segments": [
+    {
+      "x": -800,
+      "y": -800,
+      "w": 800,
+      "h": 2700
+    }
+  ],
+  "right_segments": [
+    {
+      "x": 2000,
+      "y": -800,
+      "w": 800,
+      "h": 2700
+    }
+  ],
+  "holes": [],
+  "enemies": [],
+  "lights": [
+    {
+      "x": 584,
+      "y": 817,
+      "radius": 157,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 428,
+      "y": 744,
+      "radius": 78,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 135,
+      "y": 817,
+      "radius": 124,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 742,
+      "y": 743,
+      "radius": 66,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1033,
+      "y": 820,
+      "radius": 128,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1322,
+      "y": 752,
+      "radius": 75,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1481,
+      "y": 816,
+      "radius": 117,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1637,
+      "y": 747,
+      "radius": 86,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 1929,
+      "y": 815,
+      "radius": 134,
+      "type": "torch",
+      "flicker": false,
+      "flicker_speed": 5
+    },
+    {
+      "x": 928,
+      "y": 124,
+      "radius": 1425,
+      "type": "background",
+      "flicker": false,
+      "flicker_speed": 5
+    }
+  ],
+  "portals": [
+    {
+      "x": 2,
+      "y": 776,
+      "w": 31,
+      "h": 177,
+      "target_map": "c",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
+    }
+  ],
+  "decors": [
+    {
+      "x": 0,
+      "y": 179,
+      "sprite": "tiled_mapsppp_d_cor_1_x2p80.png",
+      "collision": false,
+      "echelle": 1.0
+    }
+  ],
+  "pnjs": [
+    {
+      "type": "pnj",
+      "x": 919,
+      "y": 811,
+      "nom": "Nymbus",
+      "sprite_name": "nimbus",
+      "dialogues": [
+        [
+          [
+            "Tu es all\u00e9 plus loin que quiconque avant toi.",
+            "Nymbus"
+          ],
+          [
+            "Tu as travers\u00e9 la peur, le doute\u2026 et m\u00eame ceux qui voulaient te retenir.",
+            "Nymbus"
+          ],
+          [
+            "Le monde qui se dressait devant toi n\u2019a jamais r\u00e9ellement chang\u00e9.",
+            "Nymbus"
+          ],
+          [
+            "C\u2019est toi qui n\u2019es plus la m\u00eame personne qu\u2019au d\u00e9but de ce voyage.",
+            "Nymbus"
+          ],
+          [
+            "Le pont t\u2019attend encore\u2026 mais cette fois, il ne te fera plus reculer.",
+            "Nymbus"
+          ],
+          [
+            "Viens. Il est temps de retourner l\u00e0 o\u00f9 tout a commenc\u00e9.",
+            "Nymbus"
+          ]
+        ]
+      ],
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": true,
+      "is_save_point": false,
+      "events": [
+        [
+          {
+            "type": "teleport",
+            "cible": "map22 h"
+          }
+        ]
+      ],
+      "dialogue_conditions": [
+        null
+      ]
+    }
+  ],
+  "trigger_zones": [],
+  "danger_zones": [],
+  "autosave_zones": []
+}

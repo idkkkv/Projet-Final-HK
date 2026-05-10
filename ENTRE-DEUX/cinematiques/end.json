@@ -1,0 +1,42 @@
+{
+  "steps": [
+    {
+      "type": "npc_spawn",
+      "nom": "Nymbus",
+      "x": 2046,
+      "y": 1830,
+      "sprite": "nimbus",
+      "dialogue_mode": "boucle_dernier",
+      "has_gravity": 1,
+      "dialogues": [
+        [
+          [
+            "Tu as porté tes peurs jusqu’au bout de ce monde.",
+            "Nymbus"
+          ],
+          [
+            "Tu as affronté ce que même les ombres cherchaient à fuir.",
+            "Nymbus"
+          ],
+          [
+            "Le chemin qui te retenait n’existe plus désormais.",
+            "Nymbus"
+          ],
+          [
+            "…Tu es libre, maintenant.",
+            "Nymbus"
+          ]
+        ]
+      ],
+      "events": [
+        []
+      ]
+    }
+  ],
+  "condition": {
+    "flag": "boss",
+    "value": false
+  },
+  "delay": 1.0,
+  "one_shot": true
+}
