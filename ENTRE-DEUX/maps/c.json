@@ -204,7 +204,8 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": false
+      "need_key": true, 
+      "key_type": "CleJaune"
     },
     {
       "x": 1020,
@@ -215,7 +216,8 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": false
+      "need_key": true, 
+      "key_type": "CleBleue"
     },
     {
       "x": 1541,
@@ -226,7 +228,8 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": false
+      "need_key": true, 
+      "key_type": "CleRouge"
     }
   ],
   "decors": [

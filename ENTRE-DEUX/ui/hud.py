@@ -284,7 +284,7 @@ class HUD:
         """Dessine l'argent + animation""" 
 
         texte = self._police_pieces.render(
-            f"money : {joueur.coins}", True, (230, 210, 255)
+            f"Echos : {joueur.coins}", True, (230, 210, 255)
         )
         surf.blit(texte, (x, y))
         
