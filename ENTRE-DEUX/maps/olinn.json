@@ -4,10 +4,13 @@
   "scene_width": 2400,
   "scene_left": 0,
   "camera_y_offset": 150,
+  "camera_zoom": 1.0,
+  "player_scale": 1.0,
   "spawn": {
     "x": 100,
     "y": 100
   },
+  "named_spawns": {},
   "bg_color": [
     38,
     19,
@@ -55,32 +58,36 @@
   "holes": [],
   "enemies": [
     {
-      "x": 629,
-      "y": 467,
-      "nb_dgt":2,
+      "x": 891,
+      "y": 0,
       "has_gravity": true,
       "has_collision": true,
-      "sprite_name": "flamur",
+      "sprite_name": "boss",
       "can_jump": false,
       "can_jump_patrol": false,
       "jump_power": 400,
       "detect_range": 200,
       "detect_height": 80,
-      "has_light": false,
+      "has_light": true,
       "light_type": "dim",
-      "light_radius": 100,
-      "patrol_left": 422,
-      "patrol_right": 1022,
+      "light_radius": 300,
+      "patrol_left": 852,
+      "patrol_right": 1252,
       "can_fall_in_holes": false,
       "respawn_timeout": 10.0,
       "can_turn_randomly": false,
       "patrol_speed": 120,
-      "chase_speed": 200
+      "chase_speed": 200,
+      "nom": "",
+      "max_vie": 2,
+      "boss_tier": 0
     }
   ],
   "lights": [],
   "portals": [],
   "decors": [],
   "pnjs": [],
-  "trigger_zones": []
+  "trigger_zones": [],
+  "danger_zones": [],
+  "autosave_zones": []
 }

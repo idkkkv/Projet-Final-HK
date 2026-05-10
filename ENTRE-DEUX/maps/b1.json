@@ -206,41 +206,29 @@
       "inventaire": [
         {
           "nom": "Pomme",
-          "prix": 1,
-          "desc": "pomme de blanche neige idk\nil pourrait heal mais il a autre chose \u00c3\u00a0 faire\ndonc NAN. D:<"
+          "prix": 8,
+          "desc": "pomme de blanche neige idk, il est de bonne humeur donc il heal !! :D"
         },
         {
           "nom": "Cassette",
-          "prix": 20,
-          "desc": "il sert \u00c3\u00a0 rien mais il sera qd meme l\u00c3\u00a0\n pour faire semblant (tkt est tres tres utile)",
+          "prix": 22,
+          "desc": "il sert a rien mais il sera qd meme la pour faire semblant (tkt est tres tres utile)",
           "stock": 1
         },
         {
           "nom": "CleJaune",
-          "prix": 10,
+          "prix": 45,
           "desc": "ouvre une porte",
           "stock": 1
         },
         {
-          "nom": "CleRouge",
-          "prix": 5,
-          "desc": "ouvre une porte rouge",
-          "stock": 1
-        },
-        {
-          "nom": "CleBleue",
-          "prix": 10,
-          "desc": "ouvre une porte bleue",
-          "stock": 1
-        },
-        {
           "nom": "Epee",
-          "prix": 2,
+          "prix": 120,
           "desc": "Augmente les dgt d'atk"
         },
         {
           "nom": "Bouclier",
-          "prix": 2,
+          "prix": 110,
           "desc": "augmente la vie"
         },
         {
