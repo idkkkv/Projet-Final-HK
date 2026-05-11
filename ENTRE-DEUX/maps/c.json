@@ -228,6 +228,17 @@
       "target_y": -1,
       "require_up": true,
       "need_key": true
+    },
+    {
+      "x": 2061,
+      "y": 659,
+      "w": 34,
+      "h": 191,
+      "target_map": "mapend",
+      "target_x": -1,
+      "target_y": -1,
+      "require_up": false,
+      "need_key": false
     }
   ],
   "decors": [
