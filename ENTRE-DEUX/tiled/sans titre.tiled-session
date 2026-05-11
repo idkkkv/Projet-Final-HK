@@ -1,5 +1,5 @@
 {
-    "activeFile": "mppp.tmx",
+    "activeFile": "",
     "expandedProjectPaths": [
         "."
     ],
@@ -102,9 +102,6 @@
             "scaleInDock": 0.015625,
             "scaleInEditor": 1
         },
-        "Simple Wallpaper __ Sky @20derajat_.tsx": {
-            "scaleInDock": 1
-        },
         "TX Village Props.tsx": {
             "scaleInDock": 0.5,
             "scaleInEditor": 1
@@ -177,9 +174,6 @@
                 "x": 1471.2121212121212,
                 "y": 975.7575757575758
             }
-        },
-        "bleufoncé.tsx": {
-            "scaleInDock": 1
         },
         "bossabandon.tmx": {
             "scale": 1.128125,
@@ -312,11 +306,11 @@
             }
         },
         "mapsppp.tmx": {
-            "scale": 1,
-            "selectedLayer": 1,
+            "scale": 1.5,
+            "selectedLayer": 0,
             "viewCenter": {
-                "x": 371.5,
-                "y": 285
+                "x": 75.66666666666669,
+                "y": 245.3333333333333
             }
         },
         "mapsptransition.tmx": {
@@ -349,9 +343,6 @@
         "mbossvert.tsx": {
             "scaleInDock": 0.5
         },
-        "mbs.tsx": {
-            "scaleInDock": 1
-        },
         "mppp.tmx": {
             "scale": 2,
             "selectedLayer": 0,
@@ -359,10 +350,6 @@
                 "x": 397.75,
                 "y": 316.5
             }
-        },
-        "mppp.tsx": {
-            "scaleInDock": 0.5,
-            "scaleInEditor": 1
         },
         "mptransi.tsx": {
             "scaleInDock": 1
@@ -454,8 +441,7 @@
             "scaleInEditor": 1
         },
         "plants_stems.tsx": {
-            "scaleInDock": 1,
-            "scaleInEditor": 1
+            "scaleInDock": 1
         },
         "prouge.tmx": {
             "scale": 0.5,
@@ -574,7 +560,7 @@
         "ParallaxCave1.tsx",
         "parcoursrouge.tmx",
         "p.tmx",
-        "mv.tmx",
+        "mapsbossvert.tmx",
         "b1.tmx",
         "b1.tsx",
         "b2.tmx",
@@ -583,16 +569,13 @@
         "b3.tmx",
         "b3.tsx",
         "map23.tmx",
+        "ParallaxCave3.tsx",
         "ParallaxCave2.tsx",
         "c.tmx",
         "c.tsx",
+        "mapsptransition.tmx",
         "mb.tmx",
-        "mbossbleu.tmx",
-        "mr.tmx",
-        "mppp.tmx",
-        "mapsppp.tmx",
-        "plants_stems.tsx",
-        "mppp.tsx"
+        "mbossbleu.tmx"
     ],
     "project": "sans titre.tiled-project",
     "recentFiles": [
@@ -604,7 +587,7 @@
         "ParallaxCave1.tsx",
         "parcoursrouge.tmx",
         "p.tmx",
-        "mv.tmx",
+        "mapsbossvert.tmx",
         "b1.tmx",
         "b1.tsx",
         "b2.tmx"

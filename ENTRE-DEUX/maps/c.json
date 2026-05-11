@@ -205,7 +205,8 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": true
+      "need_key": true,
+      "key_type": "CleJaune"
     },
     {
       "x": 1020,
@@ -216,7 +217,8 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": true
+      "need_key": true,
+      "key_type": "CleBleue"
     },
     {
       "x": 1541,
@@ -227,13 +229,14 @@
       "target_x": -1,
       "target_y": -1,
       "require_up": true,
-      "need_key": true
+      "need_key": true,
+      "key_type": "CleRouge"
     },
     {
-      "x": 2061,
-      "y": 659,
-      "w": 34,
-      "h": 191,
+      "x": 2048,
+      "y": 669,
+      "w": 48,
+      "h": 181,
       "target_map": "mapend",
       "target_x": -1,
       "target_y": -1,
